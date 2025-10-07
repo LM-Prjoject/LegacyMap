@@ -1,0 +1,41 @@
+# ==========================
+# OS / IDE
+# ==========================
+.idea/
+.vscode/
+*.iml
+*.class
+
+# ==========================
+# Node / Frontend
+# ==========================
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnp.*
+.pnpm-debug.log
+# Next.js / React build
+.next/
+out/
+build/
+dist/
+
+# ==========================
+# Java / Spring Boot
+# ==========================
+target/
+*.log
+*.tmp
+
+# ==========================
+# Supabase local temp
+# ==========================
+supabase/.temp/
+
+# ==========================
+# Env files
+# ==========================
+.env
+.env.local
+package.json
+package-lock.json
