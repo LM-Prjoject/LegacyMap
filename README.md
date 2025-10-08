@@ -1,7 +1,6 @@
 Step 1: Connect to the Supabase
 - git clone https://github.com/LM-Prjoject/LegacyMap
 - cd LegacyMap
-- npx supabase login
 - Access https://supabase.com/dashboard/account/tokens :
   + Click generate new token
   + Enter token name: Legacy
