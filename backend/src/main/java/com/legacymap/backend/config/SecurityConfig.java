@@ -14,17 +14,18 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> {
-                })
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/auth/verify/**", "/users/register")
+                )
+                .cors(cors -> {})
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/profiles").permitAll()
-                        .requestMatchers("/auth/**", "/v3/api-docs/***", "/swagger-ui/***").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth/verify/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/register").permitAll()
+                        .requestMatchers("/auth/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
                         .anyRequest().authenticated()
                 );
         return http.build();
-
     }
 }
 
