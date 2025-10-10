@@ -1,6 +1,6 @@
-package com.legacymap.backend.family.dto.request;
+package com.legacymap.backend.dto.request;
 
-import com.legacymap.backend.family.entity.Address;
+import com.legacymap.backend.entity.Address;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -34,6 +34,6 @@ public class UserCreateRequest {
     private String phone;
     private LocalDate dob;
     private Address address;
-    private Boolean isActive;
+   private Boolean isActive;
 
 }
