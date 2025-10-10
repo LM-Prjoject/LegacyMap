@@ -1,26 +1,31 @@
-package com.legacymap.backend.family.service;
+package com.legacymap.backend.service;
 
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
-import com.legacymap.backend.family.dto.request.UserCreateRequest;
-import com.legacymap.backend.family.entity.User;
-import com.legacymap.backend.family.entity.UserProfile;
-import com.legacymap.backend.family.entity.AuthToken;
-import com.legacymap.backend.family.repository.UserProfileRepository;
-import com.legacymap.backend.family.repository.UserRepository;
-import com.legacymap.backend.family.repository.AuthTokenRepository;
+import com.legacymap.backend.dto.request.UserCreateRequest;
+import com.legacymap.backend.entity.User;
+import com.legacymap.backend.entity.UserProfile;
+import com.legacymap.backend.entity.AuthToken;
+import com.legacymap.backend.repository.UserProfileRepository;
+import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.repository.AuthTokenRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class UserService {
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private UserRepository userRepository;
@@ -34,6 +39,41 @@ public class UserService {
     @Autowired
     private EmailService emailService;
 
+
+    public User login(String identifier, String rawPassword) {
+        Optional<User> userOpt;
+
+        // Nếu identifier chứa dấu '@' thì là email
+        if (identifier.contains("@")) {
+            userOpt = userRepository.findByEmail(identifier);
+        } else {
+            userOpt = userRepository.findByUsername(identifier);
+        }
+
+        User user = userOpt.orElseThrow(() ->
+                new AppException(ErrorCode.USER_NOT_FOUND)
+        );
+
+        // kiểm tra trạng thái tài khoản
+        if (!Boolean.TRUE.equals(user.getIsVerified())) {
+            throw new AppException(ErrorCode.ACCOUNT_NOT_VERIFIED);
+        }
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new AppException(ErrorCode.ACCOUNT_DISABLED);
+        }
+
+        // kiểm tra password bằng BCrypt
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // cập nhật last login
+        user.setLastLogin(java.time.OffsetDateTime.now());
+        userRepository.save(user);
+
+        return user;
+    }
     @Transactional
     public User createRequest(UserCreateRequest request) {
 

@@ -1,24 +1,34 @@
-package com.legacymap.backend.family.controller.auth;
+package com.legacymap.backend.controller.auth;
 
-import com.legacymap.backend.family.entity.AuthToken;
-import com.legacymap.backend.family.entity.User;
-import com.legacymap.backend.family.repository.AuthTokenRepository;
-import com.legacymap.backend.family.repository.UserRepository;
+import com.legacymap.backend.dto.request.LoginRequest;
+import com.legacymap.backend.dto.response.ApiResponse;
+import com.legacymap.backend.dto.response.LoginResponse;
+import com.legacymap.backend.entity.AuthToken;
+import com.legacymap.backend.entity.User;
+import com.legacymap.backend.repository.AuthTokenRepository;
+import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.service.AuthTokenService;
+import com.legacymap.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
 
-@Controller
+@RestController
 @RequestMapping("/auth")
 public class AuthController {
 
     @Autowired
     private AuthTokenRepository authTokenRepository;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private AuthTokenService authTokenService;
 
     @Autowired
     private UserRepository userRepository;
@@ -50,5 +60,16 @@ public class AuthController {
         authTokenRepository.save(authToken);
 
         return ResponseEntity.ok("Email verified successfully!");
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@RequestBody LoginRequest request) {
+        User user = userService.login(request.getIdentifier(), request.getPassword());
+
+        // 🔥 Tạo session token khi đăng nhập thành công
+        AuthToken sessionToken = authTokenService.createSessionToken(user);
+
+        LoginResponse response = new LoginResponse(user, sessionToken.getToken());
+        return ApiResponse.success(response);
     }
 }
