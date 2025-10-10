@@ -1,8 +1,8 @@
-package com.legacymap.backend.family.controller;
+package com.legacymap.backend.controller;
 
-import com.legacymap.backend.family.dto.request.UserCreateRequest;
-import com.legacymap.backend.family.entity.User;
-import com.legacymap.backend.family.service.UserService;
+import com.legacymap.backend.dto.request.UserCreateRequest;
+import com.legacymap.backend.entity.User;
+import com.legacymap.backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
