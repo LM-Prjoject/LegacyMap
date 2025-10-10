@@ -1,4 +1,4 @@
-package com.legacymap.backend.family.entity;
+package com.legacymap.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

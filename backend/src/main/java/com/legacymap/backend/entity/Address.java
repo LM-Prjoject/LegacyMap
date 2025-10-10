@@ -1,4 +1,4 @@
-package com.legacymap.backend.family.entity;
+package com.legacymap.backend.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

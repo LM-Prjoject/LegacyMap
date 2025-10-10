@@ -1,6 +1,6 @@
 package com.legacymap.backend.exception;
 
-import com.legacymap.backend.family.dto.response.ApiResponse;
+import com.legacymap.backend.dto.response.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
