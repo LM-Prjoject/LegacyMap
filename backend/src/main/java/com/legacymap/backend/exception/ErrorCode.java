@@ -10,6 +10,10 @@ public enum ErrorCode {
     ACCOUNT_DISABLED("Account is deactivated",1007),
     VALIDATION_FAILED("Validation failed", 1008),
     INTERNAL_ERROR("Internal error", 1009),
+    INVALID_TOKEN("Invalid token", 1010),
+    TOKEN_EXPIRED("Token has expired", 1011),
+    TOKEN_ALREADY_USED("Token already used", 1012),
+    INVALID_PURPOSE("Invalid token purpose", 1013),
     ;
     ErrorCode(String message, int code) {
         this.message = message;
