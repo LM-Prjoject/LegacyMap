@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 @AllArgsConstructor
 @Data
 @RequiredArgsConstructor
-public class LoginResponse {
+public class AuthenticationResponse {
     private User user;
     private String token;
 }
