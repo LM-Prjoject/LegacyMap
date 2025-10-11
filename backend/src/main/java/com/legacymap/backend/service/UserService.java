@@ -8,7 +8,6 @@ import com.legacymap.backend.entity.UserProfile;
 import com.legacymap.backend.entity.AuthToken;
 import com.legacymap.backend.repository.UserProfileRepository;
 import com.legacymap.backend.repository.UserRepository;
-import com.legacymap.backend.repository.AuthTokenRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -17,9 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class UserService {
