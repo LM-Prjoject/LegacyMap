@@ -34,7 +34,7 @@ public class UserService {
     private UserProfileRepository userProfileRepository;
 
     @Autowired
-    private AuthTokenRepository authTokenRepository;
+    private AuthTokenService authTokenService;
 
     @Autowired
     private EmailService emailService;
@@ -74,6 +74,7 @@ public class UserService {
 
         return user;
     }
+
     @Transactional
     public User createRequest(UserCreateRequest request) {
 
@@ -105,18 +106,10 @@ public class UserService {
         profile.setAddress(request.getAddress());
         userProfileRepository.save(profile);
 
-        String tokenStr = UUID.randomUUID().toString().replace("-", "");
-        AuthToken token = AuthToken.builder()
-                .user(user)
-                .token(tokenStr)
-                .type("email_verification")
-                .expiresAt(OffsetDateTime.now().plusHours(24))
-                .used(false)
-                .build();
-        authTokenRepository.save(token);
+        AuthToken verifyToken = authTokenService.createEmailVerificationToken(user);
 
         try {
-            emailService.sendVerificationEmail(user.getEmail(), profile.getFullName(), tokenStr);
+            emailService.sendVerificationEmail(user.getEmail(), profile.getFullName(), verifyToken.getToken());
         } catch (MessagingException e) {
             throw new AppException(ErrorCode.SEND_EMAIL_FAILED);
         }
