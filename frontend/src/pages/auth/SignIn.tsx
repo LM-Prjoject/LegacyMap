@@ -3,8 +3,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { Eye, EyeOff, Mail, Lock, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabaseClient'
+import { authApi } from '@/api/auth'
 import { Player } from '@lottiefiles/react-lottie-player'
 
 const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json'
@@ -43,11 +42,12 @@ function Dragons() {
     )
 }
 
-const schema = z.object({
-    account: z.string().min(1, 'Vui lòng nhập tài khoản.'),
-    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự.')
+const signInSchema = z.object({
+    email: z.string().email('Email không hợp lệ'),
+    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự')
 })
-type Form = z.infer<typeof schema>
+
+type SignInFormData = z.infer<typeof signInSchema>
 
 interface SignInProps {
     onClose: () => void;
@@ -56,55 +56,63 @@ interface SignInProps {
 }
 
 export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: SignInProps) {
-    const navigate = useNavigate()
-    const { register, handleSubmit, formState: { errors } } = useForm<Form>({ resolver: zodResolver(schema) })
     const [showPwd, setShowPwd] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [error, setError] = useState('')
 
-    const onSubmit = async (data: Form) => {
+    const { register, handleSubmit, formState: { errors } } = useForm<SignInFormData>({
+        resolver: zodResolver(signInSchema)
+    })
+
+    const onSubmit = async (data: SignInFormData) => {
         try {
             setLoading(true)
-            const { data: signInData, error } = await supabase.auth.signInWithPassword({
-                email: data.account,
+            setError('')
+            console.log('🔐 Attempting backend login...')
+
+            const response = await authApi.login({
+                identifier: data.email,
                 password: data.password
             })
 
-            if (error) {
-                alert(error.message || 'Đăng nhập thất bại')
-                return
-            }
+            console.log('✅ Backend login successful:', response)
 
-            if (signInData.session) {
-                onClose();
-                navigate('/dashboard')
+            if (response.result?.token) {
+                // ✅ Lưu token với key NHẤT QUÁN
+                localStorage.setItem('authToken', response.result.token)
+                localStorage.setItem('user', JSON.stringify(response.result.user))
+
+                console.log('✅ Token saved, redirecting to homepage')
+
+                // ✅ Redirect về homepage sau khi đăng nhập thành công
+                window.location.href = '/'
+            } else {
+                throw new Error('No token received from server')
             }
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : 'Đăng nhập thất bại'
-            alert(errorMessage)
+        } catch (error: any) {
+            console.error('❌ Login error:', error)
+
+            const errorMessage = error.response?.data?.message
+                || error.message
+                || 'Đăng nhập thất bại. Vui lòng thử lại.'
+
+            setError(errorMessage)
         } finally {
             setLoading(false)
         }
     }
 
     const handleGoogleLogin = async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: window.location.origin + '/dashboard' }
-        })
-        if (error) {
-            alert('Lỗi đăng nhập Google: ' + error.message)
-        }
+        setError('Đăng nhập Google chưa được hỗ trợ. Vui lòng sử dụng email/password.')
     }
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-            {/* Background overlay */}
             <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
 
             <div className="flex min-h-full items-center justify-center p-4">
                 <div className="relative w-full max-w-md">
                     <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
-                        {/* Nút X đóng */}
                         <div className="flex justify-between items-center mb-2">
                             <h1 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Đăng nhập</h1>
                             <button
@@ -116,24 +124,34 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                         </div>
 
                         <p className="text-sm text-slate-600 mb-6">
-                            Nhập <b>tài khoản</b> (email hoặc username) của bạn
+                            Nhập email của bạn để đăng nhập
                         </p>
 
                         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+                            {error && (
+                                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
+                                    {error}
+                                </div>
+                            )}
+
                             <div>
-                                <label className="block text-sm font-medium text-slate-700">Tài khoản</label>
+                                <label className="block text-sm font-medium text-slate-700">
+                                    Email
+                                </label>
                                 <div className="mt-1 relative">
                                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Mail className="h-4 w-4 text-slate-400" />
                                     </span>
                                     <input
                                         type="email"
-                                        placeholder="email@domain.com hoặc username"
-                                        className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
-                                        {...register('account')}
+                                        placeholder="email@domain.com"
+                                        className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] focus:border-transparent"
+                                        {...register('email')}
                                     />
                                 </div>
-                                {errors.account && <p className="text-red-600 text-sm mt-1">{errors.account.message}</p>}
+                                {errors.email && (
+                                    <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>
+                                )}
                             </div>
 
                             <div>
@@ -145,19 +163,20 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     <input
                                         type={showPwd ? 'text' : 'password'}
                                         placeholder="••••••••"
-                                        className="w-full rounded-lg border border-slate-200 pl-9 pr-10 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                        className="w-full rounded-lg border border-slate-200 pl-9 pr-10 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] focus:border-transparent"
                                         {...register('password')}
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPwd(v => !v)}
                                         className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-700"
-                                        aria-label={showPwd ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                                     >
                                         {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                     </button>
                                 </div>
-                                {errors.password && <p className="text-red-600 text-sm mt-1">{errors.password.message}</p>}
+                                {errors.password && (
+                                    <p className="text-red-600 text-sm mt-1">{errors.password.message}</p>
+                                )}
                             </div>
 
                             <div className="flex justify-end">
@@ -173,14 +192,14 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60"
+                                className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                             </button>
                         </form>
 
                         <div className="relative my-6">
-                            <div className="border-t" />
+                            <div className="border-t border-slate-200" />
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <span className="px-3 bg-white text-slate-500 text-sm">Hoặc</span>
                             </div>
@@ -188,7 +207,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
                         <button
                             onClick={handleGoogleLogin}
-                            className="w-full rounded-lg border border-slate-200 bg-white hover:bg-slate-50 py-2 font-medium"
+                            className="w-full rounded-lg border border-slate-200 bg-white hover:bg-slate-50 py-2 font-medium transition-colors"
                         >
                             Đăng nhập bằng Google
                         </button>
@@ -206,7 +225,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 </div>
             </div>
 
-            {/* 2 con rồng */}
             <Dragons />
         </div>
     )

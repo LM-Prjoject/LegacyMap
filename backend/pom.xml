@@ -52,10 +52,7 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-mail</artifactId>
-		</dependency>
+		<!-- ĐÃ XÓA: dependency spring-boot-starter-mail trùng lặp -->
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -94,17 +91,22 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-        <dependency>
-            <groupId>org.hibernate.common</groupId>
-            <artifactId>hibernate-commons-annotations</artifactId>
-            <version>7.0.3.Final</version>
-        </dependency>
+		<dependency>
+			<groupId>org.hibernate.common</groupId>
+			<artifactId>hibernate-commons-annotations</artifactId>
+			<version>7.0.3.Final</version>
+		</dependency>
+
+		<!-- ĐÃ XÓA: dependency tự tham chiếu -->
+		<!--
         <dependency>
             <groupId>com.legacymap</groupId>
             <artifactId>backend</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
-    </dependencies>
+        -->
+	</dependencies>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>

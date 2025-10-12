@@ -1,9 +1,10 @@
 // src/pages/HomePage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import HeroSection from '@/components/home/HeroSection';
 import StatsSection from '@/components/home/StatsSection';
 import FeaturesSection from '@/components/home/FeaturesSection';
+import AboutSection from '@/components/home/AboutSection';
 import TestimonialsSection from '@/components/home/TestimonialsSection';
 import CTASection from '@/components/home/CTASection';
 import Footer from '@/components/home/Footer';
@@ -16,8 +17,30 @@ export default function HomePage() {
     const [showSignUp, setShowSignUp] = useState(false);
     const [showPasswordReset, setShowPasswordReset] = useState(false);
 
+    // ✅ Smooth scroll khi click vào anchor links
+    useEffect(() => {
+        const handleAnchorClick = (e: MouseEvent) => {
+            const target = e.target as HTMLAnchorElement;
+            if (target.tagName === 'A' && target.hash) {
+                const href = target.getAttribute('href');
+                if (href?.startsWith('#')) {
+                    e.preventDefault();
+                    const element = document.querySelector(href);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('click', handleAnchorClick);
+        return () => document.removeEventListener('click', handleAnchorClick);
+    }, []);
+
     return (
         <div className="min-h-screen bg-white">
+            {/* ========== MODALS ========== */}
+
             {/* Modal đăng nhập */}
             {showSignIn && (
                 <SignIn
@@ -55,26 +78,42 @@ export default function HomePage() {
                 />
             )}
 
+            {/* ========== NAVBAR ========== */}
             <Navbar
                 onLoginClick={() => setShowSignIn(true)}
                 onSignupClick={() => setShowSignUp(true)}
             />
+
+            {/* ========== MAIN CONTENT ========== */}
             <main>
+                {/* Hero Section - Banner chính với CTA */}
                 <section id="hero">
                     <HeroSection
-                        onLoginClick={() => setShowSignIn(true)}
                         onSignupClick={() => setShowSignUp(true)}
                     />
                 </section>
-                <section id="stats" className="scroll-mt-24">
+
+                {/* Stats Section - Thống kê số liệu */}
+                <section id="stats">
                     <StatsSection />
                 </section>
+
+                {/* Features Section - Tính năng nổi bật */}
                 <section id="features" className="scroll-mt-24">
                     <FeaturesSection />
                 </section>
+
+                {/* About Section - Về chúng tôi */}
+                <section id="about" className="scroll-mt-24">
+                    <AboutSection />
+                </section>
+
+                {/* Testimonials Section - Đánh giá từ người dùng */}
                 <section id="testimonials" className="scroll-mt-24">
                     <TestimonialsSection />
                 </section>
+
+                {/* CTA Section - Call to Action cuối trang */}
                 <section id="cta" className="scroll-mt-24">
                     <CTASection
                         onLoginClick={() => setShowSignIn(true)}
@@ -82,6 +121,8 @@ export default function HomePage() {
                     />
                 </section>
             </main>
+
+            {/* ========== FOOTER ========== */}
             <Footer />
         </div>
     );
