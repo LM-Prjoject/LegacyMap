@@ -1,0 +1,22 @@
+D:\DocumentD\ProjectTT\LegacyMap\frontend
+├── .env.local
+├── .gitignore
+├── eslint.config.js
+├── frontend-tree.txt
+├── index.css
+├── index.html
+├── node_modules/
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── public/
+├── README.md
+├── src/
+├── tailwind.config.js
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+directory: 3 file: 15
+

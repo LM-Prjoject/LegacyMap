@@ -1,0 +1,24 @@
+=== src ===
+Folder PATH listing for volume New Volume
+Volume serial number is 8687-6ADF
+D:\DOCUMENTD\PROJECTTT\LEGACYMAP\FRONTEND\SRC
++---api
++---assets
++---components
+|   +---auth
+|   +---home
+|   \---layout
++---lib
++---pages
+|   +---auth
+|   +---dashboard
+|   +---public
+|   \---tree
++---routes
+\---types
+
+=== public ===
+Folder PATH listing for volume New Volume
+Volume serial number is 8687-6ADF
+D:\DOCUMENTD\PROJECTTT\LEGACYMAP\FRONTEND\PUBLIC
+\---lottie
