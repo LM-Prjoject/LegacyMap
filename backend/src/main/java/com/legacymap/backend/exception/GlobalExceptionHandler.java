@@ -7,21 +7,49 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = AppException.class)
     ResponseEntity<ApiResponse> handlingAppException(AppException exception){
-        ErrorCode errorCode = exception.getErrorCode();
-        ApiResponse apiResponse = new ApiResponse();
+        ErrorCode ec = exception.getErrorCode();
 
-        apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(errorCode.getMessage());
+        ApiResponse<?> body = ApiResponse.builder()
+                .code(ec.getCode())
+                .message(ec.getMessage())
+                .build();
 
-        return ResponseEntity.badRequest().body(apiResponse);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidation(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors()
+                .forEach(err -> errors.put(err.getField(), err.getDefaultMessage()));
+
+        ApiResponse<Map<String, String>> body = ApiResponse.<Map<String, String>>builder()
+                .code(ErrorCode.VALIDATION_FAILED.getCode())
+                .message(ErrorCode.VALIDATION_FAILED.getMessage())
+                .result(errors)
+                .build();
+
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleOther(Exception ex) {
+        ApiResponse<Void> body = ApiResponse.<Void>builder()
+                .code(ErrorCode.INTERNAL_ERROR.getCode())
+                .message(ErrorCode.INTERNAL_ERROR.getMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     // GHI CHÚ: Handler cho lỗi validate @Valid (DTO request)

@@ -8,7 +8,6 @@ import com.legacymap.backend.entity.UserProfile;
 import com.legacymap.backend.entity.AuthToken;
 import com.legacymap.backend.repository.UserProfileRepository;
 import com.legacymap.backend.repository.UserRepository;
-import com.legacymap.backend.repository.AuthTokenRepository;
 import jakarta.mail.MessagingException;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -17,9 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class UserService {
@@ -34,7 +31,7 @@ public class UserService {
     private UserProfileRepository userProfileRepository;
 
     @Autowired
-    private AuthTokenRepository authTokenRepository;
+    private AuthTokenService authTokenService;
 
     @Autowired
     private EmailService emailService;
@@ -74,6 +71,7 @@ public class UserService {
 
         return user;
     }
+
     @Transactional
     public User createRequest(UserCreateRequest request) {
 
@@ -105,18 +103,10 @@ public class UserService {
         profile.setAddress(request.getAddress());
         userProfileRepository.save(profile);
 
-        String tokenStr = UUID.randomUUID().toString().replace("-", "");
-        AuthToken token = AuthToken.builder()
-                .user(user)
-                .token(tokenStr)
-                .type("email_verification")
-                .expiresAt(OffsetDateTime.now().plusHours(24))
-                .used(false)
-                .build();
-        authTokenRepository.save(token);
+        AuthToken verifyToken = authTokenService.createEmailVerificationToken(user);
 
         try {
-            emailService.sendVerificationEmail(user.getEmail(), profile.getFullName(), tokenStr);
+            emailService.sendVerificationEmail(user.getEmail(), profile.getFullName(), verifyToken.getToken());
         } catch (MessagingException e) {
             throw new AppException(ErrorCode.SEND_EMAIL_FAILED);
         }
