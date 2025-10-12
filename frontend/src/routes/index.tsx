@@ -19,6 +19,10 @@ export const router = createBrowserRouter([
         element: <HomePage />
     },
     {
+        path: '/homepage', // Thêm route bảo vệ cho /homepage (nếu cần sử dụng thay /dashboard)
+        element: <ProtectedRoute><HomePage /></ProtectedRoute>
+    },
+    {
         path: '/signin',
         element: <SignIn
             onClose={() => window.history.back()}
