@@ -3,11 +3,97 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X } from 'lucide-react';
+import { X, CheckCircle, Mail, Clock, AlertCircle } from 'lucide-react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { authApi } from '@/api/auth';
 
 const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json';
+
+// Thêm component SuccessModal
+interface SuccessModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    email: string;
+}
+
+const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            {/* Background overlay */}
+            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
+
+            {/* Modal content */}
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 md:p-8 animate-scale-in">
+                {/* Success icon */}
+                <div className="flex justify-center mb-4">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-12 h-12 text-green-600" />
+                    </div>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-900 mb-4">
+                    Đăng Ký Thành Công!
+                </h2>
+
+                {/* Message */}
+                <div className="text-center text-gray-600 mb-6 space-y-3">
+                    <p className="flex items-center justify-center gap-2">
+                        <Mail className="w-5 h-5 text-blue-500" />
+                        <span>Email xác minh đã được gửi đến:</span>
+                    </p>
+                    <p className="font-semibold text-blue-600 break-all">{email}</p>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4 text-left">
+                        <div className="flex items-start gap-3 mb-2">
+                            <Clock className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="font-medium text-blue-800">Vui lòng kiểm tra email</p>
+                                <p className="text-sm text-blue-600 mt-1">
+                                    • Kiểm tra hộp thư đến và thư mục spam<br/>
+                                    • Link xác minh có hiệu lực trong 24 giờ<br/>
+                                    • Xác minh email để bắt đầu sử dụng
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                    >
+                        Đã hiểu
+                    </button>
+                    <button
+                        onClick={() => window.open('https://mail.google.com', '_blank')}
+                        className="flex-1 border border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold py-3 px-4 rounded-lg transition-colors"
+                    >
+                        Mở Gmail
+                    </button>
+                </div>
+
+                {/* Decorative elements */}
+                <div className="absolute -top-4 -right-4 w-8 h-8 bg-green-500 rounded-full opacity-20 animate-pulse"></div>
+                <div className="absolute -bottom-4 -left-4 w-6 h-6 bg-blue-500 rounded-full opacity-20 animate-pulse"></div>
+            </div>
+
+            <style>{`
+                @keyframes scale-in {
+                    0% { transform: scale(0.8); opacity: 0; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+                .animate-scale-in {
+                    animation: scale-in 0.3s ease-out;
+                }
+            `}</style>
+        </div>
+    );
+};
 
 function Dragons() {
     return (
@@ -68,6 +154,8 @@ interface SignUpProps {
 
 const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
     const [errorMessage, setErrorMessage] = useState('');
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [registeredEmail, setRegisteredEmail] = useState('');
 
     const {
         register,
@@ -81,11 +169,8 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
         try {
             console.log('🚀 Bắt đầu đăng ký...', { username: data.username, email: data.email });
 
-            // Thêm timeout 30 giây
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-            const registerPromise = authApi.register({
+            // Gọi API
+            await authApi.register({
                 username: data.username,
                 email: data.email,
                 password: data.password,
@@ -95,27 +180,12 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                 phone: data.phone,
             });
 
-            const response = await Promise.race([
-                registerPromise,
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Request timeout - Vui lòng thử lại')), 30000)
-                )
-            ]) as any;
+            // Hiển thị modal thành công
+            setRegisteredEmail(data.email);
+            setShowSuccessModal(true);
 
-            clearTimeout(timeoutId);
-
-            console.log('✅ Kết quả đăng ký:', response);
-
-            if (response.data?.success) {
-                alert('Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.');
-                onClose();
-            } else {
-                const errorMsg = response.data?.message || 'Đăng ký thất bại';
-                setErrorMessage(errorMsg);
-                console.error('❌ Đăng ký thất bại:', errorMsg);
-            }
         } catch (err: any) {
-            console.error('❌ Signup error:', err);
+            console.error('❌ Lỗi đăng ký:', err);
 
             let errorMsg = 'Đăng ký thất bại. Vui lòng thử lại.';
 
@@ -131,148 +201,166 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
         }
     };
 
+    const handleSuccessModalClose = () => {
+        setShowSuccessModal(false);
+        onClose(); // Đóng cả form đăng ký
+    };
+
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            {/* Background overlay */}
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+        <>
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+                {/* Background overlay */}
+                <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
 
-            <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative w-full max-w-md">
-                    <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
-                        {/* Nút X đóng */}
-                        <div className="flex justify-between items-center mb-2">
-                            <h1 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Đăng ký</h1>
-                            <button
-                                onClick={onClose}
-                                disabled={isSubmitting}
-                                className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-                            >
-                                <X className="h-6 w-6" />
-                            </button>
-                        </div>
-
-                        {/* Error Message */}
-                        {errorMessage && (
-                            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                                {errorMessage}
-                            </div>
-                        )}
-
-                        <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
-                                <input
-                                    {...register('username')}
-                                    type="text"
-                                    disabled={isSubmitting}
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                    placeholder="Nhập username"
-                                />
-                                {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên</label>
-                                <input
-                                    {...register('fullName')}
-                                    type="text"
-                                    disabled={isSubmitting}
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                    placeholder="Nhập họ và tên"
-                                />
-                                {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                                <input
-                                    {...register('email')}
-                                    type="email"
-                                    disabled={isSubmitting}
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                    placeholder="Nhập email"
-                                />
-                                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
-                                <input
-                                    {...register('password')}
-                                    type="password"
-                                    disabled={isSubmitting}
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                    placeholder="Nhập mật khẩu"
-                                />
-                                {errors.password && (
-                                    <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Xác nhận mật khẩu</label>
-                                <input
-                                    {...register('confirmPassword')}
-                                    type="password"
-                                    disabled={isSubmitting}
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                    placeholder="Nhập lại mật khẩu"
-                                />
-                                {errors.confirmPassword && (
-                                    <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Tên dòng họ (tùy chọn)</label>
-                                <input
-                                    {...register('clanName')}
-                                    type="text"
-                                    disabled={isSubmitting}
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                    placeholder="Nhập tên dòng họ"
-                                />
-                            </div>
-
-                            <div>
+                <div className="flex min-h-full items-center justify-center p-4">
+                    <div className="relative w-full max-w-md">
+                        <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
+                            {/* Nút X đóng */}
+                            <div className="flex justify-between items-center mb-2">
+                                <h1 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Đăng ký</h1>
                                 <button
-                                    type="submit"
+                                    onClick={onClose}
                                     disabled={isSubmitting}
-                                    className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                                 >
-                                    {isSubmitting ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                                            </svg>
-                                            Đang xử lý...
-                                        </span>
-                                    ) : 'Đăng ký'}
+                                    <X className="h-6 w-6" />
                                 </button>
                             </div>
 
-                            <div className="text-center">
-                                <p className="text-sm text-slate-600">
-                                    Đã có tài khoản?{' '}
-                                    <button
-                                        type="button"
-                                        onClick={onShowSignIn}
+                            {/* Error Message */}
+                            {errorMessage && (
+                                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <p className="font-medium text-red-800">Có lỗi xảy ra</p>
+                                        <p className="text-red-600 text-sm mt-1">{errorMessage}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)}>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                                    <input
+                                        {...register('username')}
+                                        type="text"
                                         disabled={isSubmitting}
-                                        className="text-[#1e63c7] hover:underline font-semibold disabled:opacity-50"
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                        placeholder="Nhập username"
+                                    />
+                                    {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên</label>
+                                    <input
+                                        {...register('fullName')}
+                                        type="text"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                        placeholder="Nhập họ và tên"
+                                    />
+                                    {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                                    <input
+                                        {...register('email')}
+                                        type="email"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                        placeholder="Nhập email"
+                                    />
+                                    {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
+                                    <input
+                                        {...register('password')}
+                                        type="password"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                        placeholder="Nhập mật khẩu"
+                                    />
+                                    {errors.password && (
+                                        <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Xác nhận mật khẩu</label>
+                                    <input
+                                        {...register('confirmPassword')}
+                                        type="password"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                        placeholder="Nhập lại mật khẩu"
+                                    />
+                                    {errors.confirmPassword && (
+                                        <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Tên dòng họ (tùy chọn)</label>
+                                    <input
+                                        {...register('clanName')}
+                                        type="text"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                        placeholder="Nhập tên dòng họ"
+                                    />
+                                </div>
+
+                                <div>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
-                                        Đăng nhập
+                                        {isSubmitting ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                                </svg>
+                                                Đang xử lý...
+                                            </span>
+                                        ) : 'Đăng ký'}
                                     </button>
-                                </p>
-                            </div>
-                        </form>
+                                </div>
+
+                                <div className="text-center">
+                                    <p className="text-sm text-slate-600">
+                                        Đã có tài khoản?{' '}
+                                        <button
+                                            type="button"
+                                            onClick={onShowSignIn}
+                                            disabled={isSubmitting}
+                                            className="text-[#1e63c7] hover:underline font-semibold disabled:opacity-50"
+                                        >
+                                            Đăng nhập
+                                        </button>
+                                    </p>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
+
+                {/* 2 con rồng */}
+                <Dragons />
             </div>
 
-            {/* 2 con rồng */}
-            <Dragons />
-        </div>
+            {/* Modal thông báo thành công */}
+            <SuccessModal
+                isOpen={showSuccessModal}
+                onClose={handleSuccessModalClose}
+                email={registeredEmail}
+            />
+        </>
     );
 };
 
