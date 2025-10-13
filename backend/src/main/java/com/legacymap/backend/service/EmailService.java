@@ -2,10 +2,6 @@ package com.legacymap.backend.service;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.MessagingException;
@@ -13,19 +9,15 @@ import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 
-import java.util.concurrent.Executor;
 
 @Service
 public class EmailService {
 
-    /**
-     *
-     */
     @Autowired
     private JavaMailSender mailSender;
 
     public void sendVerificationEmail(String toEmail, String userName, String token) throws MessagingException {
-        String verifyUrl = "http://localhost:8080/legacy/auth/verify?token=" + token;
+        String verifyUrl = "http://localhost:8080/legacy/api/auth/verify?token=" + token;
         String htmlContent = buildVerificationEmail(userName, verifyUrl);
 
         MimeMessage mimeMessage = mailSender.createMimeMessage();

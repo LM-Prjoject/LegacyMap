@@ -75,11 +75,13 @@ public class UserService {
     @Transactional
     public User createRequest(UserCreateRequest request) {
 
-        if (userRepository.existsByUsername(request.getUsername())
-                || userRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (userRepository.existsByUsername(request.getUsername())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new AppException(ErrorCode.EMAIL_EXISTED);
+        }
 
         PasswordEncoder encoder = new BCryptPasswordEncoder(10);
         User user = new User();
