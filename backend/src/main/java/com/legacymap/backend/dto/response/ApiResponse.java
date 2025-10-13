@@ -1,6 +1,7 @@
 package com.legacymap.backend.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.legacymap.backend.exception.ErrorCode;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -17,14 +18,13 @@ public class ApiResponse<T> {
     private String message;
     private T result;
 
-
-    public static <T> ApiResponse<T> success(T result) {
-        ApiResponse<T> response = new ApiResponse<>();
-        response.setSuccess(true);
-        response.setCode(1000);
-        response.setMessage("Success");
-        response.setResult(result);
-        return response;
+    public static <T> ApiResponse<T> success(T result, String message) {
+        ApiResponse<T> res = new ApiResponse<>();
+        res.setSuccess(true);
+        res.setCode(1000);
+        res.setMessage(message);
+        res.setResult(result);
+        return res;
     }
 
     public static <T> ApiResponse<T> error(int code, String message) {
@@ -33,5 +33,13 @@ public class ApiResponse<T> {
         response.setCode(code);
         response.setMessage(message);
         return response;
+    }
+
+    public static <T> ApiResponse<T> error(ErrorCode errorCode, String overrideMessage) {
+        ApiResponse<T> res = new ApiResponse<>();
+        res.success = false;
+        res.code = errorCode.getCode();
+        res.message = overrideMessage;
+        return res;
     }
 }
