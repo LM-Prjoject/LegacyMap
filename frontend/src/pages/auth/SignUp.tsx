@@ -1,11 +1,11 @@
 // src/pages/auth/SignUp.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabaseClient'; // Xóa useNavigate import
 import { X } from 'lucide-react';
 import { Player } from '@lottiefiles/react-lottie-player';
+import { authApi } from '@/api/auth';
 
 const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json';
 
@@ -44,10 +44,16 @@ function Dragons() {
 }
 
 const signupSchema = z.object({
-    name: z.string().min(2, 'Tên phải có ít nhất 2 ký tự'),
+    username: z.string().min(3, 'Username phải có ít nhất 3 ký tự').max(20, 'Username tối đa 20 ký tự'),
     email: z.string().email('Email không hợp lệ'),
-    password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
+    password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự')
+        .regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]+$/,
+            'Mật khẩu phải chứa ít nhất 1 chữ cái, 1 số và 1 ký tự đặc biệt'),
     confirmPassword: z.string(),
+    fullName: z.string().min(2, 'Họ tên phải có ít nhất 2 ký tự'),
+    clanName: z.string().optional(),
+    gender: z.string().optional(),
+    phone: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
     message: 'Mật khẩu xác nhận không khớp',
     path: ['confirmPassword'],
@@ -61,7 +67,7 @@ interface SignUpProps {
 }
 
 const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
-    // Xóa dòng này: const navigate = useNavigate();
+    const [errorMessage, setErrorMessage] = useState('');
 
     const {
         register,
@@ -70,26 +76,58 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
     } = useForm<SignupFormData>({ resolver: zodResolver(signupSchema) });
 
     const onSubmit = async (data: SignupFormData) => {
+        setErrorMessage('');
+
         try {
-            const redirectTo =
-                import.meta.env.VITE_APP_URL?.replace(/\/$/, '') +
-                '/password-reset';
-            const { error } = await supabase.auth.signUp({
+            console.log('🚀 Bắt đầu đăng ký...', { username: data.username, email: data.email });
+
+            // Thêm timeout 30 giây
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            const registerPromise = authApi.register({
+                username: data.username,
                 email: data.email,
                 password: data.password,
-                options: {
-                    emailRedirectTo: redirectTo,
-                    data: { name: data.name },
-                },
+                fullName: data.fullName,
+                clanName: data.clanName,
+                gender: data.gender,
+                phone: data.phone,
             });
-            if (error) throw error;
 
-            // Thông báo & đóng modal
-            alert('Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.');
-            onClose();
+            const response = await Promise.race([
+                registerPromise,
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Request timeout - Vui lòng thử lại')), 30000)
+                )
+            ]) as any;
+
+            clearTimeout(timeoutId);
+
+            console.log('✅ Kết quả đăng ký:', response);
+
+            if (response.data?.success) {
+                alert('Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản.');
+                onClose();
+            } else {
+                const errorMsg = response.data?.message || 'Đăng ký thất bại';
+                setErrorMessage(errorMsg);
+                console.error('❌ Đăng ký thất bại:', errorMsg);
+            }
         } catch (err: any) {
-            console.error('Signup error:', err);
-            alert(err?.message ?? 'Đăng ký thất bại. Vui lòng thử lại.');
+            console.error('❌ Signup error:', err);
+
+            let errorMsg = 'Đăng ký thất bại. Vui lòng thử lại.';
+
+            if (err.message?.includes('timeout')) {
+                errorMsg = 'Kết nối quá chậm. Vui lòng kiểm tra internet và thử lại.';
+            } else if (err.response?.data?.message) {
+                errorMsg = err.response.data.message;
+            } else if (err.message) {
+                errorMsg = err.message;
+            }
+
+            setErrorMessage(errorMsg);
         }
     };
 
@@ -106,22 +144,43 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                             <h1 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Đăng ký</h1>
                             <button
                                 onClick={onClose}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                disabled={isSubmitting}
+                                className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                             >
                                 <X className="h-6 w-6" />
                             </button>
                         </div>
 
+                        {/* Error Message */}
+                        {errorMessage && (
+                            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                                {errorMessage}
+                            </div>
+                        )}
+
                         <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)}>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                                <input
+                                    {...register('username')}
+                                    type="text"
+                                    disabled={isSubmitting}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                    placeholder="Nhập username"
+                                />
+                                {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên</label>
                                 <input
-                                    {...register('name')}
+                                    {...register('fullName')}
                                     type="text"
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                    disabled={isSubmitting}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
                                     placeholder="Nhập họ và tên"
                                 />
-                                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+                                {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
                             </div>
 
                             <div>
@@ -129,7 +188,8 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                 <input
                                     {...register('email')}
                                     type="email"
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                    disabled={isSubmitting}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
                                     placeholder="Nhập email"
                                 />
                                 {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
@@ -140,7 +200,8 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                 <input
                                     {...register('password')}
                                     type="password"
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                    disabled={isSubmitting}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
                                     placeholder="Nhập mật khẩu"
                                 />
                                 {errors.password && (
@@ -153,7 +214,8 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                 <input
                                     {...register('confirmPassword')}
                                     type="password"
-                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                    disabled={isSubmitting}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
                                     placeholder="Nhập lại mật khẩu"
                                 />
                                 {errors.confirmPassword && (
@@ -162,12 +224,31 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                             </div>
 
                             <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Tên dòng họ (tùy chọn)</label>
+                                <input
+                                    {...register('clanName')}
+                                    type="text"
+                                    disabled={isSubmitting}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                    placeholder="Nhập tên dòng họ"
+                                />
+                            </div>
+
+                            <div>
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60"
+                                    className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    {isSubmitting ? 'Đang xử lý…' : 'Đăng ký'}
+                                    {isSubmitting ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                            </svg>
+                                            Đang xử lý...
+                                        </span>
+                                    ) : 'Đăng ký'}
                                 </button>
                             </div>
 
@@ -177,7 +258,8 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                     <button
                                         type="button"
                                         onClick={onShowSignIn}
-                                        className="text-[#1e63c7] hover:underline font-semibold"
+                                        disabled={isSubmitting}
+                                        className="text-[#1e63c7] hover:underline font-semibold disabled:opacity-50"
                                     >
                                         Đăng nhập
                                     </button>

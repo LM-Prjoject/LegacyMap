@@ -1,6 +1,7 @@
 // src/components/layout/Navbar.tsx
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { LogOut, User, Settings } from 'lucide-react';
 import Button from './Button';
 
 interface NavbarProps {
@@ -9,7 +10,62 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
+    const navigate = useNavigate();
     const isHomePage = !!onLoginClick && !!onSignupClick;
+
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState<any>(null);
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    // ✅ Kiểm tra authentication status
+    useEffect(() => {
+        const checkAuth = () => {
+            const token = localStorage.getItem('authToken');
+            const userStr = localStorage.getItem('user');
+
+            if (token && userStr) {
+                try {
+                    const userData = JSON.parse(userStr);
+                    setUser(userData);
+                    setIsAuthenticated(true);
+                } catch (error) {
+                    console.error('Error parsing user data:', error);
+                    setIsAuthenticated(false);
+                }
+            } else {
+                setIsAuthenticated(false);
+                setUser(null);
+            }
+        };
+
+        checkAuth();
+
+        // ✅ Listen cho storage changes (khi login từ tab khác)
+        window.addEventListener('storage', checkAuth);
+        return () => window.removeEventListener('storage', checkAuth);
+    }, []);
+
+    // ✅ Xử lý logout
+    const handleLogout = () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        setIsAuthenticated(false);
+        setUser(null);
+        setShowDropdown(false);
+        window.location.href = '/'; // Reload về homepage
+    };
+
+    // ✅ Lấy tên hiển thị
+    const getDisplayName = () => {
+        if (!user) return 'User';
+        return user.fullName || user.username || user.email?.split('@')[0] || 'User';
+    };
+
+    // ✅ Lấy chữ cái đầu cho avatar
+    const getInitials = () => {
+        const name = getDisplayName();
+        return name.charAt(0).toUpperCase();
+    };
 
     return (
         <nav className="bg-background/95 backdrop-blur shadow-sm py-4 sticky top-0 z-40 border-b border-border">
@@ -18,7 +74,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                     {/* Logo */}
                     <Link to="/" className="flex items-baseline gap-2">
                         <div className="text-2xl font-extrabold text-primary tracking-tight">GPGay Gia Phả</div>
-                        <div className="text-sm text-muted-foreground italic">Con Rồng Cháu Tiên</div>
+                        <div className="text-sm text-muted-foreground italic">Con Rồng Châu Tiên</div>
                     </Link>
 
                     {/* Navigation Links */}
@@ -29,31 +85,101 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                         <a href="#cta" className="text-foreground hover:text-primary transition-colors">Liên hệ</a>
                     </div>
 
-                    {/* Auth Buttons */}
+                    {/* Auth Section */}
                     <div className="flex items-center gap-3">
-                        {isHomePage ? (
-                            // Trang chủ - hiển thị nút đăng nhập/đăng ký
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={onLoginClick}
+                        {isAuthenticated ? (
+                            // ✅ Hiển thị khi đã đăng nhập
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowDropdown(!showDropdown)}
+                                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                                 >
-                                    Đăng nhập
-                                </Button>
-                                <Button
-                                    variant="primary"
-                                    size="sm"
-                                    onClick={onSignupClick}
-                                >
-                                    Đăng ký
-                                </Button>
-                            </>
+                                    {/* Avatar */}
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold shadow-lg">
+                                        {getInitials()}
+                                    </div>
+                                    <span className="hidden md:block text-sm font-medium text-gray-700">
+                                        {getDisplayName()}
+                                    </span>
+                                </button>
+
+                                {/* Dropdown Menu */}
+                                {showDropdown && (
+                                    <>
+                                        {/* Overlay để đóng dropdown khi click bên ngoài */}
+                                        <div
+                                            className="fixed inset-0 z-10"
+                                            onClick={() => setShowDropdown(false)}
+                                        />
+
+                                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
+                                            {/* User Info */}
+                                            <div className="px-4 py-3 border-b border-gray-100">
+                                                <p className="text-sm font-semibold text-gray-900">{getDisplayName()}</p>
+                                                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                            </div>
+
+                                            {/* Menu Items */}
+                                            <button
+                                                onClick={() => {
+                                                    setShowDropdown(false);
+                                                    navigate('/dashboard');
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                            >
+                                                <User className="h-4 w-4" />
+                                                Dashboard
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowDropdown(false);
+                                                    // Navigate to profile/settings page
+                                                    alert('Tính năng đang phát triển');
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                            >
+                                                <Settings className="h-4 w-4" />
+                                                Cài đặt
+                                            </button>
+
+                                            <hr className="my-2" />
+
+                                            <button
+                                                onClick={handleLogout}
+                                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                            >
+                                                <LogOut className="h-4 w-4" />
+                                                Đăng xuất
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         ) : (
-                            // Trang dashboard/tree - hiển thị nút quay về trang chủ
-                            <Link to="/">
-                                <Button variant="outline" size="sm">Trang chủ</Button>
-                            </Link>
+                            // ✅ Hiển thị khi chưa đăng nhập
+                            isHomePage ? (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={onLoginClick}
+                                    >
+                                        Đăng nhập
+                                    </Button>
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={onSignupClick}
+                                    >
+                                        Đăng ký
+                                    </Button>
+                                </>
+                            ) : (
+                                <Link to="/">
+                                    <Button variant="outline" size="sm">Trang chủ</Button>
+                                </Link>
+                            )
                         )}
                     </div>
                 </div>
