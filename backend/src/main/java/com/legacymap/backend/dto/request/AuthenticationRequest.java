@@ -8,7 +8,7 @@ import lombok.*;
 @RequiredArgsConstructor
 @Getter
 @Setter
-public class LoginRequest {
+public class AuthenticationRequest {
     private String identifier; // có thể là email hoặc username
     private String password;
 }
