@@ -11,8 +11,8 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-
 public class ApiResponse<T> {
+
     private boolean success;
     private int code = 1000;
     private String message;
@@ -24,6 +24,18 @@ public class ApiResponse<T> {
         res.setCode(1000);
         res.setMessage(message);
         res.setResult(result);
+        return res;
+    }
+
+    public static <T> ApiResponse<T> success(T result) {
+        return success(result, "Success");
+    }
+
+    public static ApiResponse<Void> success() {
+        ApiResponse<Void> res = new ApiResponse<>();
+        res.setSuccess(true);
+        res.setCode(1000);
+        res.setMessage("Success");
         return res;
     }
 
@@ -40,6 +52,14 @@ public class ApiResponse<T> {
         res.success = false;
         res.code = errorCode.getCode();
         res.message = overrideMessage;
+        return res;
+    }
+
+    public static <T> ApiResponse<T> error(ErrorCode errorCode) {
+        ApiResponse<T> res = new ApiResponse<>();
+        res.success = false;
+        res.code = errorCode.getCode();
+        res.message = errorCode.getMessage();
         return res;
     }
 }

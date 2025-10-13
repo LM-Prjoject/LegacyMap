@@ -22,5 +22,4 @@ public class WebConfig implements WebMvcConfigurer {
                 .maxAge(3600);
     }
 
-    // ❌ XÓA bean corsConfigurationSource() - Đã có trong SecurityConfig rồi!
 }
