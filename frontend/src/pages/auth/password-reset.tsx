@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { supabase } from '@/lib/supabaseClient'; // Xóa useNavigate import
 import { X } from 'lucide-react';
 import { Player } from '@lottiefiles/react-lottie-player';
 
@@ -61,29 +60,30 @@ type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 interface PasswordResetProps {
     onClose: () => void;
     onShowSignIn: () => void;
+    token?: string;
 }
 
-const PasswordReset = ({ onClose, onShowSignIn }: PasswordResetProps) => {
+const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordResetProps) => {
     // Xóa dòng này: const navigate = useNavigate();
 
     const [isEmailSent, setIsEmailSent] = useState<boolean>(false);
     const [isResetSuccess, setIsResetSuccess] = useState<boolean>(false);
     const [isRecovery, setIsRecovery] = useState<boolean>(false);
 
-    // Kiểm tra trạng thái "recovery" do Supabase trả khi user bấm link trong email
+    // Hiển thị form đặt lại khi có token (ưu tiên từ props), ngược lại hiển thị form quên mật khẩu
     useEffect(() => {
-        const checkSession = async () => {
-            const { data } = await supabase.auth.getSession();
-            const urlParams = new URLSearchParams(window.location.search);
-            const type = urlParams.get('type');
-            const hasSession = data.session !== null;
-            const isRecoveryType = type === 'recovery';
-            const isEmailConfirmed = data.session?.user?.email_confirmed_at !== undefined;
-
-            setIsRecovery(hasSession && (isRecoveryType || isEmailConfirmed));
-        };
-        checkSession();
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('token');
+        const effectiveToken = initialToken ?? urlToken;
+        setIsRecovery(!!effectiveToken);
     }, []);
+
+    useEffect(() => {
+        if (isResetSuccess) {
+            const t = setTimeout(() => onShowSignIn(), 1200);
+            return () => clearTimeout(t);
+        }
+    }, [isResetSuccess, onShowSignIn]);
 
     // Gửi email đặt lại mật khẩu
     const {
@@ -94,18 +94,26 @@ const PasswordReset = ({ onClose, onShowSignIn }: PasswordResetProps) => {
 
     const onForgotPassword = async (data: ForgotPasswordFormData) => {
         try {
-            const baseUrl = import.meta.env.VITE_APP_URL || '';
-            const redirectTo = baseUrl.replace(/\/$/, '') + '/password-reset';
+            const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8080/legacy/api';
+            const params = new URLSearchParams();
+            // Email sẽ dẫn về trang chủ với query ?token=...
+            params.set('redirect', `${window.location.origin}`);
 
-            const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-                redirectTo,
+            const res = await fetch(`${API_BASE}/auth/password/forgot?${params.toString()}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: data.email })
             });
-            if (error) throw error;
-            setIsEmailSent(true);
-        } catch (error: unknown) {
-            const err = error as { message?: string };
+            const payload = await res.json().catch(() => ({} as any));
+            if (res.ok && payload?.success) {
+                setIsEmailSent(true);
+            } else {
+                const msg = payload?.message || 'Gửi email thất bại. Vui lòng thử lại.';
+                alert(msg);
+            }
+        } catch (error) {
             console.error('Error sending reset email:', error);
-            alert(err?.message ?? 'Gửi email thất bại. Vui lòng thử lại.');
+            alert('Gửi email thất bại. Vui lòng thử lại.');
         }
     };
 
@@ -118,13 +126,30 @@ const PasswordReset = ({ onClose, onShowSignIn }: PasswordResetProps) => {
 
     const onResetPassword = async (data: ResetPasswordFormData) => {
         try {
-            const { error } = await supabase.auth.updateUser({ password: data.password });
-            if (error) throw error;
-            setIsResetSuccess(true);
-        } catch (error: unknown) {
-            const err = error as { message?: string };
+            const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8080/legacy/api';
+            const params = new URLSearchParams(window.location.search);
+            const urlToken = params.get('token');
+            const token = initialToken ?? urlToken;
+            if (!token) {
+                alert('Thiếu token đặt lại trong liên kết.');
+                return;
+            }
+
+            const res = await fetch(`${API_BASE}/auth/password/reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, newPassword: data.password })
+            });
+            const payload = await res.json().catch(() => ({} as any));
+            if (res.ok && payload?.success) {
+                setIsResetSuccess(true);
+            } else {
+                const msg = payload?.message || 'Đặt lại mật khẩu thất bại. Vui lòng thử lại.';
+                alert(msg);
+            }
+        } catch (error) {
             console.error('Error resetting password:', error);
-            alert(err?.message ?? 'Đặt lại mật khẩu thất bại. Vui lòng thử lại.');
+            alert('Đặt lại mật khẩu thất bại. Vui lòng thử lại.');
         }
     };
 
@@ -200,6 +225,8 @@ const PasswordReset = ({ onClose, onShowSignIn }: PasswordResetProps) => {
                         </div>
                     </div>
                 </div>
+                {/* 2 con rồng */}
+                <Dragons />
             </div>
         );
     }

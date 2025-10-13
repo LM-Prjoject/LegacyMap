@@ -16,6 +16,7 @@ export default function HomePage() {
     const [showSignIn, setShowSignIn] = useState(false);
     const [showSignUp, setShowSignUp] = useState(false);
     const [showPasswordReset, setShowPasswordReset] = useState(false);
+    const [resetToken, setResetToken] = useState<string | null>(null);
 
     // ✅ Smooth scroll khi click vào anchor links
     useEffect(() => {
@@ -35,6 +36,20 @@ export default function HomePage() {
 
         document.addEventListener('click', handleAnchorClick);
         return () => document.removeEventListener('click', handleAnchorClick);
+    }, []);
+
+    // Nếu URL có ?token=... (từ email), tự mở modal đặt lại mật khẩu
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        if (token) {
+            setShowPasswordReset(true);
+            setResetToken(token);
+            // Xóa token khỏi URL để tránh mở lại khi refresh
+            const url = new URL(window.location.href);
+            url.searchParams.delete('token');
+            window.history.replaceState({}, '', url.toString());
+        }
     }, []);
 
     return (
@@ -75,6 +90,7 @@ export default function HomePage() {
                         setShowPasswordReset(false);
                         setShowSignIn(true);
                     }}
+                    token={resetToken || undefined}
                 />
             )}
 
