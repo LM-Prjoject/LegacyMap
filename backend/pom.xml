@@ -21,7 +21,7 @@
 <lombok.version>1.18.34</lombok.version>
 <spring-cloud.version>2025.0.0</spring-cloud.version>
 </properties>
-
+  
 <dependencies>
 <!-- JWT (JJWT) -->
 <dependency>
