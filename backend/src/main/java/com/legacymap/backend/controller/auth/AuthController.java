@@ -6,9 +6,11 @@ import com.legacymap.backend.dto.response.ApiResponse;
 import com.legacymap.backend.dto.response.AuthenticationResponse;
 import com.legacymap.backend.entity.AuthToken;
 import com.legacymap.backend.entity.User;
+import com.legacymap.backend.entity.UserProfile;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.AuthTokenRepository;
 import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.repository.UserProfileRepository;
 import com.legacymap.backend.service.AuthTokenService;
 import com.legacymap.backend.service.AuthenticationService;
 import com.legacymap.backend.service.UserService;
@@ -16,9 +18,11 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -42,9 +46,15 @@ public class AuthController {
     private UserRepository userRepository;
 
     @Autowired
+    private UserProfileRepository userProfileRepository;
+
+    @Autowired
     private AuthenticationService authenticationService;
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
 
     public AuthController(AuthTokenRepository authTokenRepository, UserRepository userRepository) {
         this.authTokenRepository = authTokenRepository;
@@ -52,16 +62,18 @@ public class AuthController {
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<ApiResponse<Map<String, String>>> verifyEmail(@RequestParam("token") String token) {
+    public void verifyEmail(@RequestParam("token") String token, HttpServletResponse httpResp) throws java.io.IOException {
         AuthToken authToken = authTokenRepository.findByTokenAndType(token, "email_verification")
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
         if (authToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(ErrorCode.INVALID_TOKEN, "Token expired"));
+            httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_expired");
+            return;
         }
 
         if (Boolean.TRUE.equals(authToken.getUsed())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(ErrorCode.INVALID_TOKEN, "Token already used"));
+            httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_used");
+            return;
         }
 
         User user = authToken.getUser();
@@ -72,11 +84,9 @@ public class AuthController {
         authToken.setUsed(true);
         authTokenRepository.save(authToken);
 
-        Map<String, String> data = new HashMap<>();
-        data.put("message", "Email verified successfully!");
-        data.put("redirectUrl", "/"); // Chuyển hướng về trang chủ
-
-        return ResponseEntity.ok(ApiResponse.success(data, "success"));
+        // Redirect về FE và mở modal đăng nhập
+        String target = frontendUrl + "?showLogin=1";
+        httpResp.sendRedirect(target);
     }
 
     @PostMapping("/login")
@@ -86,7 +96,29 @@ public class AuthController {
         // 🔥 Tạo session token khi đăng nhập thành công
         AuthToken sessionToken = authTokenService.createSessionToken(user);
 
-        AuthenticationResponse response = new AuthenticationResponse(user, sessionToken.getToken());
+        // Build user payload with nested profile (same shape as /auth/me)
+        Map<String, Object> userJson = new HashMap<>();
+        userJson.put("id", user.getId());
+        userJson.put("email", user.getEmail());
+        userJson.put("username", user.getUsername());
+        userJson.put("roleName", user.getRoleName());
+        userJson.put("isActive", user.getIsActive());
+        userJson.put("isVerified", user.getIsVerified());
+
+        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+        if (profile != null) {
+            Map<String, Object> profileJson = new HashMap<>();
+            profileJson.put("fullName", profile.getFullName());
+            profileJson.put("clanName", profile.getClanName());
+            profileJson.put("gender", profile.getGender());
+            profileJson.put("phone", profile.getPhone());
+            profileJson.put("dob", profile.getDob());
+            profileJson.put("address", profile.getAddress());
+            profileJson.put("avatarUrl", profile.getAvatarUrl());
+            userJson.put("profile", profileJson);
+        }
+
+        AuthenticationResponse response = new AuthenticationResponse(userJson, sessionToken.getToken());
         return ApiResponse.success(response, "success");
     }
 
@@ -108,6 +140,61 @@ public class AuthController {
         userRepository.save(user);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Password set successfully"));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<Map<String, Object>> getCurrentUser(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Map<String, Object> result = new HashMap<>();
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            result.put("error", "Missing or invalid Authorization header");
+            return ResponseEntity.status(401).body(result);
+        }
+
+        String token = authHeader.substring(7);
+        try {
+            Jws<Claims> jws = authenticationService.parse(token);
+            Claims claims = jws.getBody();
+            String sub = claims.getSubject();
+
+            if (sub == null) {
+                result.put("error", "Invalid token: missing subject");
+                return ResponseEntity.status(401).body(result);
+            }
+
+            UUID userId = UUID.fromString(sub);
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null) {
+                result.put("error", "User not found");
+                return ResponseEntity.status(404).body(result);
+            }
+
+            UserProfile profile = userProfileRepository.findById(userId).orElse(null);
+
+            Map<String, Object> userJson = new HashMap<>();
+            userJson.put("id", user.getId());
+            userJson.put("email", user.getEmail());
+            userJson.put("username", user.getUsername());
+            userJson.put("roleName", user.getRoleName());
+            userJson.put("isActive", user.getIsActive());
+            userJson.put("isVerified", user.getIsVerified());
+
+            if (profile != null) {
+                Map<String, Object> profileJson = new HashMap<>();
+                profileJson.put("fullName", profile.getFullName());
+                profileJson.put("clanName", profile.getClanName());
+                profileJson.put("gender", profile.getGender());
+                profileJson.put("phone", profile.getPhone());
+                profileJson.put("dob", profile.getDob());
+                profileJson.put("address", profile.getAddress());
+                profileJson.put("avatarUrl", profile.getAvatarUrl());
+                userJson.put("profile", profileJson);
+            }
+
+            return ResponseEntity.ok(userJson);
+        } catch (Exception ex) {
+            result.put("error", "Invalid or expired token");
+            return ResponseEntity.status(401).body(result);
+        }
     }
 
 }

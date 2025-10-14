@@ -1,14 +1,19 @@
 package com.legacymap.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-@Data
 @Entity
 @Table(name = "users")
+@Data @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
         @Id @GeneratedValue
         private UUID id;
@@ -39,6 +44,9 @@ public class User {
 
         @Column(name = "updated_at")
         private OffsetDateTime updatedAt;
+
+        @Column(name = "provider")
+        private String provider;
 
         @PrePersist
         void prePersist() {
