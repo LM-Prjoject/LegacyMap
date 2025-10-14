@@ -21,10 +21,17 @@ export interface LoginResponse {
     token: string;
 }
 
+export interface VerifyEmailResult {
+    user: any;
+    token: string;
+    message?: string;
+    action?: string;
+}
+
 export interface ApiResponse<T> {
     success: boolean;
-    code: number;
-    message: string;
+    code?: number;
+    message?: string;
     result: T;
 }
 
@@ -67,14 +74,24 @@ export const authApi = {
         }
     },
 
-    async verifyEmail(token: string): Promise<ApiResponse<any>> {
-        const { data } = await http.get<ApiResponse<any>>(`/auth/verify?token=${encodeURIComponent(token)}`)
-        return data
+    // 🔥 Cập nhật để trả về thông tin đăng nhập tự động
+    async verifyEmail(token: string): Promise<ApiResponse<VerifyEmailResult>> {
+        console.log('🔍 Đang xác minh email với token:', token.substring(0, 10) + '...');
+        const { data } = await http.get<ApiResponse<VerifyEmailResult>>(`/api/auth/verify?token=${encodeURIComponent(token)}`);
+        console.log('✅ Xác minh thành công:', data);
+        return data;
     },
 
-    // 🔑 Thống nhất key token với chỗ bạn set trong SignIn.tsx là 'auth_token'
+    // 🔑 Thống nhất key token với chỗ bạn set trong SignIn.tsx là 'authToken'
     logout() {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('user')
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
     },
+
+    // Helper function để lưu token và user
+    saveAuthData(token: string, user: any) {
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        console.log('💾 Đã lưu thông tin đăng nhập vào localStorage');
+    }
 }

@@ -21,6 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -50,16 +52,16 @@ public class AuthController {
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<String> verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> verifyEmail(@RequestParam("token") String token) {
         AuthToken authToken = authTokenRepository.findByTokenAndType(token, "email_verification")
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
         if (authToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            return ResponseEntity.badRequest().body("Token expired");
+            return ResponseEntity.badRequest().body(ApiResponse.error(ErrorCode.INVALID_TOKEN, "Token expired"));
         }
 
         if (Boolean.TRUE.equals(authToken.getUsed())) {
-            return ResponseEntity.badRequest().body("Token already used");
+            return ResponseEntity.badRequest().body(ApiResponse.error(ErrorCode.INVALID_TOKEN, "Token already used"));
         }
 
         User user = authToken.getUser();
@@ -70,7 +72,11 @@ public class AuthController {
         authToken.setUsed(true);
         authTokenRepository.save(authToken);
 
-        return ResponseEntity.ok("Email verified successfully!");
+        Map<String, String> data = new HashMap<>();
+        data.put("message", "Email verified successfully!");
+        data.put("redirectUrl", "/"); // Chuyển hướng về trang chủ
+
+        return ResponseEntity.ok(ApiResponse.success(data, "success"));
     }
 
     @PostMapping("/login")
@@ -81,7 +87,7 @@ public class AuthController {
         AuthToken sessionToken = authTokenService.createSessionToken(user);
 
         AuthenticationResponse response = new AuthenticationResponse(user, sessionToken.getToken());
-        return ApiResponse.success(response,"success");
+        return ApiResponse.success(response, "success");
     }
 
     @PostMapping("/set-password")
