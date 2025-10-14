@@ -149,8 +149,8 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         }
     };
 
-    const handleGoogleLogin = async () => {
-        setError('Đăng nhập Google chưa được hỗ trợ. Vui lòng sử dụng email/password.');
+    const handleGoogleLogin = () => {
+        window.location.href = "http://localhost:8080/legacy/oauth2/authorization/google";
     };
 
     return (
