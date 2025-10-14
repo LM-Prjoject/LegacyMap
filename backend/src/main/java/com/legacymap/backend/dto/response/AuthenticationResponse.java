@@ -1,6 +1,6 @@
 package com.legacymap.backend.dto.response;
 
-import com.legacymap.backend.entity.User;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +9,6 @@ import lombok.RequiredArgsConstructor;
 @Data
 @RequiredArgsConstructor
 public class AuthenticationResponse {
-    private User user;
+    private Map<String, Object> user;
     private String token;
 }

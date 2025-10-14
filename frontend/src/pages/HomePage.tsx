@@ -52,6 +52,18 @@ export default function HomePage() {
         }
     }, []);
 
+    // Nếu URL có ?showLogin=1 (sau verify email), tự mở modal đăng nhập
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const showLogin = params.get('showLogin');
+        if (showLogin === '1') {
+            setShowSignIn(true);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('showLogin');
+            window.history.replaceState({}, '', url.toString());
+        }
+    }, []);
+
     return (
         <div className="min-h-screen bg-white">
             {/* ========== MODALS ========== */}

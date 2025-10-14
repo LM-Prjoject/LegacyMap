@@ -1,25 +1,25 @@
 package com.legacymap.backend.service.google;
 
 import com.legacymap.backend.entity.User;
-import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.entity.UserProfile;
 import com.legacymap.backend.repository.UserProfileRepository;
+import com.legacymap.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.*;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class CustomOAuth2UserService extends DefaultOAuth2UserService {
+public class CustomOidcUserService extends OidcUserService {
 
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
@@ -27,17 +27,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     @Transactional
-    public OAuth2User loadUser(OAuth2UserRequest req) {
-        OAuth2User oauth = super.loadUser(req);
+    public OidcUser loadUser(OidcUserRequest userRequest) {
+        OidcUser oidc = super.loadUser(userRequest);
 
-        String email = Optional.ofNullable(oauth.getAttribute("email"))
-                .map(Object::toString)
+        String email = Optional.ofNullable(oidc.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Google account has no email"));
-        String name = Optional.ofNullable(oauth.getAttribute("name")).map(Object::toString).orElse("User");
-        String picture = Optional.ofNullable(oauth.getAttribute("picture")).map(Object::toString).orElse(null);
+        String name = Optional.ofNullable(oidc.getFullName()).orElse("User");
+        String picture = Optional.ofNullable(oidc.getPicture()).orElse(null);
 
         User user = userRepository.findByEmail(email).orElse(null);
-
         if (user == null) {
             String base = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9._-]", "");
             String username = suggestUniqueUsername(base);
@@ -65,7 +63,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.setProvider("google");
                 userRepository.save(user);
             }
-            // Update profile with latest Google info if present
             UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
             if (profile == null) {
                 profile = new UserProfile();
@@ -85,17 +82,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
         }
 
-        Map<String, Object> attrs = new HashMap<>(oauth.getAttributes());
-        attrs.put("dbUserId", user.getId().toString());
-        attrs.put("email", user.getEmail());
-        attrs.put("name", name);
-        if (picture != null) attrs.put("picture", picture);
+        // Build authorities & return DefaultOidcUser using email as name attribute
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRoleName().toUpperCase()));
+        Map<String, Object> claims = new HashMap<>(oidc.getClaims());
+        claims.put("dbUserId", user.getId().toString());
+        claims.put("email", user.getEmail());
+        claims.put("name", name);
+        if (picture != null) claims.put("picture", picture);
 
-        return new DefaultOAuth2User(
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRoleName().toUpperCase())),
-                attrs,
-                "email"
-        );
+        return new DefaultOidcUser(authorities, oidc.getIdToken(), oidc.getUserInfo(), "email");
     }
 
     private String suggestUniqueUsername(String base) {

@@ -12,6 +12,7 @@ import AuditPage from '@/pages/tree/AuditPage'
 import PublicView from '@/pages/public/PublicView'
 import HomePage from '@/pages/HomePage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx"
 
 export const router = createBrowserRouter([
     {
@@ -36,6 +37,10 @@ export const router = createBrowserRouter([
             onClose={() => window.history.back()}
             onShowSignIn={() => window.location.href = '/signin'}
         />
+    },
+    {
+        path: '/auth/google-success',
+        element: <GoogleSuccess />
     },
     {
         path: '/password-reset',

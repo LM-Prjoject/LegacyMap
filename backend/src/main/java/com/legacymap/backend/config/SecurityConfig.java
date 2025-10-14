@@ -1,6 +1,7 @@
 package com.legacymap.backend.config;
 
 import com.legacymap.backend.service.google.CustomOAuth2UserService;
+import com.legacymap.backend.service.google.CustomOidcUserService;
 import com.legacymap.backend.service.google.OAuth2SuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,22 +47,23 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             CustomOAuth2UserService customOAuth2UserService,
+                                            CustomOidcUserService customOidcUserService,
                                             OAuth2SuccessHandler oAuth2SuccessHandler) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify/**").permitAll()
 
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+
                         .requestMatchers("/api/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/actuator/**",
-                                "/oauth2/**",
-                                "/login/oauth2/code/**").permitAll()
+                                "/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
