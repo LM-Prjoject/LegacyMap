@@ -39,3 +39,8 @@ supabase/.temp/
 .env.local
 package.json
 package-lock.json
+
+# ==========================
+# Spring Boot application config
+# ==========================
+backend/src/main/resources/application.properties
