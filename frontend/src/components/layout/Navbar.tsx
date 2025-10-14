@@ -55,13 +55,22 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         window.location.href = '/'; // Reload về homepage
     };
 
-    // ✅ Lấy tên hiển thị
+    // ✅ Lấy tên hiển thị (ưu tiên fullName từ profile)
     const getDisplayName = () => {
         if (!user) return 'User';
-        return user.fullName || user.username || user.email?.split('@')[0] || 'User';
+        const profile = user.profile || user.userProfile;
+        const fullName = user.fullName || profile?.fullName;
+        return fullName || user.username || user.email?.split('@')[0] || 'User';
     };
 
-    // ✅ Lấy chữ cái đầu cho avatar
+    // ✅ Lấy URL avatar (ưu tiên avatar_url từ profile)
+    const getAvatarUrl = () => {
+        if (!user) return null as string | null;
+        const profile = user.profile || user.userProfile;
+        return user.avatarUrl || profile?.avatarUrl || null;
+    };
+
+    // ✅ Lấy chữ cái đầu cho avatar fallback
     const getInitials = () => {
         const name = getDisplayName();
         return name.charAt(0).toUpperCase();
@@ -73,8 +82,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                 <div className="flex justify-between items-center">
                     {/* Logo */}
                     <Link to="/" className="flex items-baseline gap-2">
-                        <div className="text-2xl font-extrabold text-primary tracking-tight">GPGay Gia Phả</div>
-                        <div className="text-sm text-muted-foreground italic">Con Rồng Châu Tiên</div>
+                        <div className="text-2xl font-extrabold text-primary tracking-tight">Cây Gia Phả</div>
+                        <div className="text-sm text-muted-foreground italic">Con Rồng Cháu Tiên</div>
                     </Link>
 
                     {/* Navigation Links */}
@@ -95,9 +104,18 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                     className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                                 >
                                     {/* Avatar */}
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold shadow-lg">
-                                        {getInitials()}
-                                    </div>
+                                    {getAvatarUrl() ? (
+                                        <img
+                                            src={getAvatarUrl() as string}
+                                            alt={getDisplayName()}
+                                            className="w-10 h-10 rounded-full object-cover shadow-lg"
+                                            referrerPolicy="no-referrer"
+                                        />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold shadow-lg">
+                                            {getInitials()}
+                                        </div>
+                                    )}
                                     <span className="hidden md:block text-sm font-medium text-gray-700">
                                         {getDisplayName()}
                                     </span>

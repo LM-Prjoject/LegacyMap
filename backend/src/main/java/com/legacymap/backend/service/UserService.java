@@ -91,6 +91,7 @@ public class UserService {
         user.setRoleName("user");
         user.setIsActive(false);
         user.setIsVerified(false);
+        user.setProvider("local");
 
         user = userRepository.save(user);
 
