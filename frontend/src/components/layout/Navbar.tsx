@@ -73,8 +73,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                 <div className="flex justify-between items-center">
                     {/* Logo */}
                     <Link to="/" className="flex items-baseline gap-2">
-                        <div className="text-2xl font-extrabold text-primary tracking-tight">GPGay Gia Phả</div>
-                        <div className="text-sm text-muted-foreground italic">Con Rồng Châu Tiên</div>
+                        <div className="text-2xl font-extrabold text-primary tracking-tight">Cây Gia Phả</div>
+                        <div className="text-sm text-muted-foreground italic">Con Rồng Cháu Tiên</div>
                     </Link>
 
                     {/* Navigation Links */}
