@@ -1,0 +1,40 @@
+﻿[
+    {
+        "relativePath":  "com/legacymap/backend/api/auth/AuthenticationControllerTest.java",
+        "package":  "com.legacymap.backend.api.auth",
+        "className":  "AuthenticationControllerTest",
+        "annotations":  [
+                            "@WebMvcTest",
+                            "@Tag(\"api\")"
+                        ],
+        "junitVersion":  "junit5",
+        "guessType":  "api"
+    },
+    {
+        "relativePath":  "com/legacymap/backend/integration/auth/AuthFlowIT.java",
+        "package":  "com.legacymap.backend.integration.auth",
+        "className":  "AuthFlowIT",
+        "annotations":  [
+                            "@SpringBootTest",
+                            "@Tag(\"integration\")"
+                        ],
+        "junitVersion":  "junit5",
+        "guessType":  "integration"
+    },
+    {
+        "relativePath":  "com/legacymap/backend/unit/dto/AuthenticationRequestTest.java",
+        "package":  "com.legacymap.backend.unit.dto",
+        "className":  "AuthenticationRequestTest",
+        "annotations":  "@Tag(\"unit\")",
+        "junitVersion":  "junit5",
+        "guessType":  "unit"
+    },
+    {
+        "relativePath":  "com/legacymap/backend/BackendApplicationTests.java",
+        "package":  "com.legacymap.backend",
+        "className":  "BackendApplicationTests",
+        "annotations":  "@SpringBootTest",
+        "junitVersion":  "junit5",
+        "guessType":  "integration"
+    }
+]
