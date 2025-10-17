@@ -14,6 +14,13 @@ public enum ErrorCode {
     TOKEN_EXPIRED("Token has expired", 1011),
     TOKEN_ALREADY_USED("Token already used", 1012),
     INVALID_PURPOSE("Invalid token purpose", 1013),
+    FAMILY_TREE_NOT_FOUND("Family tree not found or not accessible", 1100),
+    PERSON_NOT_FOUND("Person not found", 1101),
+    RELATIONSHIP_INVALID_TYPE("Invalid relationship type", 1102),
+    RELATIONSHIP_ALREADY_EXISTS("Relationship already exists", 1103),
+    RELATIONSHIP_NOT_SAME_TREE("Persons are not in the same family tree", 1104),
+    RELATIONSHIP_NOT_FOUND("Relationship not found", 1105),
+    RELATIONSHIP_SELF_LINK("Cannot create relationship to the same person", 1106),
     ;
     ErrorCode(String message, int code) {
         this.message = message;
