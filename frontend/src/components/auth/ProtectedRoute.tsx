@@ -8,9 +8,8 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const location = useLocation();
 
-    // Kiểm tra authentication với Spring Boot token
     const isAuthenticated = () => {
-        const token = localStorage.getItem('authToken'); // Key khớp với SignIn.tsx
+        const token = localStorage.getItem('authToken');
         const user = localStorage.getItem('user');
         return !!(token && user);
     };
