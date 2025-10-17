@@ -1,4 +1,3 @@
-// src/components/home/AboutSection.tsx
 import { Heart, Target, Users, Shield } from 'lucide-react';
 
 const values = [
