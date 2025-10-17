@@ -3,13 +3,6 @@ import SignIn from '@/pages/auth/SignIn'
 import SignUp from '@/pages/auth/SignUp'
 import PasswordReset from '@/pages/auth/password-reset'
 import TreesList from '@/pages/dashboard/TreesList'
-import TreeOverview from '@/pages/tree/TreeOverview'
-import MembersPage from '@/pages/tree/MembersPage'
-import RelationsPage from '@/pages/tree/RelationsPage'
-import GraphView from '@/pages/tree/GraphView'
-import ShareLinksPage from '@/pages/tree/ShareLinksPage'
-import AuditPage from '@/pages/tree/AuditPage'
-import PublicView from '@/pages/public/PublicView'
 import HomePage from '@/pages/HomePage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx"
@@ -20,7 +13,7 @@ export const router = createBrowserRouter([
         element: <HomePage />
     },
     {
-        path: '/homepage', // Thêm route bảo vệ cho /homepage (nếu cần sử dụng thay /dashboard)
+        path: '/homepage',
         element: <ProtectedRoute><HomePage /></ProtectedRoute>
     },
     {
@@ -53,23 +46,7 @@ export const router = createBrowserRouter([
         path: '/dashboard',
         element: <ProtectedRoute><TreesList /></ProtectedRoute>
     },
-    {
-        path: '/tree/:treeId',
-        element: <ProtectedRoute><TreeOverview /></ProtectedRoute>,
-        children: [
-            { index: true, element: <MembersPage /> },
-            { path: 'members', element: <MembersPage /> },
-            { path: 'relations', element: <RelationsPage /> },
-            { path: 'graph', element: <GraphView /> },
-            { path: 'share', element: <ShareLinksPage /> },
-            { path: 'audit', element: <AuditPage /> },
-        ],
-    },
-    {
-        path: '/public/view',
-        element: <PublicView />
-    },
-    // Redirect từ route cũ sang route mới
+
     {
         path: '/app',
         element: <Navigate to="/dashboard" replace />
