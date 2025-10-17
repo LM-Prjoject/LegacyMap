@@ -60,6 +60,9 @@ public class SecurityConfig {
 
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 
+                        .requestMatchers("/legacy/api/trees/**").permitAll()
+                        .requestMatchers("/api/trees/**").permitAll()
+
                         .requestMatchers("/api/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
