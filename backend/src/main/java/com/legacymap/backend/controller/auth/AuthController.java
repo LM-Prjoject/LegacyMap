@@ -63,8 +63,12 @@ public class AuthController {
 
     @GetMapping("/verify")
     public void verifyEmail(@RequestParam("token") String token, HttpServletResponse httpResp) throws java.io.IOException {
-        AuthToken authToken = authTokenRepository.findByTokenAndType(token, "email_verification")
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
+        var optToken = authTokenRepository.findByTokenAndType(token, "email_verification");
+        if (optToken.isEmpty()) {
+            httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=invalid_token");
+            return;
+        }
+        AuthToken authToken = optToken.get();
 
         if (authToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_expired");
