@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, User, Settings } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
+import { useAutoLogout } from '@/hooks/useAutoLogout';
 
 interface NavbarProps {
     onLoginClick?: () => void;
@@ -17,6 +18,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const [user, setUser] = useState<any>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const location = useLocation();
+
+    useAutoLogout(30);
 
     const isDashboard =
         location.pathname.startsWith('/dashboard') ||
@@ -81,7 +84,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
     return (
         <nav
-            className={`${ 
+            className={`${
                 isDashboard ? 'bg-transparent border-b shadow-none' : 'bg-background/95 border-b border-border shadow-sm'
             } backdrop-blur py-4 sticky top-0 z-40 transition-colors duration-300`}
         >
@@ -154,8 +157,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                             isDashboard ? 'text-white' : 'text-gray-700'
                                         }`}
                                     >
-                    {getDisplayName()}
-                  </span>
+                                        {getDisplayName()}
+                                    </span>
                                 </button>
 
                                 {showDropdown && (
@@ -189,7 +192,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
-                                                    alert('Tính năng đang phát triển');
+                                                    navigate('/profile');
                                                 }}
                                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                             >

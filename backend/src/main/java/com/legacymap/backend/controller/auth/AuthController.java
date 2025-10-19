@@ -1,13 +1,11 @@
 package com.legacymap.backend.controller.auth;
 
 import com.legacymap.backend.dto.request.AuthenticationRequest;
-import com.legacymap.backend.dto.request.SetPasswordRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
 import com.legacymap.backend.dto.response.AuthenticationResponse;
 import com.legacymap.backend.entity.AuthToken;
 import com.legacymap.backend.entity.User;
 import com.legacymap.backend.entity.UserProfile;
-import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.AuthTokenRepository;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.repository.UserProfileRepository;
@@ -16,11 +14,9 @@ import com.legacymap.backend.service.AuthenticationService;
 import com.legacymap.backend.service.UserService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -50,8 +46,6 @@ public class AuthController {
 
     @Autowired
     private AuthenticationService authenticationService;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -97,10 +91,8 @@ public class AuthController {
     public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
         User user = userService.login(request.getIdentifier(), request.getPassword());
 
-        // 🔥 Tạo session token khi đăng nhập thành công
-        AuthToken sessionToken = authTokenService.createSessionToken(user);
+        String accessJwt = authenticationService.generateAccessToken(user);
 
-        // Build user payload with nested profile (same shape as /auth/me)
         Map<String, Object> userJson = new HashMap<>();
         userJson.put("id", user.getId());
         userJson.put("email", user.getEmail());
@@ -122,28 +114,8 @@ public class AuthController {
             userJson.put("profile", profileJson);
         }
 
-        AuthenticationResponse response = new AuthenticationResponse(userJson, sessionToken.getToken());
+        AuthenticationResponse response = new AuthenticationResponse(userJson, accessJwt);
         return ApiResponse.success(response, "success");
-    }
-
-    @PostMapping("/set-password")
-    public ResponseEntity<ApiResponse<Void>> setPassword(@Valid @RequestBody SetPasswordRequest req) {
-        Jws<Claims> jws = authenticationService.parse(req.getToken());
-        Claims c = jws.getBody();
-
-        if (!"SET_PASSWORD".equals(c.get("purpose"))) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(ErrorCode.INVALID_PURPOSE, "Invalid purpose"));
-        }
-
-        UUID userId = UUID.fromString(c.getSubject());
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
-        userRepository.save(user);
-
-        return ResponseEntity.ok(ApiResponse.success(null, "Password set successfully"));
     }
 
     @GetMapping("/me")
