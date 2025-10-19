@@ -13,7 +13,7 @@ export default function GoogleSuccess() {
             localStorage.setItem("authToken", token);
 
             // Gọi API backend để lấy thông tin user
-            fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/legacy/api"}/auth/me`, {
+            fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/legacy"}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
                 .then(res => res.json())

@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: legacy-backend
+    env: docker
+    plan: free
+    autoDeploy: true
+    region: singapore
+    envVars:
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+                - key: JAVA_TOOL_OPTIONS
+                value: "-Djava.net.preferIPv4Stack=true"
