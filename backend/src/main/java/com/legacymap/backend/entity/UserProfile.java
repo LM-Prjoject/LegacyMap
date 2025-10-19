@@ -30,7 +30,7 @@ public class UserProfile {
     private String clanName;
 
     @Column(name = "gender", length = 10)
-    private String gender; // male|female|other
+    private String gender;
 
     @Column(name = "phone", length = 20)
     private String phone;

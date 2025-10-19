@@ -35,6 +35,30 @@ export interface ApiResponse<T> {
     result: T;
 }
 
+export interface Address {
+    city?: string;
+    ward?: string;
+    houseNumber?: string;
+}
+export interface UserProfile {
+    fullName?: string;
+    clanName?: string;
+    gender?: 'male' | 'female' | 'other' | '';
+    phone?: string;
+    dob?: string;
+    address?: Address | null;
+    avatarUrl?: string;
+}
+export interface User {
+    id: string;
+    email: string;
+    username: string;
+    roleName?: string;
+    isActive?: boolean;
+    isVerified?: boolean;
+    profile?: UserProfile;
+}
+
 export const authApi = {
     // ⛳ Trả về data (ApiResponse<LoginResponse>), KHÔNG trả AxiosResponse
     async login(payload: LoginRequest): Promise<ApiResponse<LoginResponse>> {
@@ -77,7 +101,7 @@ export const authApi = {
     // 🔥 Cập nhật để trả về thông tin đăng nhập tự động
     async verifyEmail(token: string): Promise<ApiResponse<VerifyEmailResult>> {
         console.log('🔍 Đang xác minh email với token:', token.substring(0, 10) + '...');
-        const { data } = await http.get<ApiResponse<VerifyEmailResult>>(`/api/auth/verify?token=${encodeURIComponent(token)}`);
+        const { data } = await http.get<ApiResponse<VerifyEmailResult>>(`/auth/verify?token=${encodeURIComponent(token)}`);
         console.log('✅ Xác minh thành công:', data);
         return data;
     },
@@ -93,5 +117,21 @@ export const authApi = {
         localStorage.setItem('authToken', token);
         localStorage.setItem('user', JSON.stringify(user));
         console.log('💾 Đã lưu thông tin đăng nhập vào localStorage');
-    }
-}
+    },
+    async getMe(): Promise<User> {
+        const { data } = await http.get<User>('/auth/me'); // interceptor đã gắn Bearer token
+        return data;
+    },
+
+    /** Lấy user theo id (BE `/api/users/{id}` trả ApiResponse<User>) */
+    async getUser(id: string): Promise<User> {
+        const { data } = await http.get<ApiResponse<User>>(`/users/${id}`);
+        return data.result;
+    },
+
+    /** Cập nhật profile (BE `/api/users/{id}` PUT, trả ApiResponse<UserProfile>) */
+    async updateUser(id: string, profile: UserProfile): Promise<UserProfile> {
+        const { data } = await http.put<ApiResponse<UserProfile>>(`/users/${id}`, profile);
+        return data.result;
+    },
+};
