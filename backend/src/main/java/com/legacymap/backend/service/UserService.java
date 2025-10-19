@@ -9,6 +9,7 @@ import com.legacymap.backend.entity.AuthToken;
 import com.legacymap.backend.repository.UserProfileRepository;
 import com.legacymap.backend.repository.UserRepository;
 import jakarta.mail.MessagingException;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -115,5 +116,28 @@ public class UserService {
         }
 
         return user;
+    }
+
+    @Transactional(readOnly = true)
+    public User getUserById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Transactional
+    public UserProfile updateUserProfile(UUID userId, UserProfile updatedProfile) {
+        UserProfile existingProfile = userProfileRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // Cập nhật thông tin profile
+        existingProfile.setFullName(updatedProfile.getFullName());
+        existingProfile.setClanName(updatedProfile.getClanName());
+        existingProfile.setGender(updatedProfile.getGender());
+        existingProfile.setPhone(updatedProfile.getPhone());
+        existingProfile.setDob(updatedProfile.getDob());
+        existingProfile.setAddress(updatedProfile.getAddress());
+        existingProfile.setAvatarUrl(updatedProfile.getAvatarUrl());
+
+        return userProfileRepository.save(existingProfile);
     }
 }

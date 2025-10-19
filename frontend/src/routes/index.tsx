@@ -6,6 +6,7 @@ import TreesList from '@/pages/dashboard/TreesList'
 import HomePage from '@/pages/HomePage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx"
+import ProfilePage from "@/pages/auth/ProfilePage.tsx";
 
 export const router = createBrowserRouter([
     {
@@ -67,5 +68,9 @@ export const router = createBrowserRouter([
     {
         path: '/forgot',
         element: <Navigate to="/password-reset" replace />
+    },
+    {
+        path: '/profile',
+        element: <ProtectedRoute><ProfilePage /></ProtectedRoute>
     },
 ])

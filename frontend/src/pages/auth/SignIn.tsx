@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock, X, CheckCircle } from 'lucide-react';
 import { authApi } from '@/api/auth';
 import { Player } from '@lottiefiles/react-lottie-player';
-import { useNavigate } from 'react-router-dom'; // Thêm để sử dụng navigate
+import { useNavigate } from 'react-router-dom';
 
 const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json';
 
@@ -14,13 +14,32 @@ function Dragons() {
         <>
             <div className="pointer-events-none absolute left-2 md:left-6 top-1/2 -translate-y-1/2 hidden sm:block">
                 <div className="dragon-move-in-left">
-                    <Player autoplay loop src={DRAGON_URL} style={{ width: 380, height: 380, pointerEvents: 'none' }} />
+                    <Player
+                        autoplay
+                        loop
+                        src={DRAGON_URL}
+                        style={{
+                            width: 380,
+                            height: 380,
+                            transform: 'scaleX(-1)',
+                            pointerEvents: 'none',
+                        }}
+                    />
                 </div>
             </div>
 
             <div className="pointer-events-none absolute right-2 md:right-6 top-1/2 -translate-y-1/2 hidden sm:block [animation-delay:200ms]">
-                <div className="scale-x-[-1] dragon-move-in-right">
-                    <Player autoplay loop src={DRAGON_URL} style={{ width: 380, height: 380, pointerEvents: 'none' }} />
+                <div className="dragon-move-in-right">
+                    <Player
+                        autoplay
+                        loop
+                        src={DRAGON_URL}
+                        style={{
+                            width: 380,
+                            height: 380,
+                            pointerEvents: 'none',
+                        }}
+                    />
                 </div>
             </div>
 
@@ -43,12 +62,16 @@ function Dragons() {
     );
 }
 
-const signInSchema = z.object({
-    email: z.string().email('Email không hợp lệ'),
-    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự')
-});
+const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const isUsername = (s: string) => /^[a-zA-Z0-9._-]{3,30}$/.test(s);
 
-type SignInFormData = z.infer<typeof signInSchema>;
+export const signInSchema = z.object({
+    identifier: z.string().trim().min(3, 'Nhập email hoặc username')
+        .refine(v => isEmail(v) || isUsername(v), { message: 'Email hoặc username không hợp lệ' }),
+    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+});
+export type SignInInput = z.infer<typeof signInSchema>;
+type SignInFormData = SignInInput;
 
 interface SignInProps {
     onClose: () => void;
@@ -61,10 +84,10 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [verificationSuccess, setVerificationSuccess] = useState(false);
-    const [autoLoginSuccess, setAutoLoginSuccess] = useState(false); // Thêm state cho auto login
-    const [countdown, setCountdown] = useState(3); // Thêm countdown
-    const [userName, setUserName] = useState(''); // Thêm để hiển thị tên user
-    const navigate = useNavigate(); // Sử dụng React Router để chuyển hướng
+    const [autoLoginSuccess, setAutoLoginSuccess] = useState(false);
+    const [countdown, setCountdown] = useState(3)
+    const [userName, setUserName] = useState('');
+    const navigate = useNavigate();
 
     // 🔥 Xử lý xác minh email và tự động đăng nhập
     useEffect(() => {
@@ -82,7 +105,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             setError('');
 
             const response = await authApi.verifyEmail(token);
-            console.log('Response from verifyEmail at 02:27 AM +07, Oct 14, 2025:', response);
 
             if (response.success && response.result) {
                 const { user, token: authToken } = response.result; // Giả định backend trả về user và token
@@ -90,8 +112,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                     throw new Error('Không nhận được token đăng nhập');
                 }
 
-                console.log('Xác minh thành công, dữ liệu tại 02:27 AM +07, Oct 14, 2025:', { user, authToken });
-                setUserName(user?.fullName || user?.email || 'người dùng');
+                setUserName(user?.profile?.fullName ?? user?.email ?? 'người dùng');
                 localStorage.setItem('authToken', authToken); // Lưu token
                 localStorage.setItem('user', JSON.stringify(user)); // Lưu user
                 setVerificationSuccess(true);
@@ -102,7 +123,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                     setCountdown(prev => {
                         if (prev <= 1) {
                             clearInterval(countdownInterval);
-                            console.log('Chuyển hướng đến trang chủ tại 02:27 AM +07, Oct 14, 2025');
                             navigate('/');
                             return 0;
                         }
@@ -113,7 +133,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 setError(response.message || 'Xác minh email thất bại');
             }
         } catch (error) {
-            console.error('Lỗi xác minh email tại 02:27 AM +07, Oct 14, 2025:', error);
             setError('Xác minh email thất bại. Vui lòng thử lại.');
         } finally {
             setLoading(false);
@@ -128,10 +147,9 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         try {
             setLoading(true);
             setError('');
-
             const response = await authApi.login({
-                identifier: data.email,
-                password: data.password
+                identifier: data.identifier,
+                password: data.password,
             });
 
             if (response.result?.token) {
@@ -149,8 +167,12 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         }
     };
 
+    const getBackendBase = () =>
+        (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy/api')
+            .replace(/\/api\/?$/, '');
+
     const handleGoogleLogin = () => {
-        window.location.href = "http://localhost:8080/legacy/oauth2/authorization/google";
+        window.location.assign(`${getBackendBase()}/oauth2/authorization/google`);
     };
 
     return (
@@ -194,7 +216,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                 </div>
                                 <button
                                     onClick={() => {
-                                        console.log('Chuyển hướng thủ công tại 02:27 AM +07, Oct 14, 2025');
                                         navigate('/');
                                     }}
                                     className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all"
@@ -204,10 +225,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                             </div>
                         ) : (
                             <>
-                                <p className="text-sm text-slate-600 mb-6">
-                                    Nhập email của bạn để đăng nhập
-                                </p>
-
                                 <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
                                     {error && (
                                         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
@@ -216,23 +233,19 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     )}
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700">
-                                            Email
-                                        </label>
+                                        <label className="block text-sm font-medium text-slate-700">Tài khoản</label>
                                         <div className="mt-1 relative">
                                             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                                 <Mail className="h-4 w-4 text-slate-400" />
                                             </span>
                                             <input
-                                                type="email"
-                                                placeholder="email@domain.com"
+                                                {...register('identifier')}
+                                                placeholder="email@domain.com hoặc username"
+                                                autoComplete="username"
                                                 className="w-full rounded-lg border border-slate-200 pl-9 pr-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] focus:border-transparent"
-                                                {...register('email')}
                                             />
                                         </div>
-                                        {errors.email && (
-                                            <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>
-                                        )}
+                                        {errors.identifier && <p className="text-red-600 text-sm mt-1">{errors.identifier.message}</p>}
                                     </div>
 
                                     <div>

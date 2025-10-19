@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 // import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import FamilyTreeModal from '@/components/familyTreeModal/FamilyTreeModal.tsx';
-import { uploadImageToSupabase } from '@/lib/upload';
+import { uploadCoverToSupabase } from '@/lib/upload';
 import api, { FamilyTree } from '@/api/trees';
 import { Loader, Pencil, Trash2, Eye } from 'lucide-react';
 import bgVideo from '@/assets/bg.mp4';
@@ -142,7 +142,7 @@ export default function TreesList() {
                     <FamilyTreeModal
                         userId={userId!}
                         onClose={() => setShowModal(false)}
-                        uploadImage={uploadImageToSupabase}
+                        uploadImage={uploadCoverToSupabase}
                         onCreated={(tree) => {
                             if (tree?.id) setTrees(prev => [tree, ...prev]);
                             else load();
@@ -156,7 +156,7 @@ export default function TreesList() {
                         userId={userId!}
                         isEdit
                         initialData={editingTree}
-                        uploadImage={uploadImageToSupabase}
+                        uploadImage={uploadCoverToSupabase}
                         onUpdated={(updated) => {
                             setTrees(prev => prev.map(t => (t.id === updated.id ? updated : t)));
                             setEditingTree(null);
