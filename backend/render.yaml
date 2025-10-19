@@ -22,3 +22,5 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+                - key: JAVA_TOOL_OPTIONS
+                value: "-Djava.net.preferIPv4Stack=true"
