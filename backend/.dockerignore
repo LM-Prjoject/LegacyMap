@@ -1,0 +1,15 @@
+# Ignore build output
+target
+# Ignore Git repo and configs
+.git
+.gitignore
+# Ignore IDE files
+.idea
+.vscode
+# Ignore OS junk files
+.DS_Store
+Thumbs.db
+# Ignore logs
+*.log
+# Ignore environment files
+.env
