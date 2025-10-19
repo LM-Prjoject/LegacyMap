@@ -1,4 +1,3 @@
-// src/pages/auth/SignUp.tsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +8,6 @@ import { authApi } from '@/api/auth';
 
 const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json';
 
-// Thêm component SuccessModal
 interface SuccessModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -53,7 +51,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) =
                                 <p className="font-medium text-blue-800">Vui lòng kiểm tra email</p>
                                 <p className="text-sm text-blue-600 mt-1">
                                     • Kiểm tra hộp thư đến và thư mục spam<br/>
-                                    • Link xác minh có hiệu lực trong 24 giờ<br/>
+                                    • Link xác minh có hiệu lực trong 5 phút<br/>
                                     • Xác minh email để bắt đầu sử dụng
                                 </p>
                             </div>
@@ -100,13 +98,32 @@ function Dragons() {
         <>
             <div className="pointer-events-none absolute left-2 md:left-6 top-1/2 -translate-y-1/2 hidden sm:block">
                 <div className="dragon-move-in-left">
-                    <Player autoplay loop src={DRAGON_URL} style={{ width: 380, height: 380, pointerEvents: 'none' }} />
+                    <Player
+                        autoplay
+                        loop
+                        src={DRAGON_URL}
+                        style={{
+                            width: 380,
+                            height: 380,
+                            transform: 'scaleX(-1)',
+                            pointerEvents: 'none',
+                        }}
+                    />
                 </div>
             </div>
 
             <div className="pointer-events-none absolute right-2 md:right-6 top-1/2 -translate-y-1/2 hidden sm:block [animation-delay:200ms]">
-                <div className="scale-x-[-1] dragon-move-in-right">
-                    <Player autoplay loop src={DRAGON_URL} style={{ width: 380, height: 380, pointerEvents: 'none' }} />
+                <div className="dragon-move-in-right">
+                    <Player
+                        autoplay
+                        loop
+                        src={DRAGON_URL}
+                        style={{
+                            width: 380,
+                            height: 380,
+                            pointerEvents: 'none',
+                        }}
+                    />
                 </div>
             </div>
 
@@ -175,7 +192,6 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                 email: data.email,
                 password: data.password,
                 fullName: data.fullName,
-                clanName: data.clanName,
                 gender: data.gender,
                 phone: data.phone,
             });
@@ -304,14 +320,18 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Tên dòng họ (tùy chọn)</label>
-                                    <input
-                                        {...register('clanName')}
-                                        type="text"
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Giới tính</label>
+                                    <select
+                                        {...register('gender')}
                                         disabled={isSubmitting}
-                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                        placeholder="Nhập tên dòng họ"
-                                    />
+                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50 bg-white"
+                                        defaultValue=""
+                                    >
+                                        <option value="" disabled>Chọn giới tính</option>
+                                        <option value="MALE">Nam</option>
+                                        <option value="FEMALE">Nữ</option>
+                                        <option value="OTHER">Khác</option>
+                                    </select>
                                 </div>
 
                                 <div>
