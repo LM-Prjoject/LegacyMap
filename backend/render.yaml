@@ -6,10 +6,12 @@ services:
     autoDeploy: true
     region: singapore
     envVars:
-      - key: DB_USER
-        sync: false
+      - key: DB_URL
+        value: "jdbc:postgresql://db.ygwvctvwonegiyrhjjdp.supabase.co:5432/postgres?sslmode=require"
+      - key: DB_USERNAME
+        value: "postgres"
       - key: DB_PASSWORD
-        sync: false
+        sync: false  # nhập thủ công trong Render dashboard
       - key: MAIL_USER
         sync: false
       - key: MAIL_PASSWORD
@@ -21,6 +23,6 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
-        sync: false
-                - key: JAVA_TOOL_OPTIONS
-                value: "-Djava.net.preferIPv4Stack=true"
+        value: "https://legacy-map-ebon.vercel.app"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-Djava.net.preferIPv4Stack=true"
