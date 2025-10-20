@@ -14,6 +14,7 @@ type Form = {
     phone?: string;
     dob?: string;
     avatarUrl?: string;
+    description?: string;
     address: Address;
 };
 
@@ -40,6 +41,7 @@ export default function ProfilePage() {
                 phone: u.profile?.phone || '',
                 dob,
                 avatarUrl: u.profile?.avatarUrl || '',
+                description: u.profile?.description || '',
                 address: {
                     houseNumber: a?.houseNumber || '',
                     ward: a?.ward || '',
@@ -58,6 +60,7 @@ export default function ProfilePage() {
         phone: clean(f.phone),
         dob: clean(f.dob),
         avatarUrl: clean(f.avatarUrl),
+        description: clean(f.description),
         address: {
             houseNumber: clean(f.address?.houseNumber),
             ward: clean(f.address?.ward),
@@ -75,6 +78,7 @@ export default function ProfilePage() {
             phone: clean(p?.phone),
             dob: clean(dob),
             avatarUrl: clean(p?.avatarUrl),
+            description: clean(p?.description),
             address: {
                 houseNumber: clean(a?.houseNumber),
                 ward: clean(a?.ward),
@@ -134,14 +138,18 @@ export default function ProfilePage() {
             const payload = buildPayloadFromForm(form);
             await authApi.updateUser(me.id, payload);
 
-            setMe((prev) =>
-                prev
-                    ? {
-                        ...prev,
-                        profile: { ...(prev.profile || {}), ...payload },
-                    }
-                    : prev,
-            );
+            // 🔥 CẬP NHẬT: Update state `me`
+            const updatedUser = {
+                ...me,
+                profile: { ...(me.profile || {}), ...payload },
+            };
+            setMe(updatedUser);
+
+            // 🎯 QUAN TRỌNG: Cập nhật localStorage để Navbar thấy avatar mới
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            // 🔔 Trigger event để Navbar refresh
+            window.dispatchEvent(new Event('storage'));
 
             showToast.success('Lưu thông tin thành công');
             setEditing(false);
@@ -206,30 +214,35 @@ export default function ProfilePage() {
                                 }
                             }}
                             title={editing ? 'Click để đổi ảnh' : undefined}
-                            className={`w-[170px] h-[170px] rounded-full text-white grid place-content-center text-xl overflow-hidden relative
-                                ${editing ? 'cursor-pointer hover:opacity-80 transition' : 'cursor-default'}`}
+                            className={`w-[170px] h-[170px] rounded-full overflow-hidden relative shadow-xl border-4 border-white
+                                ${editing ? 'cursor-pointer hover:scale-105 hover:shadow-2xl transition-all duration-300' : 'cursor-default'}`}
                         >
                             {form.avatarUrl ? (
                                 <img
                                     src={form.avatarUrl}
                                     alt="avatar"
-                                    className="w-full h-full object-cover rounded-full select-none"
+                                    className="w-full h-full object-cover select-none"
                                     draggable={false}
                                 />
                             ) : (
-                                'Avatar'
+                                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold text-6xl">
+                                    {(form.fullName || me.username || 'U').charAt(0).toUpperCase()}
+                                </div>
                             )}
 
                             {uploadingAvatar && (
-                                <div className="absolute inset-0 rounded-full bg-black/40 text-white text-sm flex items-center justify-center">
-                                    Đang tải...
+                                <div className="absolute inset-0 bg-black/50 text-white text-sm flex items-center justify-center backdrop-blur-sm">
+                                    <div className="text-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                        <div>Đang tải...</div>
+                                    </div>
                                 </div>
                             )}
                         </div>
 
                         {!editing ? (
                             <button
-                                onClick={() => showToast.info("Chức năng đang phát triển.")}
+                                onClick={() => setEditing(true)}
                                 className="absolute left-1/2 -translate-x-1/2 -bottom-4 h-10 w-10 rounded-full bg-[#1E3A8A] text-white grid place-content-center shadow hover:bg-[#2745a1] transition"
                                 title="Chỉnh sửa"
                             >
@@ -269,7 +282,6 @@ export default function ProfilePage() {
                         </header>
 
                         <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Email (read only) */}
                             <div className="relative">
                                 <label className="text-xs font-medium text-slate-500 mb-1 block">Email</label>
                                 <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl h-12 px-3">
@@ -300,6 +312,7 @@ export default function ProfilePage() {
                             </div>
                         </div>
                     </section>
+
                     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
                         <header className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
                             <div className="w-8 h-8 rounded-lg bg-[#1E3A8A]/10 grid place-content-center">
@@ -308,59 +321,80 @@ export default function ProfilePage() {
                             <h3 className="text-[15px] font-semibold text-slate-800">Thông tin cá nhân</h3>
                         </header>
 
-                        <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="p-5 space-y-4">
+                            {/* Row 1: Họ và tên - Full width */}
                             <div>
-                                <label className="text-xs font-medium text-slate-500 mb-1 block">Giới tính</label>
-                                <div className={`rounded-xl h-12 px-3 border ${
-                                    !editing || saving ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-300 focus-within:border-[#1E3A8A] focus-within:ring-2 focus-within:ring-[#1E3A8A]/20'
-                                } flex items-center`}>
-                                    <Users className="w-4 h-4 text-slate-400 mr-2" />
-                                    <select
-                                        name="gender"
-                                        value={form.gender || ''}
-                                        onChange={onChange}
-                                        disabled={!editing || saving}
-                                        className="w-full bg-transparent outline-none"
-                                    >
-                                        <option value="">Chọn giới tính</option>
-                                        <option value="male">Nam</option>
-                                        <option value="female">Nữ</option>
-                                        <option value="other">Khác</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 mb-1 block">Ngày sinh</label>
-                                <div className={`rounded-xl h-12 px-3 border ${
-                                    !editing || saving ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-300 focus-within:border-[#1E3A8A] focus-within:ring-2 focus-within:ring-[#1E3A8A]/20'
-                                } flex items-center`}>
-                                    <Calendar className="w-4 h-4 text-slate-400 mr-2" />
-                                    <input
-                                        type="date"
-                                        name="dob"
-                                        value={form.dob || ''}
-                                        onChange={onChange}
-                                        disabled={!editing || saving}
-                                        className="w-full bg-transparent outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-medium text-slate-500 mb-1 block">Tên Tộc</label>
+                                <label className="text-xs font-medium text-slate-500 mb-1 block">Họ và tên</label>
                                 <div className={`rounded-xl h-12 px-3 border ${
                                     !editing || saving ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-300 focus-within:border-[#1E3A8A] focus-within:ring-2 focus-within:ring-[#1E3A8A]/20'
                                 } flex items-center`}>
                                     <UserIcon className="w-4 h-4 text-slate-400 mr-2" />
                                     <input
-                                        name="clanName"
-                                        value={form.clanName || ''}
+                                        name="fullName"
+                                        value={form.fullName || ''}
                                         onChange={onChange}
-                                        placeholder="Ví dụ: Nguyễn, Trần…"
+                                        placeholder="Ví dụ: Thị Diệu Linh Lê"
                                         disabled={!editing || saving}
                                         className="w-full bg-transparent outline-none placeholder:text-slate-400"
                                     />
+                                </div>
+                            </div>
+
+                            {/* Row 2: Giới tính, Ngày sinh, Tên Tộc - Grid 3 columns */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Giới tính</label>
+                                    <div className={`rounded-xl h-12 px-3 border ${
+                                        !editing || saving ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-300 focus-within:border-[#1E3A8A] focus-within:ring-2 focus-within:ring-[#1E3A8A]/20'
+                                    } flex items-center`}>
+                                        <Users className="w-4 h-4 text-slate-400 mr-2" />
+                                        <select
+                                            name="gender"
+                                            value={form.gender || ''}
+                                            onChange={onChange}
+                                            disabled={!editing || saving}
+                                            className="w-full bg-transparent outline-none"
+                                        >
+                                            <option value="">Chọn giới tính</option>
+                                            <option value="male">Nam</option>
+                                            <option value="female">Nữ</option>
+                                            <option value="other">Khác</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Ngày sinh</label>
+                                    <div className={`rounded-xl h-12 px-3 border ${
+                                        !editing || saving ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-300 focus-within:border-[#1E3A8A] focus-within:ring-2 focus-within:ring-[#1E3A8A]/20'
+                                    } flex items-center`}>
+                                        <Calendar className="w-4 h-4 text-slate-400 mr-2" />
+                                        <input
+                                            type="date"
+                                            name="dob"
+                                            value={form.dob || ''}
+                                            onChange={onChange}
+                                            disabled={!editing || saving}
+                                            className="w-full bg-transparent outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Tên Tộc</label>
+                                    <div className={`rounded-xl h-12 px-3 border ${
+                                        !editing || saving ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-300 focus-within:border-[#1E3A8A] focus-within:ring-2 focus-within:ring-[#1E3A8A]/20'
+                                    } flex items-center`}>
+                                        <Users className="w-4 h-4 text-slate-400 mr-2" />
+                                        <input
+                                            name="clanName"
+                                            value={form.clanName || ''}
+                                            onChange={onChange}
+                                            placeholder="Ví dụ: Lê, Nguyễn…"
+                                            disabled={!editing || saving}
+                                            className="w-full bg-transparent outline-none placeholder:text-slate-400"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -427,6 +461,33 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </section>
+
+                    <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                        <header className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-[#1E3A8A]/10 grid place-content-center">
+                                <UserIcon className="w-4 h-4 text-[#1E3A8A]" />
+                            </div>
+                            <h3 className="text-[15px] font-semibold text-slate-800">Mô tả bản thân</h3>
+                        </header>
+
+                        <div className="p-5">
+                            <textarea
+                                name="description"
+                                value={form.description || ''}
+                                onChange={(e) => {
+                                    if (!editing) return;
+                                    setForm((prev) => ({ ...prev, description: e.target.value }));
+                                }}
+                                placeholder="Giới thiệu ngắn gọn về bạn (sở thích, vai trò trong gia phả, v.v.)"
+                                disabled={!editing || saving}
+                                className={`w-full rounded-xl border p-3 min-h-[120px] resize-none ${
+                                    !editing || saving
+                                        ? 'bg-slate-50 border-slate-200'
+                                        : 'bg-white border-slate-300 focus:border-[#1E3A8A] focus:ring-2 focus:ring-[#1E3A8A]/20'
+                                }`}
+                            />
                         </div>
                     </section>
                 </div>

@@ -11,7 +11,10 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "user_profiles")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UserProfile {
 
     @Id
@@ -44,6 +47,10 @@ public class UserProfile {
 
     @Column(name = "avatar_url")
     private String avatarUrl;
+
+    // 🟢 (THÊM MỚI) mô tả ngắn về người dùng
+    @Column(name = "description", length = 500)
+    private String description;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
