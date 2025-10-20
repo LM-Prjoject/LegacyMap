@@ -48,6 +48,7 @@ export interface UserProfile {
     dob?: string;
     address?: Address | null;
     avatarUrl?: string;
+    description?: string; // Thêm dòng này
 }
 export interface User {
     id: string;
