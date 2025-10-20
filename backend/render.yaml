@@ -6,23 +6,38 @@ services:
     autoDeploy: true
     region: singapore
     envVars:
+      # === DATABASE CONFIG ===
       - key: DB_URL
-        value: "jdbc:postgresql://db.ygwvctvwonegiyrhjjdp.supabase.co:5432/postgres?sslmode=require"
+        sync: false
       - key: DB_USERNAME
-        value: "postgres"
+        sync: false
       - key: DB_PASSWORD
-        sync: false  # nhập thủ công trong Render dashboard
-      - key: MAIL_USER
         sync: false
-      - key: MAIL_PASSWORD
+
+      # === MAIL CONFIG (Mailtrap) ===
+      - key: SMTP_HOST
         sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false      # password mailtrap
+      - key: MAIL_FROM
+        sync: false      # ví dụ: legacymap180@gmail.com
+
+      # === GOOGLE OAUTH ===
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
+
+      # === JWT & FRONTEND ===
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
         value: "https://legacy-map-ebon.vercel.app"
+
+      # === JVM NETWORK FIX ===
       - key: JAVA_TOOL_OPTIONS
         value: "-Djava.net.preferIPv4Stack=true"
