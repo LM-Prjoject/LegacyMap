@@ -37,34 +37,12 @@ public class UserService {
     @Autowired
     private EmailService emailService;
 
+    // ❌ XÓA method login() này - dùng AuthenticationService.login() thay thế
+    /*
     public User login(String identifier, String rawPassword) {
-        Optional<User> userOpt;
-
-        if (identifier.contains("@")) {
-            userOpt = userRepository.findByEmail(identifier);
-        } else {
-            userOpt = userRepository.findByUsername(identifier);
-        }
-
-        User user = userOpt.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        if (!Boolean.TRUE.equals(user.getIsVerified())) {
-            throw new AppException(ErrorCode.ACCOUNT_NOT_VERIFIED);
-        }
-
-        if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new AppException(ErrorCode.ACCOUNT_DISABLED);
-        }
-
-        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
-        }
-
-        user.setLastLogin(java.time.OffsetDateTime.now());
-        userRepository.save(user);
-
-        return user;
+        // ... old code
     }
+    */
 
     @Transactional
     public User createRequest(UserCreateRequest request) {
@@ -77,7 +55,8 @@ public class UserService {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
-        PasswordEncoder encoder = new BCryptPasswordEncoder(10);
+        // ✅ SỬA: Đổi từ strength 10 sang 12 để khớp với SecurityConfig
+        PasswordEncoder encoder = new BCryptPasswordEncoder(12);
         User user = new User();
         user.setUsername(request.getUsername().trim());
         user.setEmail(request.getEmail().trim().toLowerCase());
@@ -116,7 +95,6 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    // ⚙️ Giữ nguyên API updateUserProfile cũ, chỉ bổ sung logic đầy đủ hơn
     @Transactional
     public UserProfile updateUserProfile(UUID userId, UserProfile updatedProfile) {
         UserProfile existingProfile = userProfileRepository.findById(userId)
@@ -130,7 +108,6 @@ public class UserService {
         existingProfile.setAddress(updatedProfile.getAddress());
         existingProfile.setAvatarUrl(updatedProfile.getAvatarUrl());
 
-        // 🟢 (THÊM MỚI) hỗ trợ cập nhật thêm mô tả nếu có
         if (updatedProfile.getDescription() != null) {
             existingProfile.setDescription(updatedProfile.getDescription());
         }
@@ -138,7 +115,6 @@ public class UserService {
         return userProfileRepository.save(existingProfile);
     }
 
-    // 🟢 (THÊM MỚI) Hàm chỉ lấy riêng hồ sơ người dùng
     @Transactional(readOnly = true)
     public UserProfile getUserProfileOnly(UUID userId) {
         return userProfileRepository.findById(userId)
