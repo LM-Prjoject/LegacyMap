@@ -12,12 +12,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.UUID;
+import java.util.function.Function;
 
 @Slf4j
 @Service
 public class JwtUtil {
 
-    // 🔥 SỬA: Đổi từ jwt.secret thành app.jwt.secret để match với application.properties
     @Value("${app.jwt.secret:my-super-secret-key-for-jwt-must-be-at-least-256-bits-long-hs256-algorithm}")
     private String jwtSecret;
 
@@ -83,14 +83,123 @@ public class JwtUtil {
         String token = Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("email", email)
-                .claim("role", role)
+                .claim("role", role) // 🔥 GIỮ NGUYÊN để frontend hoạt động
+                .claim("role_name", role) // 🔥 ĐỒNG BỘ với database
                 .claim("purpose", "ACCESS")
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
 
-        log.info("✅ Generated JWT for userId: {}, expires: {}", userId, expiryDate);
+        log.info("✅ Generated JWT for userId: {}, role: {}, expires: {}", userId, role, expiryDate);
         return token;
+    }
+    /**
+     * 🔥 THÊM MỚI: Extract claim từ token
+     */
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        try {
+            final Claims claims = extractAllClaims(token);
+            return claimsResolver.apply(claims);
+        } catch (Exception e) {
+            log.error("❌ Error extracting claim from token: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 🔥 THÊM MỚI: Extract tất cả claims
+     */
+    private Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    /**
+     * 🔥 THÊM MỚI: Extract role từ token
+     */
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> {
+            // Thử extract từ field "role"
+            Object roleObj = claims.get("role");
+            if (roleObj != null) {
+                String role = roleObj.toString();
+                log.debug("🔍 Extracted role from token: {}", role);
+                return role;
+            }
+
+            // Fallback: thử từ field "role_name"
+            Object roleNameObj = claims.get("role_name");
+            if (roleNameObj != null) {
+                String role = roleNameObj.toString();
+                log.debug("🔍 Extracted role_name from token: {}", role);
+                return role;
+            }
+
+            log.debug("🔍 No role claim found in token, using default USER");
+            return "USER"; // Default role
+        });
+    }
+
+    /**
+     * 🔥 THÊM MỚI: Extract email từ token
+     */
+    public String extractEmail(String token) {
+        return extractClaim(token, claims -> {
+            Object emailObj = claims.get("email");
+            return emailObj != null ? emailObj.toString() : null;
+        });
+    }
+
+    /**
+     * 🔥 THÊM MỚI: Kiểm tra nếu user có role ADMIN
+     */
+    public boolean isAdmin(String token) {
+        String role = extractRole(token);
+        return "ADMIN".equalsIgnoreCase(role);
+    }
+
+    /**
+     * 🔥 THÊM MỚI: Debug token claims
+     */
+    public void debugToken(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            log.info("🔍 Token Debug - Subject: {}", claims.getSubject());
+            log.info("🔍 Token Debug - Role: {}", claims.get("role"));
+            log.info("🔍 Token Debug - Role Name: {}", claims.get("role_name"));
+            log.info("🔍 Token Debug - Email: {}", claims.get("email"));
+            log.info("🔍 Token Debug - Expiration: {}", claims.getExpiration());
+            log.info("🔍 Token Debug - All Claims: {}", claims);
+        } catch (Exception e) {
+            log.error("❌ Token debug failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 🔥 THÊM MỚI: Validate token for admin access
+     */
+    public boolean validateAdminToken(String token) {
+        try {
+            UUID userId = validateToken(token);
+            if (userId == null) {
+                return false;
+            }
+
+            boolean isAdmin = isAdmin(token);
+            log.info("🔍 Admin validation for user {}: {}", userId, isAdmin);
+
+            if (!isAdmin) {
+                log.warn("🚫 User {} does not have ADMIN role", userId);
+            }
+
+            return isAdmin;
+        } catch (Exception e) {
+            log.error("❌ Admin token validation failed: {}", e.getMessage());
+            return false;
+        }
     }
 }

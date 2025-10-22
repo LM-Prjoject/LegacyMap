@@ -15,7 +15,7 @@ public enum ErrorCode {
     TOKEN_ALREADY_USED("Token already used", 1012),
     INVALID_PURPOSE("Invalid token purpose", 1013),
 
-    // 🔥 THÊM MỚI - Authentication & Authorization
+    // Authentication & Authorization
     UNAUTHENTICATED("You are not authenticated", 1014),
     UNAUTHORIZED("You do not have permission to access this resource", 1015),
 
@@ -27,7 +27,12 @@ public enum ErrorCode {
     RELATIONSHIP_NOT_SAME_TREE("Persons are not in the same family tree", 1104),
     RELATIONSHIP_NOT_FOUND("Relationship not found", 1105),
     RELATIONSHIP_SELF_LINK("Cannot create relationship to the same person", 1106),
-    ;
+
+    // Admin related
+    USER_BANNED("Your account has been banned. Please contact support", 1107),  // 🔥 THÊM MỚI
+    USER_ALREADY_BANNED("User is already banned", 1108),
+    USER_NOT_BANNED("User is not banned", 1109),
+    ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110);
 
     private final int code;
     private final String message;

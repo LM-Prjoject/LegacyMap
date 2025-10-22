@@ -21,7 +21,7 @@ public class User {
         @Column(name = "email", nullable = false, unique = true, length = 255)
         private String email;
 
-        @Column(name = "password_hash", nullable = false, length = 255)
+        @Column(name = "password_hash", nullable = false, length = 255)  // ← Sửa tên column
         private String passwordHash;
 
         @Column(name = "username", nullable = false, unique = true, length = 50)
@@ -35,6 +35,13 @@ public class User {
 
         @Column(name = "is_active", nullable = false)
         private Boolean isActive = true;
+
+        // 🔥 THÊM MỚI - Admin fields
+        @Column(name = "is_banned", nullable = false)
+        private Boolean isBanned = false;
+
+        @Column(name = "banned_at")
+        private OffsetDateTime bannedAt;
 
         @Column(name = "last_login")
         private OffsetDateTime lastLogin;
