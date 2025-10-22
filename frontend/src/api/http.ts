@@ -1,9 +1,19 @@
 import axios from 'axios'
 
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  (window.location.hostname === "localhost"
+    ? "http://localhost:8080/legacy/api"
+    : "https://legacymap.onrender.com/legacy/api");
+
 // Sửa baseURL để match với context-path /legacy
 export const http = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy/api',
-})
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
 // Interceptor cho Spring Boot JWT token
 http.interceptors.request.use((config) => {
