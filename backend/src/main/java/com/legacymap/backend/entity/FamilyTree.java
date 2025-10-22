@@ -1,7 +1,10 @@
+// src/main/java/com/legacymap/backend/entity/FamilyTree.java
 package com.legacymap.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -37,23 +40,18 @@ public class FamilyTree {
     @Column(name = "cover_image_url", columnDefinition = "text")
     private String coverImageUrl;
 
-    @Column(name = "created_at")
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
     @PrePersist
     void prePersist() {
-        createdAt = OffsetDateTime.now();
-        updatedAt = createdAt;
         if (shareToken == null) {
             shareToken = UUID.randomUUID();
         }
-    }
-
-    @PreUpdate
-    void preUpdate() {
-        updatedAt = OffsetDateTime.now();
     }
 }
