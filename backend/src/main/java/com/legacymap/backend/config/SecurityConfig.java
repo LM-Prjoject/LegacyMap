@@ -116,7 +116,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
-                        .loginPage("/login")
+                        .loginPage("/")
                         .userInfoEndpoint(u -> u
                                 .userService(oAuth2UserService)
                                 .oidcUserService(oidcUserService)
