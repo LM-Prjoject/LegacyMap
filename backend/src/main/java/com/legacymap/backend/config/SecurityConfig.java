@@ -68,9 +68,8 @@ public class SecurityConfig {
         log.info("✅ JwtAuthenticationFilter created");
 
         http
-                .securityMatcher("/**")
 //                .securityMatcher("/api/**", "/legacy/**")
-//                .securityMatcher("/api/**")
+                .securityMatcher("/api/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
