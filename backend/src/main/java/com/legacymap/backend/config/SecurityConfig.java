@@ -68,7 +68,8 @@ public class SecurityConfig {
         log.info("✅ JwtAuthenticationFilter created");
 
         http
-                .securityMatcher("/api/**", "/legacy/**")
+                .securityMatcher("/**")
+//                .securityMatcher("/api/**", "/legacy/**")
 //                .securityMatcher("/api/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -85,7 +86,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/trees/**").permitAll()
                         .requestMatchers("/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
                         .requestMatchers("/api/debug/**").permitAll()
-                        .requestMatchers("/api/**", "/users/**", "/legacy/**").permitAll()
+//                        .requestMatchers("/api/**", "/users/**", "/legacy/**").permitAll()
+                                .requestMatchers("/", "/api", "/api/**", "/login/**", "/oauth2/**").permitAll()
                         // Protected endpoints
                         .anyRequest().authenticated()
                 );
