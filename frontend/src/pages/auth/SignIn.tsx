@@ -88,27 +88,44 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         try {
             setLoading(true);
             setError('');
+
+            console.log('🚀 Login attempt:', data.identifier);
+
             const response = await authApi.login({
                 identifier: data.identifier,
                 password: data.password,
             });
 
+            console.log('📦 Login response:', response);
+
             if (response.result?.token) {
-                localStorage.setItem('authToken', response.result.token);
-                localStorage.setItem('user', JSON.stringify(response.result.user));
-                window.location.href = '/';
+                const { token, user } = response.result;
+
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('user', JSON.stringify(user));
+
+                // ✅ Check role và redirect
+                const userRole = user?.role || user?.roleName;
+                console.log('👤 User role:', userRole);
+
+                if (userRole?.toLowerCase() === 'admin') {
+                    console.log('✅ Admin detected - redirecting to /admin');
+                    window.location.href = '/admin';
+                } else {
+                    console.log('✅ Regular user - redirecting to /dashboard');
+                    window.location.href = '/dashboard';
+                }
             } else {
                 throw new Error('No token received from server');
             }
         } catch (error: any) {
-            const errorMessage =
-                error.response?.data?.message || error.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+            console.error('❌ Login error:', error);
+            const errorMessage = error.response?.data?.message || error.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
             setError(errorMessage);
         } finally {
             setLoading(false);
         }
     };
-
     const getBackendBase = () =>
         (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy/api').replace(/\/api\/?$/, '');
 

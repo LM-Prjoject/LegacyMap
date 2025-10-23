@@ -27,7 +27,6 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
 
-    // Constructor injection
     public SecurityConfig(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
         log.info("🔧 SecurityConfig initialized with JwtUtil");
@@ -35,7 +34,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(10);
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean
@@ -63,7 +62,6 @@ public class SecurityConfig {
     SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
         log.info("🔐 Configuring API Security Chain");
 
-        // Tạo filter instance với JwtUtil
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil);
         log.info("✅ JwtAuthenticationFilter created");
 
@@ -73,8 +71,6 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // 🔥 Add JWT filter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .authorizeHttpRequests(auth -> auth
@@ -85,8 +81,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/trees/**").permitAll()
                         .requestMatchers("/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
                         .requestMatchers("/api/debug/**").permitAll()
-//                        .requestMatchers("/api/**", "/users/**", "/legacy/**").permitAll()
-                                .requestMatchers("/", "/api", "/api/**", "/login/**", "/oauth2/**").permitAll()
+
+                        // 🔥 FIXED: Thay ** thành * hoặc {userId}
+                        .requestMatchers(HttpMethod.GET, "/api/admin/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/admin/users/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/ban").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/unban").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
                         // Protected endpoints
                         .anyRequest().authenticated()
                 );

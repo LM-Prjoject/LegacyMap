@@ -14,7 +14,8 @@ import com.legacymap.backend.service.AuthenticationService;
 import com.legacymap.backend.service.UserService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,53 +24,45 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
-    @Autowired
-    private AuthTokenRepository authTokenRepository;
-
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private AuthTokenService authTokenService;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private UserProfileRepository userProfileRepository;
-
-    @Autowired
-    private AuthenticationService authenticationService;
+    private final AuthTokenRepository authTokenRepository;
+    private final UserService userService;
+    private final AuthTokenService authTokenService;
+    private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final AuthenticationService authenticationService;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-    public AuthController(AuthTokenRepository authTokenRepository, UserRepository userRepository) {
-        this.authTokenRepository = authTokenRepository;
-        this.userRepository = userRepository;
-    }
-
     @GetMapping("/verify")
     public void verifyEmail(@RequestParam("token") String token, HttpServletResponse httpResp) throws java.io.IOException {
+        log.info("🔐 Email verification attempt for token: {}", token);
+
         var optToken = authTokenRepository.findByTokenAndType(token, "email_verification");
         if (optToken.isEmpty()) {
+            log.warn("❌ Verification token not found: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=invalid_token");
             return;
         }
         AuthToken authToken = optToken.get();
 
         if (authToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            log.warn("❌ Verification token expired: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_expired");
             return;
         }
 
         if (Boolean.TRUE.equals(authToken.getUsed())) {
+            log.warn("❌ Verification token already used: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_used");
             return;
         }
@@ -82,6 +75,8 @@ public class AuthController {
         authToken.setUsed(true);
         authTokenRepository.save(authToken);
 
+        log.info("✅ Email verified successfully for user: {}", user.getEmail());
+
         // Redirect về FE và mở modal đăng nhập
         String target = frontendUrl + "?showLogin=1";
         httpResp.sendRedirect(target);
@@ -89,39 +84,45 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
-        User user = userService.login(request.getIdentifier(), request.getPassword());
+        log.info("🔐 Login request for identifier: {}", request.getIdentifier());
 
-        String accessJwt = authenticationService.generateAccessToken(user);
+        try {
+            // ✅ Gọi authenticationService.login() - giờ nó trả về AuthenticationResponse rồi
+            AuthenticationResponse response = authenticationService.login(
+                    request.getIdentifier(),
+                    request.getPassword()
+            );
 
-        Map<String, Object> userJson = new HashMap<>();
-        userJson.put("id", user.getId());
-        userJson.put("email", user.getEmail());
-        userJson.put("username", user.getUsername());
-        userJson.put("roleName", user.getRoleName());
-        userJson.put("isActive", user.getIsActive());
-        userJson.put("isVerified", user.getIsVerified());
+            log.info("✅ Login successful for user: {}", request.getIdentifier());
+            return ApiResponse.success(response, "Login successful");
 
-        UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
-        if (profile != null) {
-            Map<String, Object> profileJson = new HashMap<>();
-            profileJson.put("fullName", profile.getFullName());
-            profileJson.put("clanName", profile.getClanName());
-            profileJson.put("gender", profile.getGender());
-            profileJson.put("phone", profile.getPhone());
-            profileJson.put("dob", profile.getDob());
-            profileJson.put("address", profile.getAddress());
-            profileJson.put("avatarUrl", profile.getAvatarUrl());
-            userJson.put("profile", profileJson);
+        } catch (Exception e) {
+            log.error("❌ Login failed for {}: {}", request.getIdentifier(), e.getMessage());
+            throw e;
         }
+    }
 
-        AuthenticationResponse response = new AuthenticationResponse(userJson, accessJwt);
-        return ApiResponse.success(response, "success");
+
+    /**
+     * 🔥 THÊM MỚI: Helper method để tìm user bằng email hoặc username
+     */
+    private Optional<User> findUserByIdentifier(String identifier) {
+        // Thử tìm bằng email trước
+        Optional<User> userOpt = userRepository.findByEmail(identifier);
+        if (userOpt.isPresent()) {
+            return userOpt;
+        }
+        // Nếu không tìm thấy, thử bằng username
+        return userRepository.findByUsername(identifier);
     }
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        log.info("🔐 Get current user request");
+
         Map<String, Object> result = new HashMap<>();
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn("❌ Missing or invalid Authorization header");
             result.put("error", "Missing or invalid Authorization header");
             return ResponseEntity.status(401).body(result);
         }
@@ -133,6 +134,7 @@ public class AuthController {
             String sub = claims.getSubject();
 
             if (sub == null) {
+                log.warn("❌ Invalid token: missing subject");
                 result.put("error", "Invalid token: missing subject");
                 return ResponseEntity.status(401).body(result);
             }
@@ -140,6 +142,7 @@ public class AuthController {
             UUID userId = UUID.fromString(sub);
             User user = userRepository.findById(userId).orElse(null);
             if (user == null) {
+                log.warn("❌ User not found for ID: {}", userId);
                 result.put("error", "User not found");
                 return ResponseEntity.status(404).body(result);
             }
@@ -166,11 +169,12 @@ public class AuthController {
                 userJson.put("profile", profileJson);
             }
 
+            log.info("✅ Current user retrieved: {}", user.getEmail());
             return ResponseEntity.ok(userJson);
         } catch (Exception ex) {
+            log.error("❌ Token validation failed: {}", ex.getMessage());
             result.put("error", "Invalid or expired token");
             return ResponseEntity.status(401).body(result);
         }
     }
-
 }

@@ -37,7 +37,10 @@ public class UserService {
     @Autowired
     private EmailService emailService;
 
+    // ❌ XÓA method login() này - dùng AuthenticationService.login() thay thế
+    /*
     public User login(String identifier, String rawPassword) {
+        // ... old code
         Optional<User> userOpt = identifier.contains("@")
                 ? userRepository.findByEmail(identifier.trim().toLowerCase())
                 : userRepository.findByUsername(identifier.trim());
@@ -68,6 +71,7 @@ public class UserService {
 
         return user;
     }
+    */
 
     @Transactional
     public User createRequest(UserCreateRequest request) {
@@ -80,7 +84,8 @@ public class UserService {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
-        PasswordEncoder encoder = new BCryptPasswordEncoder(10);
+        // ✅ SỬA: Đổi từ strength 10 sang 12 để khớp với SecurityConfig
+        PasswordEncoder encoder = new BCryptPasswordEncoder(12);
         User user = new User();
         user.setUsername(request.getUsername().trim());
         user.setEmail(request.getEmail().trim().toLowerCase());
@@ -131,6 +136,10 @@ public class UserService {
         existingProfile.setDob(updatedProfile.getDob());
         existingProfile.setAddress(updatedProfile.getAddress());
         existingProfile.setAvatarUrl(updatedProfile.getAvatarUrl());
+
+        if (updatedProfile.getDescription() != null) {
+            existingProfile.setDescription(updatedProfile.getDescription());
+        }
 
         return userProfileRepository.save(existingProfile);
     }
