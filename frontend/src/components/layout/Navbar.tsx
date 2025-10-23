@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Settings, Shield } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
@@ -23,7 +23,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
     const isDashboard =
         location.pathname.startsWith('/dashboard') ||
-        location.pathname.startsWith('/trees');
+        location.pathname.startsWith('/trees') ||
+        location.pathname.startsWith('/admin');
 
     const linkColor = isDashboard
         ? 'text-white hover:text-amber-400'
@@ -80,6 +81,17 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const getInitials = () => {
         const name = getDisplayName();
         return name.charAt(0).toUpperCase();
+    };
+
+    // ✅ NEW: Check if user is admin
+    const isAdmin = () => {
+        if (!user) return false;
+        return user.roleName === 'admin' || user.role === 'admin';
+    };
+
+    // ✅ NEW: Get dashboard URL based on role
+    const getDashboardUrl = () => {
+        return isAdmin() ? '/admin' : '/dashboard';
     };
 
     return (
@@ -148,7 +160,11 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                             referrerPolicy="no-referrer"
                                         />
                                     ) : (
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold shadow-lg">
+                                        <div className={`w-10 h-10 rounded-full ${
+                                            isAdmin()
+                                                ? 'bg-gradient-to-br from-amber-500 to-amber-700'
+                                                : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                                        } flex items-center justify-center text-white font-semibold shadow-lg`}>
                                             {getInitials()}
                                         </div>
                                     )}
@@ -170,25 +186,38 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
                                         <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
                                             <div className="px-4 py-3 border-b border-gray-100">
-                                                <p className="text-sm font-semibold text-gray-900">
+                                                <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                                                     {getDisplayName()}
+                                                    {isAdmin() && (
+                                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded">
+                                                            ADMIN
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 <p className="text-xs text-gray-500 truncate">
                                                     {user?.email}
                                                 </p>
                                             </div>
 
+                                            {/* ✅ DASHBOARD BUTTON - Redirects based on role */}
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
-                                                    navigate('/dashboard');
+                                                    navigate(getDashboardUrl());
                                                 }}
-                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                                                    isAdmin() ? 'text-amber-700 font-medium' : 'text-gray-700'
+                                                }`}
                                             >
-                                                <User className="h-4 w-4" />
-                                                Dashboard
+                                                {isAdmin() ? (
+                                                    <Shield className="h-4 w-4" />
+                                                ) : (
+                                                    <User className="h-4 w-4" />
+                                                )}
+                                                {isAdmin() ? 'Admin Dashboard' : 'Dashboard'}
                                             </button>
 
+                                            {/* ✅ SETTINGS BUTTON - For all users */}
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
