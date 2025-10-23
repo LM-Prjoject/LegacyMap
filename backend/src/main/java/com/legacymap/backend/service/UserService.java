@@ -38,13 +38,9 @@ public class UserService {
     private EmailService emailService;
 
     public User login(String identifier, String rawPassword) {
-        Optional<User> userOpt;
-
-        if (identifier.contains("@")) {
-            userOpt = userRepository.findByEmail(identifier);
-        } else {
-            userOpt = userRepository.findByUsername(identifier);
-        }
+        Optional<User> userOpt = identifier.contains("@")
+                ? userRepository.findByEmail(identifier.trim().toLowerCase())
+                : userRepository.findByUsername(identifier.trim());
 
         User user = userOpt.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -57,9 +53,16 @@ public class UserService {
         }
 
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            increaseFailedAttempts(user);
+
+            if (!Boolean.TRUE.equals(user.getIsActive())) {
+                throw new AppException(ErrorCode.ACCOUNT_DISABLED);
+            }
+
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
 
+        resetFailedAttempts(user);
         user.setLastLogin(java.time.OffsetDateTime.now());
         userRepository.save(user);
 
@@ -116,7 +119,6 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    // ⚙️ Giữ nguyên API updateUserProfile cũ, chỉ bổ sung logic đầy đủ hơn
     @Transactional
     public UserProfile updateUserProfile(UUID userId, UserProfile updatedProfile) {
         UserProfile existingProfile = userProfileRepository.findById(userId)
@@ -130,18 +132,26 @@ public class UserService {
         existingProfile.setAddress(updatedProfile.getAddress());
         existingProfile.setAvatarUrl(updatedProfile.getAvatarUrl());
 
-        // 🟢 (THÊM MỚI) hỗ trợ cập nhật thêm mô tả nếu có
-        if (updatedProfile.getDescription() != null) {
-            existingProfile.setDescription(updatedProfile.getDescription());
-        }
-
         return userProfileRepository.save(existingProfile);
     }
 
-    // 🟢 (THÊM MỚI) Hàm chỉ lấy riêng hồ sơ người dùng
     @Transactional(readOnly = true)
     public UserProfile getUserProfileOnly(UUID userId) {
         return userProfileRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    public void increaseFailedAttempts(User user) {
+        int newAccess = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
+        user.setFailedAttempts(newAccess);
+        if (newAccess >= 3) {
+            user.setIsActive(false);
+        }
+        userRepository.save(user);
+    }
+
+    public void resetFailedAttempts(User user) {
+        user.setFailedAttempts(0);
+        userRepository.save(user);
     }
 }

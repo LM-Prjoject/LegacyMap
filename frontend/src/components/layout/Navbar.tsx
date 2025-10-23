@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Settings } from 'lucide-react';
+import { LogOut, User, Album  } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
@@ -26,7 +26,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         location.pathname.startsWith('/trees');
 
     const linkColor = isDashboard
-        ? 'text-white hover:text-amber-400'
+        ? 'text-black hover:text-amber-400'
         : 'text-slate-900 hover:text-amber-600';
 
     useEffect(() => {
@@ -109,25 +109,25 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                     <div className="hidden md:flex items-center gap-16">
                         <a
                             href="#features"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Tính năng
                         </a>
                         <a
                             href="#about"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Về chúng tôi
                         </a>
                         <a
                             href="#testimonials"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Khách hàng
                         </a>
                         <a
                             href="#cta"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Liên hệ
                         </a>
@@ -185,7 +185,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }}
                                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                             >
-                                                <User className="h-4 w-4" />
+                                                < Album className="h-4 w-4" />
                                                 Dashboard
                                             </button>
 
@@ -196,8 +196,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }}
                                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                             >
-                                                <Settings className="h-4 w-4" />
-                                                Cài đặt
+                                                <User className="h-4 w-4" />
+                                                Trang cá nhân
                                             </button>
 
                                             <hr className="my-2" />
