@@ -15,14 +15,14 @@ interface SearchComboProps {
 }
 
 export const SearchCombo: React.FC<SearchComboProps> = ({
-                                                            value,
-                                                            onChange,
-                                                            options,
-                                                            placeholder = 'Tìm...',
-                                                            disabled = false,
-                                                            emptyText = 'Không có kết quả',
-                                                            bare = false,
-                                                        }) => {
+    value,
+    onChange,
+    options,
+    placeholder = 'Tìm...',
+    disabled = false,
+    emptyText = 'Không có kết quả',
+    bare = false,
+}) => {
     const [query, setQuery] = useState('');
     const filtered = useMemo(() => {
         if (!query.trim()) return options;
@@ -45,7 +45,7 @@ export const SearchCombo: React.FC<SearchComboProps> = ({
                     {!bare && <Search className="w-4 h-4 text-slate-400" />}
                     <Combobox.Input
                         displayValue={(opt: Option) => (opt ? opt.label : '')}
-                        onChange={(e) => setQuery(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
                         placeholder={placeholder}
                         className="w-full bg-transparent outline-none"
                     />
@@ -63,13 +63,15 @@ export const SearchCombo: React.FC<SearchComboProps> = ({
                                 <Combobox.Option
                                     key={opt.value}
                                     value={opt}
-                                    className={({ active }) =>
-                                        `cursor-pointer px-3 py-2 text-sm ${active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-800'}`
+                                    className={({ active }: { active: boolean }) =>
+                                        `cursor-pointer px-3 py-2 text-sm ${active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-800'
+                                        }`
                                     }
                                 >
                                     {opt.label}
                                 </Combobox.Option>
                             ))
+
                         )}
                     </Combobox.Options>
                 </Transition>
