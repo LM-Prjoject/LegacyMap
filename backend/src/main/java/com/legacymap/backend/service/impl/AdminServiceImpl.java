@@ -9,6 +9,7 @@ import com.legacymap.backend.entity.User;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.FamilyTreeRepository;
+import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.AdminService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class AdminServiceImpl implements AdminService {
 
     private final UserRepository userRepository;
     private final FamilyTreeRepository familyTreeRepository;
+    private final PersonRepository personRepository; // ✅ NEW: Inject PersonRepository
 
     @Override
     public List<UserListResponse> getAllUsers() {
@@ -81,13 +83,11 @@ public class AdminServiceImpl implements AdminService {
 
         log.info("📋 Current user status - Email: {}, isBanned: {}", user.getEmail(), user.getIsBanned());
 
-        // 🔥 CHECK: Nếu đã bị ban thì throw exception
         if (Boolean.TRUE.equals(user.getIsBanned())) {
             log.warn("⚠️ User {} is already banned", user.getEmail());
             throw new AppException(ErrorCode.USER_ALREADY_BANNED);
         }
 
-        // 🔥 BAN USER
         user.setIsBanned(true);
         user.setBannedAt(OffsetDateTime.now());
 
@@ -115,13 +115,11 @@ public class AdminServiceImpl implements AdminService {
 
         log.info("📋 Current user status - Email: {}, isBanned: {}", user.getEmail(), user.getIsBanned());
 
-        // 🔥 CHECK: Nếu chưa bị ban thì throw exception
         if (Boolean.FALSE.equals(user.getIsBanned()) || user.getIsBanned() == null) {
             log.warn("⚠️ User {} is not banned", user.getEmail());
             throw new AppException(ErrorCode.USER_NOT_BANNED);
         }
 
-        // 🔥 UNBAN USER
         user.setIsBanned(false);
         user.setBannedAt(null);
 
@@ -145,10 +143,19 @@ public class AdminServiceImpl implements AdminService {
 
             log.info("📊 Found {} family trees in database", familyTrees.size());
 
+            // ✅ NEW: Convert and populate member counts
             List<FamilyTreeResponse> response = familyTrees.stream()
                     .map(tree -> {
                         try {
-                            return FamilyTreeResponse.fromEntity(tree);
+                            FamilyTreeResponse dto = FamilyTreeResponse.fromEntity(tree);
+
+                            // ✅ Count members for this tree
+                            long memberCount = personRepository.countByFamilyTree_Id(tree.getId());
+                            dto.setMemberCount(memberCount);
+
+                            log.debug("🌳 Tree '{}' has {} members", tree.getName(), memberCount);
+
+                            return dto;
                         } catch (Exception e) {
                             log.error("❌ Error converting tree {}: {}", tree.getId(), e.getMessage(), e);
                             return null;
@@ -178,11 +185,15 @@ public class AdminServiceImpl implements AdminService {
             List<User> bannedUsers = userRepository.findByIsBannedTrue();
             List<FamilyTree> allTrees = familyTreeRepository.findAll();
 
+            // ✅ NEW: Count total members across all family trees
+            long totalMembers = personRepository.countAllPersons();
+
             stats.put("totalUsers", allUsers.size());
             stats.put("adminUsers", adminUsers.size());
             stats.put("bannedUsers", bannedUsers.size());
             stats.put("activeUsers", allUsers.size() - bannedUsers.size());
             stats.put("totalFamilyTrees", allTrees.size());
+            stats.put("totalMembers", totalMembers); // ✅ NEW
             stats.put("adminUserEmails", adminUsers.stream().map(User::getEmail).collect(Collectors.toList()));
 
             log.info("📊 Admin Stats: {}", stats);
@@ -220,11 +231,9 @@ public class AdminServiceImpl implements AdminService {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        // Log current authentication details
         log.info("🔍 Checking admin permission for: {}", authentication.getName());
         log.info("🔍 Authorities: {}", authentication.getAuthorities());
 
-        // Check if user has ROLE_ADMIN
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(authority -> {
                     boolean matches = authority.getAuthority().equals("ROLE_ADMIN");

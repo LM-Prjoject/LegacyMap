@@ -10,6 +10,7 @@ export interface FamilyTree {
     coverImageUrl?: string;
     createdAt: string;
     updatedAt: string;
+    memberCount?: number; // ✅ THÊM DÒNG NÀY
 }
 
 interface UseFamilyTreesReturn {
@@ -42,7 +43,7 @@ export const useFamilyTrees = (): UseFamilyTreesReturn => {
                 },
             });
 
-            console.log('🔍 Family Trees Response status:', response.status);
+            console.log('📊 Family Trees Response status:', response.status);
 
             if (response.status === 403) {
                 throw new Error('Access denied: Admin role required');
@@ -53,7 +54,7 @@ export const useFamilyTrees = (): UseFamilyTreesReturn => {
             }
 
             const data = await response.json();
-            console.log('🔍 Family Trees data received:', data);
+            console.log('📊 Family Trees data received:', data);
             setFamilyTrees(data);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An error occurred';

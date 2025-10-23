@@ -29,6 +29,9 @@ public class FamilyTreeResponse {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 
+    // ✅ NEW: Member count field
+    private Long memberCount;
+
     // ✅ Static factory method để convert từ Entity sang DTO
     public static FamilyTreeResponse fromEntity(FamilyTree tree) {
         if (tree == null) {
@@ -47,6 +50,7 @@ public class FamilyTreeResponse {
                 .coverImageUrl(tree.getCoverImageUrl())
                 .createdAt(tree.getCreatedAt())
                 .updatedAt(tree.getUpdatedAt())
+                .memberCount(0L) // Will be set by service layer
                 .build();
     }
 }
