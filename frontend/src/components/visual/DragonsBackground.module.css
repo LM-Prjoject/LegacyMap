@@ -1,0 +1,10 @@
+@keyframes dragon-in-left  { 0%,100% { transform: translateX(0) } 50% { transform: translateX(16px) } }
+@keyframes dragon-in-right { 0%,100% { transform: translateX(0) } 50% { transform: translateX(-16px) } }
+
+.dragonMoveInLeft  { animation: dragon-in-left  6s ease-in-out infinite; will-change: transform; }
+.dragonMoveInRight { animation: dragon-in-right 6s ease-in-out infinite; will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+    .dragonMoveInLeft,
+    .dragonMoveInRight { animation: none !important; }
+}

@@ -1,11 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-// import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import FamilyTreeModal from '@/components/familyTreeModal/FamilyTreeModal.tsx';
 import { uploadCoverToSupabase } from '@/lib/upload';
 import api, { FamilyTree } from '@/api/trees';
 import { Loader, Pencil, Trash2, Eye } from 'lucide-react';
-import bgVideo from '@/assets/bg.mp4';
+import bg from '@/assets/bg.jpg';
 import PopupModal from "@/components/popupModal/PopupModal";
 import { showToast } from '@/lib/toast'
 
@@ -62,9 +61,14 @@ export default function TreesList() {
 
     return (
         <div className="relative min-h-screen flex flex-col overflow-hidden">
-            <video autoPlay loop muted playsInline className="absolute top-0 left-0 w-full h-full object-cover -z-10">
-                <source src={bgVideo} type="video/mp4" />
-            </video>
+            {/*<video autoPlay loop playsInline className="absolute top-0 left-0 w-full h-full object-cover -z-10">*/}
+            {/*    <source src={bgVideo} type="video/mp4" />*/}
+            {/*</video>*/}
+            <img
+                src={bg}
+                alt="Background"
+                className="absolute top-0 left-0 w-full h-full object-cover -z-10"
+            />
             <div className="absolute inset-0 bg-slate-900/30 -z-10" />
 
             <Navbar />

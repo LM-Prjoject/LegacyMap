@@ -41,6 +41,35 @@ public class UserService {
     /*
     public User login(String identifier, String rawPassword) {
         // ... old code
+        Optional<User> userOpt = identifier.contains("@")
+                ? userRepository.findByEmail(identifier.trim().toLowerCase())
+                : userRepository.findByUsername(identifier.trim());
+
+        User user = userOpt.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (!Boolean.TRUE.equals(user.getIsVerified())) {
+            throw new AppException(ErrorCode.ACCOUNT_NOT_VERIFIED);
+        }
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new AppException(ErrorCode.ACCOUNT_DISABLED);
+        }
+
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            increaseFailedAttempts(user);
+
+            if (!Boolean.TRUE.equals(user.getIsActive())) {
+                throw new AppException(ErrorCode.ACCOUNT_DISABLED);
+            }
+
+            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        resetFailedAttempts(user);
+        user.setLastLogin(java.time.OffsetDateTime.now());
+        userRepository.save(user);
+
+        return user;
     }
     */
 
@@ -119,5 +148,19 @@ public class UserService {
     public UserProfile getUserProfileOnly(UUID userId) {
         return userProfileRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    public void increaseFailedAttempts(User user) {
+        int newAccess = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
+        user.setFailedAttempts(newAccess);
+        if (newAccess >= 3) {
+            user.setIsActive(false);
+        }
+        userRepository.save(user);
+    }
+
+    public void resetFailedAttempts(User user) {
+        user.setFailedAttempts(0);
+        userRepository.save(user);
     }
 }

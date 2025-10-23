@@ -4,70 +4,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock, X, CheckCircle } from 'lucide-react';
 import { authApi } from '@/api/auth';
-import { Player } from '@lottiefiles/react-lottie-player';
 import { useNavigate } from 'react-router-dom';
-
-const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json';
-
-function Dragons() {
-    return (
-        <>
-            <div className="pointer-events-none absolute left-2 md:left-6 top-1/2 -translate-y-1/2 hidden sm:block">
-                <div className="dragon-move-in-left">
-                    <Player
-                        autoplay
-                        loop
-                        src={DRAGON_URL}
-                        style={{
-                            width: 380,
-                            height: 380,
-                            transform: 'scaleX(-1)',
-                            pointerEvents: 'none',
-                        }}
-                    />
-                </div>
-            </div>
-
-            <div className="pointer-events-none absolute right-2 md:right-6 top-1/2 -translate-y-1/2 hidden sm:block [animation-delay:200ms]">
-                <div className="dragon-move-in-right">
-                    <Player
-                        autoplay
-                        loop
-                        src={DRAGON_URL}
-                        style={{
-                            width: 380,
-                            height: 380,
-                            pointerEvents: 'none',
-                        }}
-                    />
-                </div>
-            </div>
-
-            <svg className="absolute inset-0 w-full h-full opacity-[.06] pointer-events-none">
-                <defs>
-                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <circle cx="20" cy="20" r="1" fill="#d4af37" />
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
-
-            <style>{`
-        .dragon-move-in-left  { animation: dragon-in-left  6s ease-in-out infinite; will-change: transform; }
-        .dragon-move-in-right { animation: dragon-in-right 6s ease-in-out infinite; will-change: transform; }
-        @keyframes dragon-in-left  { 0%,100% { transform: translateX(0) } 50% { transform: translateX(16px) } }
-        @keyframes dragon-in-right { 0%,100% { transform: translateX(0) } 50% { transform: translateX(-16px) } }
-      `}</style>
-        </>
-    );
-}
+import DragonsBackground from '@/components/visual/DragonsBackground';
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 const isUsername = (s: string) => /^[a-zA-Z0-9._-]{3,30}$/.test(s);
 
 export const signInSchema = z.object({
-    identifier: z.string().trim().min(3, 'Nhập email hoặc username')
-        .refine(v => isEmail(v) || isUsername(v), { message: 'Email hoặc username không hợp lệ' }),
+    identifier: z
+        .string()
+        .trim()
+        .min(3, 'Nhập email hoặc username')
+        .refine((v) => isEmail(v) || isUsername(v), { message: 'Email hoặc username không hợp lệ' }),
     password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
 });
 export type SignInInput = z.infer<typeof signInSchema>;
@@ -85,42 +33,35 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
     const [error, setError] = useState('');
     const [verificationSuccess, setVerificationSuccess] = useState(false);
     const [autoLoginSuccess, setAutoLoginSuccess] = useState(false);
-    const [countdown, setCountdown] = useState(3)
+    const [countdown, setCountdown] = useState(3);
     const [userName, setUserName] = useState('');
     const navigate = useNavigate();
 
-    // 🔥 Xử lý xác minh email và tự động đăng nhập
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
-        if (token) {
-            handleEmailVerification(token);
-        }
+        if (token) handleEmailVerification(token);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // 🔥 Function xử lý xác minh email
     const handleEmailVerification = async (token: string) => {
         try {
             setLoading(true);
             setError('');
-
             const response = await authApi.verifyEmail(token);
 
             if (response.success && response.result) {
-                const { user, token: authToken } = response.result; // Giả định backend trả về user và token
-                if (!authToken) {
-                    throw new Error('Không nhận được token đăng nhập');
-                }
+                const { user, token: authToken } = response.result;
+                if (!authToken) throw new Error('Không nhận được token đăng nhập');
 
                 setUserName(user?.profile?.fullName ?? user?.email ?? 'người dùng');
-                localStorage.setItem('authToken', authToken); // Lưu token
-                localStorage.setItem('user', JSON.stringify(user)); // Lưu user
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('user', JSON.stringify(user));
                 setVerificationSuccess(true);
                 setAutoLoginSuccess(true);
 
-                // Chuyển hướng sau 3 giây
                 const countdownInterval = setInterval(() => {
-                    setCountdown(prev => {
+                    setCountdown((prev) => {
                         if (prev <= 1) {
                             clearInterval(countdownInterval);
                             navigate('/');
@@ -132,7 +73,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             } else {
                 setError(response.message || 'Xác minh email thất bại');
             }
-        } catch (error) {
+        } catch {
             setError('Xác minh email thất bại. Vui lòng thử lại.');
         } finally {
             setLoading(false);
@@ -140,7 +81,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
     };
 
     const { register, handleSubmit, formState: { errors } } = useForm<SignInFormData>({
-        resolver: zodResolver(signInSchema)
+        resolver: zodResolver(signInSchema),
     });
 
     const onSubmit = async (data: SignInFormData) => {
@@ -186,8 +127,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         }
     };
     const getBackendBase = () =>
-        (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy/api')
-            .replace(/\/api\/?$/, '');
+        (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy/api').replace(/\/api\/?$/, '');
 
     const handleGoogleLogin = () => {
         window.location.assign(`${getBackendBase()}/oauth2/authorization/google`);
@@ -195,19 +135,23 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
 
-            <div className="flex min-h-full items-center justify-center p-4">
+            <div className="flex min-h-full items-center justify-center p-4 relative">
+                <DragonsBackground
+                    size={380}
+                    showGrid
+                    left={{ enabled: true, flipX: true, delayMs: 0 }}
+                    right={{ enabled: true, flipX: false, delayMs: 200 }}
+                />
+
                 <div className="relative w-full max-w-md">
                     <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
                         <div className="flex justify-between items-center mb-2">
                             <h1 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">
                                 {verificationSuccess ? 'Xác minh email thành công!' : 'Đăng nhập'}
                             </h1>
-                            <button
-                                onClick={onClose}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <X className="h-6 w-6" />
                             </button>
                         </div>
@@ -218,24 +162,22 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                                         <CheckCircle className="h-8 w-8 text-green-600" />
                                     </div>
-                                    <p className="text-lg text-green-600 font-semibold mb-2">
-                                        Email của bạn đã được xác minh thành công!
-                                    </p>
+                                    <p className="text-lg text-green-600 font-semibold mb-2">Email của bạn đã được xác minh thành công!</p>
                                     {autoLoginSuccess && (
                                         <>
                                             <p className="text-sm text-slate-600 mb-4">
-                                                Đăng nhập tự động thành công. Chào mừng <span className="font-semibold text-[#1e63c7]">{userName}</span>!
+                                                Đăng nhập tự động thành công. Chào mừng{' '}
+                                                <span className="font-semibold text-[#1e63c7]">{userName}</span>!
                                             </p>
                                             <p className="text-sm text-slate-600">
-                                                Chuyển đến trang chủ trong <span className="font-semibold text-[#1e63c7]">{countdown}</span> giây...
+                                                Chuyển đến trang chủ trong{' '}
+                                                <span className="font-semibold text-[#1e63c7]">{countdown}</span> giây...
                                             </p>
                                         </>
                                     )}
                                 </div>
                                 <button
-                                    onClick={() => {
-                                        navigate('/');
-                                    }}
+                                    onClick={() => navigate('/')}
                                     className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all"
                                 >
                                     Vào trang chủ ngay
@@ -253,9 +195,9 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700">Tài khoản</label>
                                         <div className="mt-1 relative">
-                                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Mail className="h-4 w-4 text-slate-400" />
-                                            </span>
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Mail className="h-4 w-4 text-slate-400" />
+                      </span>
                                             <input
                                                 {...register('identifier')}
                                                 placeholder="email@domain.com hoặc username"
@@ -269,9 +211,9 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700">Mật khẩu</label>
                                         <div className="mt-1 relative">
-                                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Lock className="h-4 w-4 text-slate-400" />
-                                            </span>
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Lock className="h-4 w-4 text-slate-400" />
+                      </span>
                                             <input
                                                 type={showPwd ? 'text' : 'password'}
                                                 placeholder="••••••••"
@@ -280,23 +222,17 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                             />
                                             <button
                                                 type="button"
-                                                onClick={() => setShowPwd(v => !v)}
+                                                onClick={() => setShowPwd((v) => !v)}
                                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-700"
                                             >
                                                 {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                             </button>
                                         </div>
-                                        {errors.password && (
-                                            <p className="text-red-600 text-sm mt-1">{errors.password.message}</p>
-                                        )}
+                                        {errors.password && <p className="text-red-600 text-sm mt-1">{errors.password.message}</p>}
                                     </div>
 
                                     <div className="flex justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={onShowPasswordReset}
-                                            className="text-sm text-[#1e63c7] hover:underline"
-                                        >
+                                        <button type="button" onClick={onShowPasswordReset} className="text-sm text-[#1e63c7] hover:underline">
                                             Quên mật khẩu?
                                         </button>
                                     </div>
@@ -326,10 +262,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
                                 <p className="mt-6 text-sm text-center text-slate-600">
                                     Chưa có tài khoản?{' '}
-                                    <button
-                                        onClick={onShowSignUp}
-                                        className="text-[#1e63c7] hover:underline font-semibold"
-                                    >
+                                    <button onClick={onShowSignUp} className="text-[#1e63c7] hover:underline font-semibold">
                                         Đăng ký ngay
                                     </button>
                                 </p>
@@ -338,8 +271,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                     </div>
                 </div>
             </div>
-
-            <Dragons />
         </div>
     );
 }
