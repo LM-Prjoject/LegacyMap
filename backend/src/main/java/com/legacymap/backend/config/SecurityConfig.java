@@ -41,6 +41,7 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
         c.setAllowedOriginPatterns(Arrays.asList(
+                "https://legacy-map-ebon.vercel.app",
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "http://localhost:5174",
@@ -65,6 +66,7 @@ public class SecurityConfig {
         log.info("✅ JwtAuthenticationFilter created");
 
         http
+//                .securityMatcher("/api/**", "/legacy/**")
                 .securityMatcher("/api/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -117,7 +119,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
-                        .loginPage("/login")
+                        .loginPage("/")
                         .userInfoEndpoint(u -> u
                                 .userService(oAuth2UserService)
                                 .oidcUserService(oidcUserService)

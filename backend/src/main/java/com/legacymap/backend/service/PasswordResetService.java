@@ -10,6 +10,7 @@ import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -51,6 +52,7 @@ public class PasswordResetService {
         return ApiResponse.success(null, "Nếu email tồn tại, liên kết đặt lại đã được gửi");
     }
 
+    @Transactional
     public ApiResponse<Void> resetPassword(String token, String newPassword) {
         Optional<AuthToken> tokenOpt = authTokenRepository.findByTokenAndType(token, "password_reset");
         if (tokenOpt.isEmpty()) {
@@ -68,6 +70,9 @@ public class PasswordResetService {
         User user = authToken.getUser();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+
+        user.setIsActive(true);
+        user.setFailedAttempts(0);
 
         authToken.setUsed(true);
         authTokenRepository.save(authToken);
