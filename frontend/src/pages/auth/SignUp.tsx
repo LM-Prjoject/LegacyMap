@@ -3,10 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, CheckCircle, Mail, Clock, AlertCircle } from 'lucide-react';
-import { Player } from '@lottiefiles/react-lottie-player';
 import { authApi } from '@/api/auth';
-
-const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json';
+import DragonsBackground from '@/components/visual/DragonsBackground';
 
 interface SuccessModalProps {
     isOpen: boolean;
@@ -50,8 +48,8 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) =
                             <div>
                                 <p className="font-medium text-blue-800">Vui lòng kiểm tra email</p>
                                 <p className="text-sm text-blue-600 mt-1">
-                                    • Kiểm tra hộp thư đến và thư mục spam<br/>
-                                    • Link xác minh có hiệu lực trong 5 phút<br/>
+                                    • Kiểm tra hộp thư đến và thư mục spam<br />
+                                    • Link xác minh có hiệu lực trong 5 phút<br />
                                     • Xác minh email để bắt đầu sử dụng
                                 </p>
                             </div>
@@ -81,77 +79,28 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) =
             </div>
 
             <style>{`
-                @keyframes scale-in {
-                    0% { transform: scale(0.8); opacity: 0; }
-                    100% { transform: scale(1); opacity: 1; }
-                }
-                .animate-scale-in {
-                    animation: scale-in 0.3s ease-out;
-                }
-            `}</style>
+        @keyframes scale-in {
+          0% { transform: scale(0.8); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.3s ease-out;
+        }
+      `}</style>
         </div>
     );
 };
 
-function Dragons() {
-    return (
-        <>
-            <div className="pointer-events-none absolute left-2 md:left-6 top-1/2 -translate-y-1/2 hidden sm:block">
-                <div className="dragon-move-in-left">
-                    <Player
-                        autoplay
-                        loop
-                        src={DRAGON_URL}
-                        style={{
-                            width: 380,
-                            height: 380,
-                            transform: 'scaleX(-1)',
-                            pointerEvents: 'none',
-                        }}
-                    />
-                </div>
-            </div>
-
-            <div className="pointer-events-none absolute right-2 md:right-6 top-1/2 -translate-y-1/2 hidden sm:block [animation-delay:200ms]">
-                <div className="dragon-move-in-right">
-                    <Player
-                        autoplay
-                        loop
-                        src={DRAGON_URL}
-                        style={{
-                            width: 380,
-                            height: 380,
-                            pointerEvents: 'none',
-                        }}
-                    />
-                </div>
-            </div>
-
-            <svg className="absolute inset-0 w-full h-full opacity-[.06] pointer-events-none">
-                <defs>
-                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <circle cx="20" cy="20" r="1" fill="#d4af37" />
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
-
-            <style>{`
-        .dragon-move-in-left  { animation: dragon-in-left  6s ease-in-out infinite; will-change: transform; }
-        .dragon-move-in-right { animation: dragon-in-right 6s ease-in-out infinite; will-change: transform; }
-        @keyframes dragon-in-left  { 0%,100% { transform: translateX(0) } 50% { transform: translateX(16px) } }
-        @keyframes dragon-in-right { 0%,100% { transform: translateX(0) } 50% { transform: translateX(-16px) } }
-      `}</style>
-        </>
-    )
-}
-
 const signupSchema = z.object({
     username: z.string().min(3, 'Username phải có ít nhất 3 ký tự').max(20, 'Username tối đa 20 ký tự'),
     email: z.string().email('Email không hợp lệ'),
-    password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự')
-        .regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]+$/,
-            'Mật khẩu phải chứa ít nhất 1 chữ cái, 1 số và 1 ký tự đặc biệt'),
+    password: z
+        .string()
+        .min(8, 'Mật khẩu phải có ít nhất 8 ký tự')
+        .regex(
+            /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]+$/,
+            'Mật khẩu phải chứa ít nhất 1 chữ cái, 1 số và 1 ký tự đặc biệt'
+        ),
     confirmPassword: z.string(),
     fullName: z.string().min(2, 'Họ tên phải có ít nhất 2 ký tự'),
     clanName: z.string().optional(),
@@ -184,8 +133,6 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
         setErrorMessage('');
 
         try {
-            console.log('🚀 Bắt đầu đăng ký...', { username: data.username, email: data.email });
-
             // Gọi API
             await authApi.register({
                 username: data.username,
@@ -199,12 +146,8 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
             // Hiển thị modal thành công
             setRegisteredEmail(data.email);
             setShowSuccessModal(true);
-
         } catch (err: any) {
-            console.error('❌ Lỗi đăng ký:', err);
-
             let errorMsg = 'Đăng ký thất bại. Vui lòng thử lại.';
-
             if (err.message?.includes('timeout')) {
                 errorMsg = 'Kết nối quá chậm. Vui lòng kiểm tra internet và thử lại.';
             } else if (err.response?.data?.message) {
@@ -212,23 +155,28 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
             } else if (err.message) {
                 errorMsg = err.message;
             }
-
             setErrorMessage(errorMsg);
         }
     };
 
     const handleSuccessModalClose = () => {
         setShowSuccessModal(false);
-        onClose(); // Đóng cả form đăng ký
+        onClose();
     };
 
     return (
         <>
             <div className="fixed inset-0 z-50 overflow-y-auto">
-                {/* Background overlay */}
-                <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+                <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
 
-                <div className="flex min-h-full items-center justify-center p-4">
+                <div className="flex min-h-full items-center justify-center p-4 relative">
+                    <DragonsBackground
+                        size={360}
+                        showGrid
+                        left={{ enabled: true, flipX: true, delayMs: 0 }}
+                        right={{ enabled: true, flipX: false, delayMs: 250 }}
+                    />
+
                     <div className="relative w-full max-w-md">
                         <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
                             {/* Nút X đóng */}
@@ -243,7 +191,6 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                 </button>
                             </div>
 
-                            {/* Error Message */}
                             {errorMessage && (
                                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
                                     <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
@@ -300,9 +247,7 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
                                         placeholder="Nhập mật khẩu"
                                     />
-                                    {errors.password && (
-                                        <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-                                    )}
+                                    {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
                                 </div>
 
                                 <div>
@@ -342,12 +287,12 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                     >
                                         {isSubmitting ? (
                                             <span className="flex items-center justify-center gap-2">
-                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                                                </svg>
-                                                Đang xử lý...
-                                            </span>
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Đang xử lý...
+                      </span>
                                         ) : 'Đăng ký'}
                                     </button>
                                 </div>
@@ -369,12 +314,8 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                         </div>
                     </div>
                 </div>
-
-                {/* 2 con rồng */}
-                <Dragons />
             </div>
 
-            {/* Modal thông báo thành công */}
             <SuccessModal
                 isOpen={showSuccessModal}
                 onClose={handleSuccessModalClose}

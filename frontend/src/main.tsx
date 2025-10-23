@@ -5,11 +5,9 @@ import { router } from './routes/index.tsx'
 import '../index.css'
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Toaster } from 'react-hot-toast'
-import { ThemeProvider } from '@/theme/theme';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-        <ThemeProvider theme="imperial">
         <RouterProvider router={router} />
         <Toaster
             position="top-center"
@@ -19,6 +17,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 style: { borderRadius: '10px', background: '#fff', color: '#333' },
             }}
         />
-        </ThemeProvider>
     </React.StrictMode>,
 )
