@@ -48,6 +48,9 @@ public class User {
         @Column(name = "provider")
         private String provider;
 
+        @Column(name = "failed_attempts")
+        private Integer failedAttempts;
+
         @PrePersist
         void prePersist() {
                 createdAt = OffsetDateTime.now();
