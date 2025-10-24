@@ -32,7 +32,6 @@ public class PasswordResetService {
 
         User user = userOpt.get();
 
-        // Create password reset token
         AuthToken token = AuthToken.builder()
                 .user(user)
                 .type("password_reset")

@@ -1,7 +1,5 @@
-// src/api/http.ts
 import axios from 'axios'
 
-// ✅ FIX: Bỏ /legacy prefix để match với SecurityConfig
 export const http = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
 })

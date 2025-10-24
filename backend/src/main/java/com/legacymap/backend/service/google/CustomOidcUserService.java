@@ -36,6 +36,7 @@ public class CustomOidcUserService extends OidcUserService {
         String picture = Optional.ofNullable(oidc.getPicture()).orElse(null);
 
         User user = userRepository.findByEmail(email).orElse(null);
+
         if (user == null) {
             String base = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9._-]", "");
             String username = suggestUniqueUsername(base);
@@ -57,38 +58,33 @@ public class CustomOidcUserService extends OidcUserService {
             profile.setFullName(name);
             profile.setAvatarUrl(picture);
             userProfileRepository.save(profile);
+
         } else {
-            // Nếu tài khoản local đã tồn tại -> không tạo mới, chỉ cập nhật provider thành google
-            if (user.getProvider() == null || "local".equalsIgnoreCase(user.getProvider())) {
-                user.setProvider("google");
-                userRepository.save(user);
-            }
             UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
             if (profile == null) {
                 profile = new UserProfile();
                 profile.setUser(user);
             }
             boolean changed = false;
-            if (name != null && (profile.getFullName() == null || !name.equals(profile.getFullName()))) {
+            if (isBlank(profile.getFullName()) && !isBlank(name)) {
                 profile.setFullName(name);
                 changed = true;
             }
-            if (picture != null && (profile.getAvatarUrl() == null || !picture.equals(profile.getAvatarUrl()))) {
+            if (isBlank(profile.getAvatarUrl()) && !isBlank(picture)) {
                 profile.setAvatarUrl(picture);
                 changed = true;
             }
             if (changed || profile.getUserId() == null) {
                 userProfileRepository.save(profile);
             }
+
+             if (Boolean.TRUE.equals(user.getIsBanned()) || Boolean.FALSE.equals(user.getIsActive())) {
+                 throw new IllegalStateException("Account is disabled or banned");
+             }
         }
 
-        // Build authorities & return DefaultOidcUser using email as name attribute
-        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRoleName().toUpperCase()));
-        Map<String, Object> claims = new HashMap<>(oidc.getClaims());
-        claims.put("dbUserId", user.getId().toString());
-        claims.put("email", user.getEmail());
-        claims.put("name", name);
-        if (picture != null) claims.put("picture", picture);
+        List<SimpleGrantedAuthority> authorities =
+                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRoleName().toUpperCase()));
 
         return new DefaultOidcUser(authorities, oidc.getIdToken(), oidc.getUserInfo(), "email");
     }
@@ -101,5 +97,9 @@ public class CustomOidcUserService extends OidcUserService {
             candidate = base + i;
         }
         return candidate;
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
     }
 }

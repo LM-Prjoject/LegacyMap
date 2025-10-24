@@ -59,37 +59,33 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             profile.setFullName(name);
             profile.setAvatarUrl(picture);
             userProfileRepository.save(profile);
+
         } else {
-            // Nếu tài khoản local đã tồn tại -> không tạo mới, chỉ cập nhật provider thành google
-            if (user.getProvider() == null || "local".equalsIgnoreCase(user.getProvider())) {
-                user.setProvider("google");
-                userRepository.save(user);
-            }
-            // Update profile with latest Google info if present
             UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
             if (profile == null) {
                 profile = new UserProfile();
                 profile.setUser(user);
             }
             boolean changed = false;
-            if (name != null && (profile.getFullName() == null || !name.equals(profile.getFullName()))) {
+            if (isBlank(profile.getFullName()) && !isBlank(name)) {
                 profile.setFullName(name);
                 changed = true;
             }
-            if (picture != null && (profile.getAvatarUrl() == null || !picture.equals(profile.getAvatarUrl()))) {
+            if (isBlank(profile.getAvatarUrl()) && !isBlank(picture)) {
                 profile.setAvatarUrl(picture);
                 changed = true;
             }
             if (changed || profile.getUserId() == null) {
                 userProfileRepository.save(profile);
             }
+
+             if (Boolean.TRUE.equals(user.getIsBanned()) || Boolean.FALSE.equals(user.getIsActive())) {
+                 throw new IllegalStateException("Account is disabled or banned");
+             }
         }
 
         Map<String, Object> attrs = new HashMap<>(oauth.getAttributes());
-        attrs.put("dbUserId", user.getId().toString());
-        attrs.put("email", user.getEmail());
-        attrs.put("name", name);
-        if (picture != null) attrs.put("picture", picture);
+        attrs.put("dbUserId", user.getId().toString()); // nếu front cần
 
         return new DefaultOAuth2User(
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRoleName().toUpperCase())),
@@ -106,5 +102,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             candidate = base + i;
         }
         return candidate;
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
     }
 }
