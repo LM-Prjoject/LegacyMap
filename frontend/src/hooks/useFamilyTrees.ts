@@ -10,6 +10,7 @@ export interface FamilyTree {
     coverImageUrl?: string;
     createdAt: string;
     updatedAt: string;
+    memberCount?: number; // ✅ THÊM DÒNG NÀY
 }
 
 interface UseFamilyTreesReturn {
