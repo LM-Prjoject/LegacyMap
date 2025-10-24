@@ -1,7 +1,7 @@
 // src/api/http.ts
 import axios from 'axios'
 
-
+// ✅ FIX: Bỏ /legacy prefix để match với SecurityConfig
 export const http = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
 })
@@ -10,9 +10,10 @@ export const http = axios.create({
 http.interceptors.request.use((config) => {
     const token = localStorage.getItem('authToken');
 
+    // 🔍 Debug logging
     console.log('🚀 HTTP Request:', {
         method: config.method?.toUpperCase(),
-        url: `${config.baseURL}${config.url}`,
+        url: `${config.baseURL}${config.url}`, // ✅ Full URL
         hasToken: !!token,
         tokenPreview: token ? `${token.substring(0, 20)}...` : 'NO TOKEN'
     });
@@ -48,6 +49,7 @@ http.interceptors.response.use(
             headers: error?.config?.headers
         });
 
+        // ✅ Xử lý 401 Unauthorized
         if (error?.response?.status === 401) {
             console.error('🚫 Unauthorized - Clearing auth data and redirecting to login');
             localStorage.removeItem('authToken');

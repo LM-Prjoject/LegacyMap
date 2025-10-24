@@ -2,7 +2,7 @@
 import { http } from './http'
 
 // ============================================
-// 📝 TYPE DEFINITIONS
+// 📋 TYPE DEFINITIONS
 // ============================================
 
 export interface User {
@@ -29,7 +29,7 @@ export interface FamilyTree {
     name: string;
     description?: string;
     isPublic: boolean;
-    createdByUserId: string;
+    createdBy: string;  // ✅ Backend trả "createdBy" không phải "createdByUserId"
     createdByEmail?: string;
     createdByUsername?: string;
     createdAt: string;
@@ -53,7 +53,7 @@ export interface ApiResponse<T> {
 }
 
 // ============================================
-// 🔌 ADMIN API CLIENT
+// 📌 ADMIN API CLIENT
 // ============================================
 
 export const adminApi = {
@@ -61,9 +61,17 @@ export const adminApi = {
     async getAllUsers(): Promise<User[]> {
         try {
             console.log('📡 Fetching all users...');
-            const { data } = await http.get<ApiResponse<User[]>>('/admin/users');
-            console.log('✅ Users fetched:', data.result?.length || 0);
-            return data.result;
+            const response = await http.get<ApiResponse<User[]>>('/admin/users');
+
+            console.log('✅ Users response:', response.data);
+
+            // Check if response is wrapped or direct array
+            const users = Array.isArray(response.data)
+                ? response.data
+                : response.data.result || [];
+
+            console.log('✅ Users fetched:', users.length);
+            return users;
         } catch (error: any) {
             console.error('❌ Error fetching users:', error.response?.data || error.message);
             throw error;
@@ -73,9 +81,11 @@ export const adminApi = {
     async getUserDetail(userId: string): Promise<UserDetail> {
         try {
             console.log('📡 Fetching user detail:', userId);
-            const { data } = await http.get<ApiResponse<UserDetail>>(`/admin/users/${userId}`);
-            console.log('✅ User detail fetched:', data.result);
-            return data.result;
+            const response = await http.get<ApiResponse<UserDetail>>(`/admin/users/${userId}`);
+
+            const user = response.data.result || response.data;
+            console.log('✅ User detail fetched:', user);
+            return user as UserDetail;
         } catch (error: any) {
             console.error('❌ Error fetching user detail:', error.response?.data || error.message);
             throw error;
@@ -109,7 +119,6 @@ export const adminApi = {
         try {
             console.log('🌳 Fetching all family trees...');
 
-            // 🔍 Debug: Log token trước khi gửi request
             const token = localStorage.getItem('authToken');
             console.log('🔑 Token status:', {
                 exists: !!token,
@@ -117,14 +126,22 @@ export const adminApi = {
                 preview: token?.substring(0, 20) + '...'
             });
 
-            const { data } = await http.get<ApiResponse<FamilyTree[]>>('/admin/family-trees');
+            const response = await http.get<FamilyTree[]>('/admin/family-trees');
+
+            console.log('📦 Full response object:', response);
+            console.log('📦 Response.data:', response.data);
+            console.log('📦 Response.data type:', Array.isArray(response.data) ? 'Array' : typeof response.data);
+
+            // ✅ FIX: Backend trả trực tiếp array, không wrap trong object
+            const trees = Array.isArray(response.data) ? response.data : [];
 
             console.log('✅ Family trees fetched:', {
-                count: data.result?.length || 0,
-                trees: data.result
+                count: trees.length,
+                trees: trees,
+                firstTree: trees[0] || null
             });
 
-            return data.result;
+            return trees;
         } catch (error: any) {
             console.error('❌ Error fetching family trees:', {
                 status: error.response?.status,
@@ -140,9 +157,11 @@ export const adminApi = {
     async getAdminStats(): Promise<AdminStats> {
         try {
             console.log('📊 Fetching admin stats...');
-            const { data } = await http.get<ApiResponse<AdminStats>>('/admin/stats');
-            console.log('✅ Admin stats fetched:', data.result);
-            return data.result;
+            const response = await http.get<ApiResponse<AdminStats>>('/admin/stats');
+
+            const stats = response.data.result || response.data;
+            console.log('✅ Admin stats fetched:', stats);
+            return stats as AdminStats;
         } catch (error: any) {
             console.error('❌ Error fetching admin stats:', error.response?.data || error.message);
             throw error;
