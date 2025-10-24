@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 import SignIn from '@/pages/auth/SignIn'
 import SignUp from '@/pages/auth/SignUp'
 import PasswordReset from '@/pages/auth/password-reset'
@@ -6,7 +6,13 @@ import TreesList from '@/pages/dashboard/TreesList'
 import HomePage from '@/pages/HomePage'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx"
-import ProfilePage from "@/pages/auth/ProfilePage.tsx";
+import ProfilePage from "@/pages/auth/ProfilePage.tsx"
+import AdminDashboard from '@/pages/admin/AdminDashboard'
+import UserManagement from '@/pages/admin/UserManagement'
+import UserDetail from '@/pages/admin/UserDetail'
+import AdminLayout from '@/components/admin/AdminLayout'
+import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
+
 
 export const router = createBrowserRouter([
     {
@@ -48,6 +54,47 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><TreesList /></ProtectedRoute>
     },
 
+    // ✅ Admin routes với đầy đủ children
+    {
+        path: '/admin',
+        element: (
+            <ProtectedRoute requiredRole="admin">
+                <AdminLayout>
+                    <Outlet />
+                </AdminLayout>
+            </ProtectedRoute>
+        ),
+        children: [
+            {
+                index: true,
+                element: <AdminDashboard />
+            },
+            {
+                path: 'dashboard', // ← THÊM
+                element: <AdminDashboard />
+            },
+            {
+                path: 'users',
+                element: <UserManagement />
+            },
+            {
+                path: 'users/:userId',
+                element: <UserDetail />
+            },
+            {
+                path: 'trees',
+                element: <FamilyTreesPage />  // ✅ Thay vì <div>Coming soon...</div>
+            },
+            {
+                path: 'settings', // ← THÊM
+                element: <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">⚙️ Settings</h2>
+                    <p className="text-gray-600">Coming soon...</p>
+                </div>
+            }
+        ]
+    },
+
     {
         path: '/app',
         element: <Navigate to="/dashboard" replace />
@@ -56,7 +103,6 @@ export const router = createBrowserRouter([
         path: '/app/trees/:treeId',
         element: <Navigate to="/tree/:treeId" replace />
     },
-    // Redirect từ route password cũ sang route mới
     {
         path: '/forgot-password',
         element: <Navigate to="/password-reset" replace />
