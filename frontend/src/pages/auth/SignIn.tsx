@@ -6,6 +6,7 @@ import { Eye, EyeOff, Mail, Lock, X, CheckCircle } from 'lucide-react';
 import { authApi } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import DragonsBackground from '@/components/visual/DragonsBackground';
+import { FcGoogle } from "react-icons/fc";
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 const isUsername = (s: string) => /^[a-zA-Z0-9._-]{3,30}$/.test(s);
@@ -236,11 +237,13 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     </div>
                                 </div>
 
+
                                 <button
                                     onClick={handleGoogleLogin}
-                                    className="w-full rounded-lg border border-slate-200 bg-white hover:bg-slate-50 py-2 font-medium transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 py-2 font-medium transition-colors"
                                 >
-                                    Đăng nhập bằng Google
+                                    <FcGoogle size={18} />
+                                    <span>Đăng nhập bằng Google</span>
                                 </button>
 
                                 <p className="mt-6 text-sm text-center text-slate-600">
