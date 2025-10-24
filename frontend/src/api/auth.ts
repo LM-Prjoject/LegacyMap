@@ -64,17 +64,31 @@ export const authApi = {
     // ⛳ Trả về data (ApiResponse<LoginResponse>), KHÔNG trả AxiosResponse
     async login(payload: LoginRequest): Promise<ApiResponse<LoginResponse>> {
         try {
-            console.log('🔐 Đang đăng nhập...', { identifier: payload.identifier })
-            const { data } = await http.post<ApiResponse<LoginResponse>>('/auth/login', payload)
-            console.log('✅ Đăng nhập thành công:', data)
-            return data
+            console.log('🔐 Đang đăng nhập...', {
+                identifier: payload.identifier,
+                password_length: payload.password.length // Thêm để debug
+            });
+
+            // 🔍 THÊM: Log full URL
+            const fullUrl = http.defaults.baseURL + '/auth/login';
+            console.log('📡 URL:', fullUrl);
+
+            const response = await http.post<ApiResponse<LoginResponse>>('/auth/login', payload);
+
+            console.log('✅ Đăng nhập thành công:', response.data);
+            return response.data;
         } catch (error: any) {
-            console.error('❌ Lỗi đăng nhập:', {
+            console.error('❌ Lỗi đăng nhập chi tiết:', {
                 message: error.message,
-                response: error.response?.data,
                 status: error.response?.status,
-            })
-            throw error
+                data: error.response?.data, // Chi tiết lỗi từ backend
+                config: {
+                    url: error.config?.url,
+                    method: error.config?.method,
+                    data: error.config?.data
+                }
+            });
+            throw error;
         }
     },
 

@@ -37,38 +37,6 @@ public class UserService {
     @Autowired
     private EmailService emailService;
 
-    public User login(String identifier, String rawPassword) {
-        Optional<User> userOpt = identifier.contains("@")
-                ? userRepository.findByEmail(identifier.trim().toLowerCase())
-                : userRepository.findByUsername(identifier.trim());
-
-        User user = userOpt.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        if (!Boolean.TRUE.equals(user.getIsVerified())) {
-            throw new AppException(ErrorCode.ACCOUNT_NOT_VERIFIED);
-        }
-
-        if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new AppException(ErrorCode.ACCOUNT_DISABLED);
-        }
-
-        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            increaseFailedAttempts(user);
-
-            if (!Boolean.TRUE.equals(user.getIsActive())) {
-                throw new AppException(ErrorCode.ACCOUNT_DISABLED);
-            }
-
-            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
-        }
-
-        resetFailedAttempts(user);
-        user.setLastLogin(java.time.OffsetDateTime.now());
-        userRepository.save(user);
-
-        return user;
-    }
-
     @Transactional
     public User createRequest(UserCreateRequest request) {
 
@@ -80,7 +48,8 @@ public class UserService {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
-        PasswordEncoder encoder = new BCryptPasswordEncoder(10);
+        // ✅ SỬA: Đổi từ strength 10 sang 12 để khớp với SecurityConfig
+        PasswordEncoder encoder = new BCryptPasswordEncoder(12);
         User user = new User();
         user.setUsername(request.getUsername().trim());
         user.setEmail(request.getEmail().trim().toLowerCase());
@@ -131,7 +100,7 @@ public class UserService {
         existingProfile.setDob(updatedProfile.getDob());
         existingProfile.setAddress(updatedProfile.getAddress());
         existingProfile.setAvatarUrl(updatedProfile.getAvatarUrl());
-
+      
         return userProfileRepository.save(existingProfile);
     }
 
