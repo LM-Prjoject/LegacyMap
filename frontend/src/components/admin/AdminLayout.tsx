@@ -10,63 +10,71 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const location = useLocation();
 
     const menuItems = [
-        { path: '/admin', label: 'Dashboard', icon: '📊' },
-        { path: '/admin/users', label: 'User Management', icon: '👥' },
-        { path: '/admin/trees', label: 'Family Trees', icon: '🌳' },
-        { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
+        { path: '/admin', label: 'Tổng Quan', icon: '🏠' },
+        { path: '/admin/users', label: 'Người Dùng', icon: '👥' },
+        { path: '/admin/trees', label: 'Gia Phả', icon: '🌲' },
+        { path: '/admin/settings', label: 'Cài Đặt', icon: '⚙️' },
     ];
 
     const isActive = (path: string) => location.pathname === path;
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* Top Navigation */}
-            <nav className="bg-white shadow-sm border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        <div className="flex items-center">
-                            <h1 className="text-xl font-bold text-gray-900">
-                                🛡️ Admin Panel
-                            </h1>
+        <div className="min-h-screen flex bg-[#0a4a9e]">
+            {/* Sidebar */}
+            <aside className="w-80 bg-[#084289] border-r border-[#0a4a9e] flex flex-col">
+                {/* Logo Section */}
+                <div className="p-6 border-b border-[#0a4a9e]">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
+                            <span className="text-2xl">🏛️</span>
                         </div>
-                        <div className="flex items-center space-x-4">
-                            <Link
-                                to="/"
-                                className="text-gray-600 hover:text-gray-900 transition-colors"
-                            >
-                                ← Back to Site
-                            </Link>
+                        <div>
+                            <h1 className="text-white font-bold text-lg">Gia Phả Admin</h1>
                         </div>
                     </div>
                 </div>
-            </nav>
 
-            <div className="flex">
-                {/* Sidebar */}
-                <aside className="w-64 bg-white shadow-sm min-h-screen">
-                    <nav className="mt-8">
-                        {menuItems.map((item) => (
+                {/* Menu Items */}
+                <nav className="flex-1 p-4">
+                    {menuItems.map((item) => {
+                        const active = isActive(item.path);
+                        return (
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`flex items-center px-6 py-3 text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors ${
-                                    isActive(item.path)
-                                        ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-600'
-                                        : ''
-                                }`}
+                                className={`
+                                    flex items-center gap-4 px-6 py-4 mb-2 rounded-xl transition-all
+                                    ${active
+                                    ? 'bg-[#D1B066] text-[#084289]'
+                                    : 'text-white hover:bg-[#0a4a9e]'
+                                }
+                                `}
                             >
-                                <span className="mr-3 text-xl">{item.icon}</span>
-                                <span className="font-medium">{item.label}</span>
+                                <span className="text-2xl">{item.icon}</span>
+                                <span className="font-medium text-base">{item.label}</span>
                             </Link>
-                        ))}
-                    </nav>
-                </aside>
+                        );
+                    })}
+                </nav>
 
-                {/* Main Content */}
-                <main className="flex-1 p-8">
+                {/* Logout Button */}
+                <div className="p-4 border-t border-[#0a4a9e]">
+                    <Link
+                        to="/"
+                        className="flex items-center gap-4 px-6 py-4 rounded-xl text-red-300 hover:bg-red-500/20 transition-all"
+                    >
+                        <span className="text-2xl">🚪</span>
+                        <span className="font-medium">Đăng Xuất</span>
+                    </Link>
+                </div>
+            </aside>
+
+            {/* Main Content - No Top Bar */}
+            <main className="flex-1 overflow-auto">
+                <div className="p-8">
                     {children}
-                </main>
-            </div>
+                </div>
+            </main>
         </div>
     );
 };

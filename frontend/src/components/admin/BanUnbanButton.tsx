@@ -35,14 +35,17 @@ const BanUnbanButton: React.FC<BanUnbanButtonProps> = ({
         <button
             onClick={handleClick}
             disabled={loading}
-            className={`px-4 py-2 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                isBanned
-                    ? 'bg-green-500 text-white hover:bg-green-600'
-                    : 'bg-red-500 text-white hover:bg-red-600'
-            }`}
+            className={`
+                px-4 py-2 rounded-lg font-medium transition-all text-sm
+                disabled:opacity-50 disabled:cursor-not-allowed
+                ${isBanned
+                ? 'bg-green-500 text-white hover:bg-green-600'
+                : 'bg-red-500 text-white hover:bg-red-600'
+            }
+            `}
         >
             {loading ? (
-                <span className="flex items-center">
+                <span className="flex items-center justify-center">
                     <svg
                         className="animate-spin h-4 w-4 mr-2"
                         viewBox="0 0 24 24"
@@ -62,10 +65,10 @@ const BanUnbanButton: React.FC<BanUnbanButtonProps> = ({
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                     </svg>
-                    Processing...
+                    Đang xử lý...
                 </span>
             ) : (
-                isBanned ? '✅ Unban' : '🚫 Ban'
+                isBanned ? '✅ Mở khóa' : '🚫 Khóa'
             )}
         </button>
     );
