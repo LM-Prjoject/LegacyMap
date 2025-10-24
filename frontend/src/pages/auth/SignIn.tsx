@@ -114,7 +114,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                     window.location.href = '/admin';
                 } else {
                     console.log('✅ Regular user - redirecting to /dashboard');
-                    window.location.href = '/dashboard';
+                    window.location.href = '/';
                 }
             } else {
                 throw new Error('No token received from server');
