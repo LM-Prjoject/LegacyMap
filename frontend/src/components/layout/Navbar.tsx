@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Album  } from 'lucide-react';
+import { LogOut, User, Settings, Shield } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
@@ -23,10 +23,11 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
     const isDashboard =
         location.pathname.startsWith('/dashboard') ||
-        location.pathname.startsWith('/trees');
+        location.pathname.startsWith('/trees') ||
+        location.pathname.startsWith('/admin');
 
     const linkColor = isDashboard
-        ? 'text-black hover:text-amber-400'
+        ? 'text-white hover:text-amber-400'
         : 'text-slate-900 hover:text-amber-600';
 
     useEffect(() => {
@@ -82,6 +83,17 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         return name.charAt(0).toUpperCase();
     };
 
+    // ✅ NEW: Check if user is admin
+    const isAdmin = () => {
+        if (!user) return false;
+        return user.roleName === 'admin' || user.role === 'admin';
+    };
+
+    // ✅ NEW: Get dashboard URL based on role
+    const getDashboardUrl = () => {
+        return isAdmin() ? '/admin' : '/dashboard';
+    };
+
     return (
         <nav
             className={`${
@@ -109,25 +121,25 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                     <div className="hidden md:flex items-center gap-16">
                         <a
                             href="#features"
-                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
+                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
                         >
                             Tính năng
                         </a>
                         <a
                             href="#about"
-                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
+                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
                         >
                             Về chúng tôi
                         </a>
                         <a
                             href="#testimonials"
-                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
+                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
                         >
                             Khách hàng
                         </a>
                         <a
                             href="#cta"
-                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
+                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
                         >
                             Liên hệ
                         </a>
@@ -148,7 +160,11 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                             referrerPolicy="no-referrer"
                                         />
                                     ) : (
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-semibold shadow-lg">
+                                        <div className={`w-10 h-10 rounded-full ${
+                                            isAdmin()
+                                                ? 'bg-gradient-to-br from-amber-500 to-amber-700'
+                                                : 'bg-gradient-to-br from-blue-500 to-blue-700'
+                                        } flex items-center justify-center text-white font-semibold shadow-lg`}>
                                             {getInitials()}
                                         </div>
                                     )}
@@ -170,25 +186,38 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
                                         <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-20">
                                             <div className="px-4 py-3 border-b border-gray-100">
-                                                <p className="text-sm font-semibold text-gray-900">
+                                                <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                                                     {getDisplayName()}
+                                                    {isAdmin() && (
+                                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded">
+                                                            ADMIN
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 <p className="text-xs text-gray-500 truncate">
                                                     {user?.email}
                                                 </p>
                                             </div>
 
+                                            {/* ✅ DASHBOARD BUTTON - Redirects based on role */}
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
-                                                    navigate('/dashboard');
+                                                    navigate(getDashboardUrl());
                                                 }}
-                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                                className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 ${
+                                                    isAdmin() ? 'text-amber-700 font-medium' : 'text-gray-700'
+                                                }`}
                                             >
-                                                < Album className="h-4 w-4" />
-                                                Dashboard
+                                                {isAdmin() ? (
+                                                    <Shield className="h-4 w-4" />
+                                                ) : (
+                                                    <User className="h-4 w-4" />
+                                                )}
+                                                {isAdmin() ? 'Admin Dashboard' : 'Dashboard'}
                                             </button>
 
+                                            {/* ✅ SETTINGS BUTTON - For all users */}
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
@@ -196,8 +225,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }}
                                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                             >
-                                                <User className="h-4 w-4" />
-                                                Trang cá nhân
+                                                <Settings className="h-4 w-4" />
+                                                Cài đặt
                                             </button>
 
                                             <hr className="my-2" />
