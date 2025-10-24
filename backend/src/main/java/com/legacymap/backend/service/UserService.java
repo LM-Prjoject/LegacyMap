@@ -37,13 +37,6 @@ public class UserService {
     @Autowired
     private EmailService emailService;
 
-    // ❌ XÓA method login() này - dùng AuthenticationService.login() thay thế
-    /*
-    public User login(String identifier, String rawPassword) {
-        // ... old code
-    }
-    */
-
     @Transactional
     public User createRequest(UserCreateRequest request) {
 
@@ -107,11 +100,7 @@ public class UserService {
         existingProfile.setDob(updatedProfile.getDob());
         existingProfile.setAddress(updatedProfile.getAddress());
         existingProfile.setAvatarUrl(updatedProfile.getAvatarUrl());
-
-        if (updatedProfile.getDescription() != null) {
-            existingProfile.setDescription(updatedProfile.getDescription());
-        }
-
+      
         return userProfileRepository.save(existingProfile);
     }
 
@@ -119,5 +108,19 @@ public class UserService {
     public UserProfile getUserProfileOnly(UUID userId) {
         return userProfileRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    public void increaseFailedAttempts(User user) {
+        int newAccess = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
+        user.setFailedAttempts(newAccess);
+        if (newAccess >= 3) {
+            user.setIsActive(false);
+        }
+        userRepository.save(user);
+    }
+
+    public void resetFailedAttempts(User user) {
+        user.setFailedAttempts(0);
+        userRepository.save(user);
     }
 }

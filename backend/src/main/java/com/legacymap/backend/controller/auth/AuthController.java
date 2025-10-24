@@ -40,7 +40,7 @@ public class AuthController {
     private final UserProfileRepository userProfileRepository;
     private final AuthenticationService authenticationService;
 
-    @Value("${app.frontend.url:http://localhost:5173}")
+    @Value("${app.frontend.url}")
     private String frontendUrl;
 
     @GetMapping("/verify")
