@@ -30,24 +30,20 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                                         Authentication authentication) throws IOException {
         OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
         String email = oauthUser.getAttribute("email");
-        String name = oauthUser.getAttribute("name");
 
         if (email == null) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing email from Google");
             return;
         }
 
-        // Người dùng đã được tạo trong CustomOAuth2UserService
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Google user not provisioned"));
 
         user.setLastLogin(java.time.OffsetDateTime.now());
         userRepository.save(user);
 
-        // Sinh JWT
         String jwt = authenticationService.generateAccessToken(user);
 
-        // Redirect về FE kèm token
         String targetUrl = frontendUrl + "/auth/google-success?token=" + jwt;
         response.sendRedirect(targetUrl);
     }

@@ -18,6 +18,7 @@ public enum ErrorCode {
     // Authentication & Authorization
     UNAUTHENTICATED("You are not authenticated", 1014),
     UNAUTHORIZED("You do not have permission to access this resource", 1015),
+    OAUTH_GOOGLE_ONLY("Tài khoản này được đăng nhập bằng Google", 1021),
 
     // Family Tree related
     FAMILY_TREE_NOT_FOUND("Family tree not found or not accessible", 1100),

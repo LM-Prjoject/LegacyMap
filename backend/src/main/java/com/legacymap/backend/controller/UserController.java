@@ -1,5 +1,6 @@
 package com.legacymap.backend.controller;
 
+import com.legacymap.backend.dto.request.ChangePasswordRequest;
 import com.legacymap.backend.dto.request.UserCreateRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
 import com.legacymap.backend.entity.User;
@@ -35,7 +36,6 @@ public class UserController {
             @PathVariable UUID id,
             Authentication authentication
     ) {
-        // Kiểm tra quyền: chỉ cho phép user xem thông tin của chính mình
         validateUserAccess(id, authentication);
 
         User user = userService.getUserById(id);
@@ -50,7 +50,6 @@ public class UserController {
     ) {
         log.info("🔄 Update request for userId: {} by principal: {}", id, authentication.getPrincipal());
 
-        // 🔐 Kiểm tra quyền: chỉ cho phép user cập nhật thông tin của chính mình
         validateUserAccess(id, authentication);
 
         UserProfile updated = userService.updateUserProfile(id, profile);
@@ -96,4 +95,10 @@ public class UserController {
 
         log.debug("✅ Access granted for user: {}", authenticatedUserId);
     }
+//
+//    @PutMapping("/password")
+//    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+//        return userService.changePassword(request);
+//    }
+
 }
