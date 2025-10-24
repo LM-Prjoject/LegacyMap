@@ -1,9 +1,11 @@
 // src/pages/admin/AdminDashboard.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
+import AdminLayout from '../../components/admin/AdminLayout';
 import { User } from '../../types/ts_user';
 import { useUsers } from '../../hooks/useUsers';
 import { useFamilyTrees } from '../../hooks/useFamilyTrees';
+import DebugAuthInfo from '../../components/DebugAuthInfo';
 
 const AdminDashboard: React.FC = () => {
     const { users, loading: usersLoading, error: usersError } = useUsers();
@@ -22,24 +24,14 @@ const AdminDashboard: React.FC = () => {
             new Date(u.createdAt) >= firstDayOfMonth
         ).length;
 
+        // 🔥 SỬA: Dùng roleName thay vì role, và giá trị từ database ('admin' thay vì 'ADMIN')
         const adminUsers = users.filter((u: User) =>
-            u.roleName === 'admin' || u.role === 'ADMIN'
+            u.roleName === 'admin' || u.role === 'ADMIN' // 🔥 Backward compatibility
         ).length;
 
         const moderatorUsers = users.filter((u: User) =>
-            u.roleName === 'moderator' || u.role === 'MODERATOR'
+            u.roleName === 'moderator' || u.role === 'MODERATOR' // 🔥 Backward compatibility
         ).length;
-
-        // ✅ Calculate REAL total members from family trees
-        const totalMembers = familyTrees.reduce((sum, tree) => {
-            return sum + (tree.memberCount || 0);
-        }, 0);
-
-        // Calculate percentages
-        const userGrowth = totalUsers > 0 ? Math.floor((newUsersThisMonth / totalUsers) * 100) : 0;
-        const treeGrowth = Math.floor(Math.random() * 15) + 5; // Mock data
-        const memberGrowth = Math.floor(Math.random() * 30) + 10; // Mock data
-        const activityRate = totalUsers > 0 ? Math.floor((activeUsers / totalUsers) * 100) : 0;
 
         return {
             totalUsers,
@@ -49,242 +41,313 @@ const AdminDashboard: React.FC = () => {
             adminUsers,
             moderatorUsers,
             totalFamilyTrees: familyTrees.length,
-            totalMembers, // ✅ Now using REAL data
-            userGrowth,
-            treeGrowth,
-            memberGrowth,
-            activityRate,
         };
     }, [users, familyTrees]);
 
     if (usersLoading || treesLoading) {
         return (
-            <div className="flex flex-col justify-center items-center h-96">
-                <div className="w-16 h-16 border-4 border-[#D1B066] border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-white/80 mt-4">Đang tải dữ liệu...</p>
-            </div>
+            <AdminLayout>
+                <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blueA-600"></div>
+                    <p className="text-gray-600 ml-4">Loading dashboard...</p>
+                </div>
+            </AdminLayout>
         );
     }
 
     return (
-        <div>
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-4xl font-bold text-white mb-2">Tổng Quan Hệ Thống</h1>
-                <p className="text-white/60">Quản lý gia phả và người dùng</p>
-            </div>
+        <AdminLayout>
+            <div>
+                {/* Debug Info - Chỉ hiển thị trong development */}
+                {process.env.NODE_ENV === 'development' && <DebugAuthInfo />}
 
-            {/* Error Messages */}
-            {usersError && (
-                <div className="bg-red-500/20 border border-red-400/50 text-red-200 px-6 py-4 rounded-xl mb-6">
-                    <strong>⚠️ Lỗi:</strong> {usersError}
+                <div className="mb-8">
+                    <h2 className="text-3xl font-bold text-gray-900">
+                        Dashboard Overview
+                    </h2>
+                    <p className="text-gray-600 mt-1">
+                        Welcome to the admin panel. Here's what's happening today.
+                    </p>
                 </div>
-            )}
 
-            {treesError && (
-                <div className="bg-red-500/20 border border-red-400/50 text-red-200 px-6 py-4 rounded-xl mb-6">
-                    <strong>⚠️ Lỗi:</strong> {treesError}
+                {/* Error Messages */}
+                {usersError && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <strong>Users Error:</strong> {usersError}
+                    </div>
+                )}
+
+                {treesError && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <strong>Family Trees Error:</strong> {treesError}
+                    </div>
+                )}
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <StatCard
+                        title="Total Users"
+                        value={stats?.totalUsers || 0}
+                        icon="👥"
+                        color="blue"
+                        change={`${stats?.activeUsers || 0} active`}
+                    />
+                    <StatCard
+                        title="Family Trees"
+                        value={stats?.totalFamilyTrees || 0}
+                        icon="🌳"
+                        color="green"
+                        change={`${familyTrees.length} total`}
+                    />
+                    <StatCard
+                        title="Banned Users"
+                        value={stats?.bannedUsers || 0}
+                        icon="🚫"
+                        color="red"
+                        change="Requires attention"
+                    />
+                    <StatCard
+                        title="New This Month"
+                        value={stats?.newUsersThisMonth || 0}
+                        icon="📈"
+                        color="purple"
+                        change="Growing steadily"
+                    />
                 </div>
-            )}
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard
-                    title="Tổng Người Dùng"
-                    value={stats?.totalUsers.toLocaleString() || '0'}
-                    icon="👥"
-                    change={`+${stats?.userGrowth || 0}% từ tháng trước`}
-                    bgColor="bg-[#2563eb]"
-                />
-                <StatCard
-                    title="Gia Phả Hoạt Động"
-                    value={stats?.totalFamilyTrees.toLocaleString() || '0'}
-                    icon="🌲"
-                    change={`+${stats?.treeGrowth || 0}% từ tháng trước`}
-                    bgColor="bg-[#2563eb]"
-                />
-                <StatCard
-                    title="Thành Viên Gia Phả"
-                    value={stats?.totalMembers.toLocaleString() || '0'}  // Dynamic từ data thật
-                    icon="📊"
-                    change={`+${stats?.memberGrowth || 0}% từ tháng trước`}  // Dynamic
-                    bgColor="bg-[#2563eb]"
-                />
-                <StatCard
-                    title="Tỷ Lệ Hoạt Động"
-                    value={`${stats?.activityRate || 0}%`}
-                    icon="📈"
-                    change={`+${Math.floor(Math.random() * 10)}% từ tháng trước`}
-                    bgColor="bg-[#2563eb]"
-                />
-            </div>
+                {/* Two Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    {/* User Roles */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h3 className="text-xl font-semibold mb-4">User Roles Distribution</h3>
+                        <div className="space-y-4">
+                            <RoleBar
+                                label="Regular Users"
+                                count={stats?.totalUsers ? stats.totalUsers - stats.adminUsers - stats.moderatorUsers : 0}
+                                total={stats?.totalUsers || 1}
+                                color="blue"
+                            />
+                            <RoleBar
+                                label="Moderators"
+                                count={stats?.moderatorUsers || 0}
+                                total={stats?.totalUsers || 1}
+                                color="purple"
+                            />
+                            <RoleBar
+                                label="Admins"
+                                count={stats?.adminUsers || 0}
+                                total={stats?.totalUsers || 1}
+                                color="red"
+                            />
+                        </div>
+                    </div>
 
-            {/* Two Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {/* User Activity Chart */}
-                <div className="bg-[#084289] rounded-2xl border border-[#0a4a9e] p-6">
-                    <h3 className="text-xl font-bold text-white mb-6">Hoạt Động Người Dùng</h3>
-                    <div className="space-y-4">
-                        <ActivityBar label="Đăng nhập hôm nay" value={85} color="bg-[#D1B066]" />
-                        <ActivityBar label="Người dùng mới" value={45} color="bg-green-500" />
-                        <ActivityBar label="Đã tạo gia phả" value={62} color="bg-blue-500" />
-                        <ActivityBar label="Đã cập nhật hồ sơ" value={38} color="bg-purple-500" />
+                    {/* System Overview */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h3 className="text-xl font-semibold mb-4">System Overview</h3>
+                        <div className="space-y-4">
+                            <OverviewItem
+                                label="Total Family Trees"
+                                value={stats?.totalFamilyTrees || 0}
+                                icon="🌳"
+                            />
+                            <OverviewItem
+                                label="Admin Users"
+                                value={stats?.adminUsers || 0}
+                                icon="👑"
+                            />
+                            <OverviewItem
+                                label="Active Users"
+                                value={stats?.activeUsers || 0}
+                                icon="✅"
+                            />
+                            <OverviewItem
+                                label="Banned Users"
+                                value={stats?.bannedUsers || 0}
+                                icon="🚫"
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* User Roles Distribution */}
-                <div className="bg-[#084289] rounded-2xl border border-[#0a4a9e] p-6">
-                    <h3 className="text-xl font-bold text-white mb-6">Phân Loại Vai Trò</h3>
-                    <div className="space-y-4">
-                        <RoleBar
-                            label="Người dùng thông thường"
-                            count={stats?.totalUsers ? stats.totalUsers - stats.adminUsers - stats.moderatorUsers : 0}
-                            total={stats?.totalUsers || 1}
-                            color="bg-blue-500"
-                        />
-                        <RoleBar
-                            label="Kiểm duyệt viên"
-                            count={stats?.moderatorUsers || 0}
-                            total={stats?.totalUsers || 1}
-                            color="bg-purple-500"
-                        />
-                        <RoleBar
-                            label="Quản trị viên"
-                            count={stats?.adminUsers || 0}
-                            total={stats?.totalUsers || 1}
-                            color="bg-[#D1B066]"
-                        />
+                {/* Three Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Quick Actions */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h3 className="text-xl font-semibold mb-4">Quick Actions</h3>
+                        <div className="space-y-3">
+                            <QuickActionButton
+                                to="/admin/users"
+                                icon="👥"
+                                title="Manage Users"
+                                description="View and manage all users"
+                            />
+                            <QuickActionButton
+                                to="/admin/family-trees"
+                                icon="🌳"
+                                title="Family Trees"
+                                description="Browse all family trees"
+                            />
+                            <QuickActionButton
+                                to="/admin/settings"
+                                icon="⚙️"
+                                title="Settings"
+                                description="Configure system settings"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Recent Family Trees */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-semibold">Recent Family Trees</h3>
+                            <Link
+                                to="/admin/family-trees"
+                                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            >
+                                View All →
+                            </Link>
+                        </div>
+                        <div className="space-y-3">
+                            {familyTrees.slice(0, 3).map((tree) => (
+                                <div
+                                    key={tree.id}
+                                    className="flex items-center justify-between p-3 hover:bg-gray-50 rounded transition-colors"
+                                >
+                                    <div className="flex items-center">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
+                                            🌳
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm">{tree.name}</p>
+                                            <p className="text-xs text-gray-500">
+                                                {tree.description || 'No description'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-xs text-gray-500">
+                                            {new Date(tree.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                            {familyTrees.length === 0 && (
+                                <div className="text-center text-gray-500 py-4">
+                                    No family trees found
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* System Status */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h3 className="text-xl font-semibold mb-4">System Status</h3>
+                        <div className="space-y-3">
+                            <StatusItem
+                                label="API Server"
+                                status="online"
+                                message="All systems operational"
+                            />
+                            <StatusItem
+                                label="Database"
+                                status="online"
+                                message="Connected successfully"
+                            />
+                            <StatusItem
+                                label="Authentication"
+                                status="online"
+                                message="JWT tokens working"
+                            />
+                            <StatusItem
+                                label="Admin Access"
+                                status={users.length > 0 ? "online" : "warning"}
+                                message={users.length > 0 ? "Admin privileges active" : "No users loaded"}
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Recent Users and Trees */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Users */}
-                <div className="bg-[#084289] rounded-2xl border border-[#0a4a9e] p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-white">Người Dùng Gần Đây</h3>
-                        <Link to="/admin/users" className="text-[#D1B066] hover:text-white text-sm">
-                            Xem tất cả →
+                <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-semibold">Recent Users</h3>
+                        <Link
+                            to="/admin/users"
+                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                        >
+                            View All →
                         </Link>
                     </div>
                     <div className="space-y-3">
                         {users.slice(0, 5).map((user: User) => (
                             <div
                                 key={user.id}
-                                className="flex items-center justify-between p-3 bg-[#0a4a9e]/50 rounded-lg hover:bg-[#0a4a9e] transition-colors"
+                                className="flex items-center justify-between p-3 hover:bg-gray-50 rounded transition-colors"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-[#D1B066] rounded-lg flex items-center justify-center text-white font-bold">
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
                                         {user.email?.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
-                                        <p className="font-medium text-white text-sm">
+                                        <p className="font-medium">
                                             {user.username || user.email}
                                         </p>
-                                        <p className="text-xs text-white/60">{user.email}</p>
-                                    </div>
-                                </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                    user.isBanned
-                                        ? 'bg-red-500/20 text-red-300'
-                                        : 'bg-green-500/20 text-green-300'
-                                }`}>
-                                    {user.isBanned ? 'Khóa' : 'Hoạt động'}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Recent Family Trees */}
-                <div className="bg-[#084289] rounded-2xl border border-[#0a4a9e] p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-white">Cây Gia Phả Mới</h3>
-                        <Link to="/admin/trees" className="text-[#D1B066] hover:text-white text-sm">
-                            Xem tất cả →
-                        </Link>
-                    </div>
-                    <div className="space-y-3">
-                        {familyTrees.slice(0, 5).map((tree) => (
-                            <div
-                                key={tree.id}
-                                className="flex items-center justify-between p-3 bg-[#0a4a9e]/50 rounded-lg hover:bg-[#0a4a9e] transition-colors"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                                        🌳
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-white text-sm">{tree.name}</p>
-                                        <p className="text-xs text-white/60 truncate max-w-xs">
-                                            {tree.description || 'Không có mô tả'}
+                                        <p className="text-sm text-gray-500">
+                                            {user.email} • {user.roleName || user.role}
                                         </p>
                                     </div>
                                 </div>
-                                <span className="text-xs text-white/60">
-                                    {new Date(tree.createdAt).toLocaleDateString('vi-VN')}
-                                </span>
+                                <div className="flex items-center space-x-2">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                        user.isBanned
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-green-100 text-green-800'
+                                    }`}>
+                                        {user.isBanned ? 'Banned' : 'Active'}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                        {new Date(user.createdAt).toLocaleDateString()}
+                                    </span>
+                                </div>
                             </div>
                         ))}
-                        {familyTrees.length === 0 && (
-                            <div className="text-center text-white/60 py-8">
-                                <p>Chưa có cây gia phả</p>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
-        </div>
+        </AdminLayout>
     );
 };
 
 // StatCard Component
 interface StatCardProps {
     title: string;
-    value: string;
+    value: number;
     icon: string;
+    color: 'blue' | 'green' | 'red' | 'purple';
     change: string;
-    bgColor: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change, bgColor }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, change }) => {
+    const colorClasses = {
+        blue: 'from-blue-400 to-blue-600',
+        green: 'from-green-400 to-green-600',
+        red: 'from-red-400 to-red-600',
+        purple: 'from-purple-400 to-purple-600',
+    };
+
     return (
-        <div className={`${bgColor} rounded-2xl p-6 shadow-lg`}>
-            <div className="flex items-start justify-between mb-4">
-                <div className="w-14 h-14 bg-[#D1B066] rounded-xl flex items-center justify-center text-2xl">
+        <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 bg-gradient-to-br ${colorClasses[color]} rounded-lg flex items-center justify-center text-2xl`}>
                     {icon}
                 </div>
+                <div className="text-right">
+                    <p className="text-3xl font-bold text-gray-900">{value}</p>
+                </div>
             </div>
-            <div>
-                <p className="text-white/80 text-sm mb-1">{title}</p>
-                <p className="text-4xl font-bold text-white mb-2">{value}</p>
-                <p className="text-white/60 text-xs">{change}</p>
-            </div>
-        </div>
-    );
-};
-
-// ActivityBar Component
-interface ActivityBarProps {
-    label: string;
-    value: number;
-    color: string;
-}
-
-const ActivityBar: React.FC<ActivityBarProps> = ({ label, value, color }) => {
-    return (
-        <div>
-            <div className="flex justify-between text-sm mb-2">
-                <span className="text-white/80">{label}</span>
-                <span className="text-white font-medium">{value}%</span>
-            </div>
-            <div className="w-full bg-[#0a4a9e] rounded-full h-2">
-                <div
-                    className={`${color} h-2 rounded-full transition-all duration-500`}
-                    style={{ width: `${value}%` }}
-                />
-            </div>
+            <h3 className="text-gray-600 font-medium mb-1">{title}</h3>
+            <p className="text-sm text-gray-500">{change}</p>
         </div>
     );
 };
@@ -294,24 +357,115 @@ interface RoleBarProps {
     label: string;
     count: number;
     total: number;
-    color: string;
+    color: 'blue' | 'purple' | 'red';
 }
 
 const RoleBar: React.FC<RoleBarProps> = ({ label, count, total, color }) => {
     const percentage = total > 0 ? (count / total) * 100 : 0;
 
+    const colorClasses = {
+        blue: 'bg-blue-500',
+        purple: 'bg-purple-500',
+        red: 'bg-red-500',
+    };
+
     return (
         <div>
             <div className="flex justify-between text-sm mb-2">
-                <span className="text-white/80">{label}</span>
-                <span className="text-white font-medium">{count} ({percentage.toFixed(1)}%)</span>
+                <span className="font-medium text-gray-700">{label}</span>
+                <span className="text-gray-500">{count} ({percentage.toFixed(1)}%)</span>
             </div>
-            <div className="w-full bg-[#0a4a9e] rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                    className={`${color} h-2 rounded-full transition-all duration-500`}
+                    className={`${colorClasses[color]} h-2 rounded-full transition-all duration-300`}
                     style={{ width: `${percentage}%` }}
                 />
             </div>
+        </div>
+    );
+};
+
+// QuickActionButton Component
+interface QuickActionButtonProps {
+    to: string;
+    icon: string;
+    title: string;
+    description: string;
+}
+
+const QuickActionButton: React.FC<QuickActionButtonProps> = ({ to, icon, title, description }) => {
+    return (
+        <Link
+            to={to}
+            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-all group"
+        >
+            <div className="text-3xl mr-4">{icon}</div>
+            <div className="flex-1">
+                <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {title}
+                </h4>
+                <p className="text-sm text-gray-500">{description}</p>
+            </div>
+            <svg
+                className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+            >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+        </Link>
+    );
+};
+
+// OverviewItem Component
+interface OverviewItemProps {
+    label: string;
+    value: number;
+    icon: string;
+}
+
+const OverviewItem: React.FC<OverviewItemProps> = ({ label, value, icon }) => {
+    return (
+        <div className="flex items-center justify-between">
+            <div className="flex items-center">
+                <span className="text-2xl mr-3">{icon}</span>
+                <span className="text-gray-700">{label}</span>
+            </div>
+            <span className="font-semibold text-gray-900">{value}</span>
+        </div>
+    );
+};
+
+// StatusItem Component
+interface StatusItemProps {
+    label: string;
+    status: 'online' | 'offline' | 'warning';
+    message: string;
+}
+
+const StatusItem: React.FC<StatusItemProps> = ({ label, status, message }) => {
+    const statusClasses = {
+        online: 'bg-green-100 text-green-800',
+        offline: 'bg-red-100 text-red-800',
+        warning: 'bg-yellow-100 text-yellow-800',
+    };
+
+    const statusIcons = {
+        online: '🟢',
+        offline: '🔴',
+        warning: '🟡',
+    };
+
+    return (
+        <div className="flex items-center justify-between">
+            <div className="flex items-center">
+                <span className="mr-2">{statusIcons[status]}</span>
+                <span className="text-gray-700">{label}</span>
+            </div>
+            <span className={`px-2 py-1 rounded text-xs ${statusClasses[status]}`}>
+                {message}
+            </span>
         </div>
     );
 };

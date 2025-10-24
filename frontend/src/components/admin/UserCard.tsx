@@ -24,11 +24,11 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail 
         const roleValue = role || 'USER';
         switch (roleValue) {
             case 'ADMIN':
-                return 'bg-[#D1B066] text-[#084289]';
+                return 'bg-purple-100 text-purple-800 border-purple-300';
             case 'MODERATOR':
-                return 'bg-purple-500/20 text-purple-300';
+                return 'bg-blue-100 text-blue-800 border-blue-300';
             default:
-                return 'bg-blue-500/20 text-blue-300';
+                return 'bg-gray-100 text-gray-800 border-gray-300';
         }
     };
 
@@ -40,6 +40,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail 
             return (first + last).toUpperCase();
         }
 
+        // Fallback to email first character
         return user.email?.charAt(0).toUpperCase() || 'U';
     };
 
@@ -57,55 +58,51 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail 
     };
 
     return (
-        <div className="bg-[#084289] p-6 rounded-xl border border-[#0a4a9e] hover:border-[#D1B066]/50 transition-all shadow-lg">
+        <div className="bg-white p-6 rounded-lg shadow-md border hover:shadow-lg transition-shadow">
             <div className="flex justify-between items-start">
                 <div className="flex-1">
                     {/* User Info */}
-                    <div className="flex items-center mb-4">
-                        <div className="relative">
-                            <div className="w-16 h-16 bg-[#D1B066] rounded-xl flex items-center justify-center text-white font-bold text-xl mr-4">
-                                {getInitials()}
-                            </div>
-                            {!user.isBanned && (
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#084289]"></div>
-                            )}
+                    <div className="flex items-center mb-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
+                            {getInitials()}
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg text-white">
+                            <h3 className="font-semibold text-lg text-gray-900">
                                 {getDisplayName()}
                             </h3>
-                            <p className="text-white/60 text-sm">{user.email}</p>
+                            <p className="text-gray-600 text-sm">{user.email}</p>
                         </div>
                     </div>
 
                     {/* User Details */}
                     <div className="space-y-2 mb-4">
                         <div className="flex items-center text-sm">
-                            <span className="text-white/60 mr-2 w-24">Vai trò:</span>
-                            <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${getRoleBadgeColor(user.role || user.roleName)}`}>
+                            <span className="text-gray-500 mr-2">Role:</span>
+                            <span className={`px-2 py-1 rounded border text-xs font-medium ${getRoleBadgeColor(user.role || user.roleName)}`}>
                                 {user.role || user.roleName || 'USER'}
                             </span>
                         </div>
 
                         <div className="flex items-center text-sm">
-                            <span className="text-white/60 mr-2 w-24">Trạng thái:</span>
-                            <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                            <span className="text-gray-500 mr-2">Status:</span>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
                                 user.isBanned
-                                    ? 'bg-red-500/20 text-red-300'
-                                    : 'bg-green-500/20 text-green-300'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-green-100 text-green-800'
                             }`}>
-                                {user.isBanned ? '🚫 Đã khóa' : '✅ Hoạt động'}
+                                {user.isBanned ? '🚫 Banned' : '✅ Active'}
                             </span>
                         </div>
 
-                        <div className="text-sm text-white/60">
-                            <span className="mr-2 w-24 inline-block">Tham gia:</span>
-                            <span className="text-white/80">{formatDate(user.createdAt)}</span>
+                        <div className="text-sm text-gray-500">
+                            <span className="mr-2">Joined:</span>
+                            <span className="font-medium">{formatDate(user.createdAt)}</span>
                         </div>
 
                         {user.isBanned && user.bannedAt && (
-                            <div className="text-sm bg-red-500/10 px-3 py-2 rounded-lg border border-red-400/30 mt-2">
-                                <span className="text-red-300">⚠️ Bị khóa: {formatDate(user.bannedAt)}</span>
+                            <div className="text-sm text-red-600">
+                                <span className="mr-2">Banned on:</span>
+                                <span className="font-medium">{formatDate(user.bannedAt)}</span>
                             </div>
                         )}
                     </div>
@@ -123,9 +120,9 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail 
                     {onViewDetail && (
                         <button
                             onClick={() => onViewDetail(user.id)}
-                            className="px-4 py-2 bg-[#D1B066] text-[#084289] rounded-lg hover:bg-[#f4d88a] font-medium transition-all text-sm"
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
                         >
-                            Chi tiết
+                            View Details
                         </button>
                     )}
                 </div>

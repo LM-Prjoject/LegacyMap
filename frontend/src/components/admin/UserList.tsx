@@ -32,71 +32,59 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
     return (
         <div>
             {/* Filters */}
-            <div className="mb-6 bg-[#084289] p-6 rounded-xl border border-[#0a4a9e] shadow-lg">
-                <div className="flex items-center mb-4">
-                    <div className="w-10 h-10 bg-[#D1B066] rounded-lg flex items-center justify-center mr-3">
-                        <span className="text-xl">🔍</span>
-                    </div>
-                    <h3 className="text-lg font-bold text-white">Bộ Lọc & Tìm Kiếm</h3>
-                </div>
-
+            <div className="mb-6 bg-white p-4 rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Search */}
                     <div>
-                        <label className="block text-sm font-medium text-white/80 mb-2">
-                            Tìm kiếm
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Search
                         </label>
                         <input
                             type="text"
-                            placeholder="Nhập tên hoặc email..."
+                            placeholder="Search by name or email..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full px-4 py-2 bg-[#0a4a9e]/50 border border-[#D1B066]/30 rounded-lg text-white placeholder-white/40 focus:ring-2 focus:ring-[#D1B066] focus:border-[#D1B066] transition-all"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
 
                     {/* Role Filter */}
                     <div>
-                        <label className="block text-sm font-medium text-white/80 mb-2">
-                            Vai trò
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Role
                         </label>
                         <select
                             value={roleFilter}
                             onChange={(e) => setRoleFilter(e.target.value)}
-                            className="w-full px-4 py-2 bg-[#0a4a9e]/50 border border-[#D1B066]/30 rounded-lg text-white focus:ring-2 focus:ring-[#D1B066] focus:border-[#D1B066] transition-all cursor-pointer"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
-                            <option value="all" className="bg-[#084289]">Tất cả vai trò</option>
-                            <option value="USER" className="bg-[#084289]">Người dùng</option>
-                            <option value="ADMIN" className="bg-[#084289]">Quản trị viên</option>
-                            <option value="MODERATOR" className="bg-[#084289]">Kiểm duyệt viên</option>
+                            <option value="all">All Roles</option>
+                            <option value="USER">User</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="MODERATOR">Moderator</option>
                         </select>
                     </div>
 
                     {/* Status Filter */}
                     <div>
-                        <label className="block text-sm font-medium text-white/80 mb-2">
-                            Trạng thái
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Status
                         </label>
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="w-full px-4 py-2 bg-[#0a4a9e]/50 border border-[#D1B066]/30 rounded-lg text-white focus:ring-2 focus:ring-[#D1B066] focus:border-[#D1B066] transition-all cursor-pointer"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
-                            <option value="all" className="bg-[#084289]">Tất cả trạng thái</option>
-                            <option value="active" className="bg-[#084289]">Đang hoạt động</option>
-                            <option value="banned" className="bg-[#084289]">Đã bị khóa</option>
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="banned">Banned</option>
                         </select>
                     </div>
                 </div>
 
                 {/* Results Count */}
-                <div className="mt-4 pt-4 border-t border-[#0a4a9e]">
-                    <div className="flex items-center text-sm text-white/70">
-                        <span className="text-xl mr-2">📊</span>
-                        <span>
-                            Hiển thị <span className="text-[#D1B066] font-bold">{filteredUsers.length}</span> / {users.length} người dùng
-                        </span>
-                    </div>
+                <div className="mt-4 text-sm text-gray-600">
+                    Showing {filteredUsers.length} of {users.length} users
                 </div>
             </div>
 
@@ -113,11 +101,10 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                         />
                     ))
                 ) : (
-                    <div className="bg-[#084289] p-16 rounded-xl border-2 border-dashed border-[#0a4a9e] text-center">
-                        <div className="text-6xl mb-4">🔍</div>
-                        <p className="text-white/90 text-xl font-semibold mb-2">Không tìm thấy người dùng</p>
-                        <p className="text-white/60 text-sm">
-                            Hãy thử điều chỉnh bộ lọc của bạn
+                    <div className="bg-white p-12 rounded-lg shadow text-center">
+                        <p className="text-gray-500 text-lg">No users found</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                            Try adjusting your filters
                         </p>
                     </div>
                 )}
