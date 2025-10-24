@@ -17,13 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-
 @Service
 public class UserService {
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private UserRepository userRepository;
@@ -48,7 +43,6 @@ public class UserService {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
         }
 
-        // ✅ SỬA: Đổi từ strength 10 sang 12 để khớp với SecurityConfig
         PasswordEncoder encoder = new BCryptPasswordEncoder(12);
         User user = new User();
         user.setUsername(request.getUsername().trim());
@@ -110,17 +104,4 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    public void increaseFailedAttempts(User user) {
-        int newAccess = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
-        user.setFailedAttempts(newAccess);
-        if (newAccess >= 3) {
-            user.setIsActive(false);
-        }
-        userRepository.save(user);
-    }
-
-    public void resetFailedAttempts(User user) {
-        user.setFailedAttempts(0);
-        userRepository.save(user);
-    }
 }
