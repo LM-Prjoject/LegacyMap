@@ -19,4 +19,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findAllByOrderByCreatedAtDesc();
     List<User> findByIsBannedTrue();
     List<User> findByRoleName(String roleName);
+
+    // ✅ NEW: Tìm tất cả users có cùng email (cho ban by email)
+    List<User> findAllByEmail(String email);
 }

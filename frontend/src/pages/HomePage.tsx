@@ -62,12 +62,37 @@ export default function HomePage() {
         }
     }, []);
 
+    // ✅ NEW: Tự động mở modal SignIn khi có error từ Google OAuth
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const error = params.get('error');
+
+        if (error) {
+            // Mở modal SignIn để hiển thị error message
+            setShowSignIn(true);
+
+            // NOTE: Không xóa error param ở đây
+            // Để SignIn component tự xử lý và xóa sau khi hiển thị message
+        }
+    }, []);
+
     return (
         <div className="min-h-screen bg-white">
 
             {showSignIn && (
                 <SignIn
-                    onClose={() => setShowSignIn(false)}
+                    onClose={() => {
+                        setShowSignIn(false);
+
+                        // ✅ Xóa error param khi đóng modal
+                        const params = new URLSearchParams(window.location.search);
+                        if (params.has('error')) {
+                            params.delete('error');
+                            const url = new URL(window.location.href);
+                            url.search = params.toString();
+                            window.history.replaceState({}, '', url.toString());
+                        }
+                    }}
                     onShowPasswordReset={() => {
                         setShowSignIn(false);
                         setShowPasswordReset(true);
