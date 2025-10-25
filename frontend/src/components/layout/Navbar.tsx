@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Settings, Shield } from 'lucide-react';
+import { LogOut, User, Shield, TreePine } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
@@ -83,15 +83,15 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         return name.charAt(0).toUpperCase();
     };
 
-    // ✅ NEW: Check if user is admin
+    // Check if user is admin
     const isAdmin = () => {
         if (!user) return false;
         return user.roleName === 'admin' || user.role === 'admin';
     };
 
-    // ✅ NEW: Get dashboard URL based on role
+    // ✅ UPDATED: Get dashboard URL based on role
     const getDashboardUrl = () => {
-        return isAdmin() ? '/admin' : '/dashboard';
+        return isAdmin() ? '/admin/dashboard' : '/dashboard';
     };
 
     return (
@@ -199,7 +199,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 </p>
                                             </div>
 
-                                            {/* ✅ DASHBOARD BUTTON - Redirects based on role */}
+                                            {/* ✅ Dashboard/Create Tree button - Different for admin vs regular user */}
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
@@ -210,14 +210,19 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }`}
                                             >
                                                 {isAdmin() ? (
-                                                    <Shield className="h-4 w-4" />
+                                                    <>
+                                                        <Shield className="h-4 w-4" />
+                                                        Admin Dashboard
+                                                    </>
                                                 ) : (
-                                                    <User className="h-4 w-4" />
+                                                    <>
+                                                        <TreePine className="h-4 w-4" />
+                                                        Tạo cây gia phả
+                                                    </>
                                                 )}
-                                                {isAdmin() ? 'Admin Dashboard' : 'Dashboard'}
                                             </button>
 
-                                            {/* ✅ SETTINGS BUTTON - For all users */}
+                                            {/* Profile button for all users */}
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
@@ -225,8 +230,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }}
                                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                             >
-                                                <Settings className="h-4 w-4" />
-                                                Cài đặt
+                                                <User className="h-4 w-4" />
+                                                Thông tin cá nhân
                                             </button>
 
                                             <hr className="my-2" />
