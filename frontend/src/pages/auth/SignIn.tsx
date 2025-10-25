@@ -40,6 +40,37 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
+
+        // Check error từ Google OAuth hoặc backend
+        const errorParam = urlParams.get('error');
+        if (errorParam) {
+            let errorMessage = '';
+
+            switch(errorParam) {
+                case 'banned':
+                    errorMessage = '🚫 Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để biết thêm chi tiết.';
+                    break;
+                case 'disabled':
+                    errorMessage = '⚠️ Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ admin.';
+                    break;
+                case 'auth_failed':
+                    errorMessage = '❌ Đăng nhập Google thất bại. Vui lòng thử lại.';
+                    break;
+                case 'user_not_found':
+                    errorMessage = '❌ Tài khoản Google chưa được đăng ký trong hệ thống.';
+                    break;
+                case 'missing_email':
+                    errorMessage = '❌ Không lấy được email từ Google. Vui lòng thử lại.';
+                    break;
+                default:
+                    errorMessage = `❌ Đăng nhập thất bại: ${errorParam}`;
+            }
+
+            setError(errorMessage);
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        // Xử lý email verification
         const token = urlParams.get('token');
         if (token) handleEmailVerification(token);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,6 +116,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         resolver: zodResolver(signInSchema),
     });
 
+    // ✅ UPDATED: Loại bỏ logic phân biệt admin/user redirect
     const onSubmit = async (data: SignInFormData) => {
         try {
             setLoading(true);
@@ -105,28 +137,43 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 localStorage.setItem('authToken', token);
                 localStorage.setItem('user', JSON.stringify(user));
 
-                // ✅ Check role và redirect
-                const userRole = user?.role || user?.roleName;
-                console.log('👤 User role:', userRole);
-
-                if (userRole?.toLowerCase() === 'admin') {
-                    console.log('✅ Admin detected - redirecting to /admin');
-                    window.location.href = '/admin';
-                } else {
-                    console.log('✅ Regular user - redirecting to /dashboard');
-                    window.location.href = '/';
-                }
+                // ✅ UPDATED: Tất cả user (kể cả admin) đều redirect về homepage
+                console.log('✅ Login successful - redirecting to homepage');
+                window.location.href = '/';
             } else {
                 throw new Error('No token received from server');
             }
         } catch (error: any) {
-            const errorMessage =
-                error.response?.data?.message || error.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+            console.error('❌ Login error:', error);
+
+            let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+
+            if (error.response?.data?.message) {
+                const backendMessage = error.response.data.message;
+
+                if (backendMessage.includes('banned') || backendMessage.includes('USER_BANNED')) {
+                    errorMessage = '🚫 Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.';
+                } else if (backendMessage.includes('disabled') || backendMessage.includes('ACCOUNT_DISABLED')) {
+                    errorMessage = '⚠️ Tài khoản đã bị vô hiệu hóa.';
+                } else if (backendMessage.includes('not verified') || backendMessage.includes('ACCOUNT_NOT_VERIFIED')) {
+                    errorMessage = '📧 Vui lòng xác minh email trước khi đăng nhập.';
+                } else if (backendMessage.includes('credentials') || backendMessage.includes('INVALID_CREDENTIALS')) {
+                    errorMessage = '❌ Tài khoản hoặc mật khẩu không đúng.';
+                } else if (backendMessage.includes('Google') || backendMessage.includes('OAUTH_GOOGLE_ONLY')) {
+                    errorMessage = '🔐 Tài khoản này chỉ có thể đăng nhập bằng Google.';
+                } else {
+                    errorMessage = backendMessage;
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
             setError(errorMessage);
         } finally {
             setLoading(false);
         }
     };
+
     const getBackendBase = () =>
         (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy/api').replace(/\/api\/?$/, '');
 
@@ -253,7 +300,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                         <span className="px-3 bg-white text-slate-500 text-sm">Hoặc</span>
                                     </div>
                                 </div>
-
 
                                 <button
                                     onClick={handleGoogleLogin}
