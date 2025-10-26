@@ -9,6 +9,7 @@ import PicNoi from "@/assets/picnoi.png";
 import ProfileEditModal, { type Form } from "@/components/ProfileEditModal/ProfileEditModal";
 import { fetchProvinces, fetchWardsByProvince, type Province, type Ward } from "@/api/locations";
 import { type Option } from "@/components/ui/SearchCombo";
+import AccountSecuritySection from "@/components/AccountSecuritySection/AccountSecuritySection";
 
 function LabeledText({ label, value }: { label: string; value: string }) {
     return (
@@ -29,13 +30,11 @@ export default function ProfilePage() {
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const fileRef = useRef<HTMLInputElement | null>(null);
 
-    /** --- Location states --- */
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [provinceCode, setProvinceCode] = useState<number | "">("");
     const [wards, setWards] = useState<Ward[]>([]);
     const [wardCode, setWardCode] = useState<number | "">("");
 
-    /** Load provinces once */
     useEffect(() => {
         fetchProvinces().then(setProvinces).catch(() => setProvinces([]));
     }, []);
@@ -189,6 +188,7 @@ export default function ProfilePage() {
         );
     }
 
+    const isLocal = me?.provider?.toLowerCase?.() === "local";
     return (
         <div className={`min-h-screen bg-[#F6F0EF] overflow-x-hidden relative ${editing ? "overflow-hidden" : ""}`}>
             <Navbar />
@@ -218,7 +218,7 @@ export default function ProfilePage() {
                         {/* Bio card */}
                         <section className="rounded-3xl border border-white/30 shadow-2xl p-12 bg-white/25 backdrop-blur-md transition-all duration-300">
                             <div className="flex items-center justify-between mb-8">
-                                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">Information details</h3>
+                                <h3 className="text-3xl font-bold text-slate-900 tracking-tight">Thông tin cá nhân</h3>
                                 <span className="inline-block w-3 h-3 rounded-full bg-emerald-500" />
                             </div>
 
@@ -283,6 +283,7 @@ export default function ProfilePage() {
                             </div>
                         </section>
                     </div>
+                    {isLocal && <AccountSecuritySection me={me} onChanged={(u) => setMe(u)} />}
                 </div>
             </div>
 
