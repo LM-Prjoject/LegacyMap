@@ -22,7 +22,7 @@ import java.util.Optional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
+public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
     private final AuthenticationService authenticationService;

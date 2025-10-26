@@ -14,6 +14,8 @@ public enum ErrorCode {
     TOKEN_EXPIRED("Token has expired", 1011),
     TOKEN_ALREADY_USED("Token already used", 1012),
     INVALID_PURPOSE("Invalid token purpose", 1013),
+    INVALID_PASSWORD("Invalid password", 1024),
+    BAD_REQUEST("Bad request", 1025),
 
     // Authentication & Authorization
     UNAUTHENTICATED("You are not authenticated", 1014),
@@ -30,7 +32,7 @@ public enum ErrorCode {
     RELATIONSHIP_SELF_LINK("Cannot create relationship to the same person", 1106),
 
     // Admin related
-    USER_BANNED("Your account has been banned. Please contact support", 1107),  // 🔥 THÊM MỚI
+    USER_BANNED("Your account has been banned. Please contact support", 1107),
     USER_ALREADY_BANNED("User is already banned", 1108),
     USER_NOT_BANNED("User is not banned", 1109),
     ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110);

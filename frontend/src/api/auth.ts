@@ -58,6 +58,7 @@ export interface User {
     isActive?: boolean;
     isVerified?: boolean;
     profile?: UserProfile;
+    provider?: string;
 }
 
 export const authApi = {
@@ -149,4 +150,9 @@ export const authApi = {
         const { data } = await http.put<ApiResponse<UserProfile>>(`/users/${id}`, profile);
         return data.result;
     },
+
+    async changePassword(data: { currentPassword: string; newPassword: string }) {
+        const { data: res } = await http.post("/auth/change-password", data);
+        return res;
+    }
 };

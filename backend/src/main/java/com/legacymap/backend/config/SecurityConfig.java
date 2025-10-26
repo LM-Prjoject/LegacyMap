@@ -1,5 +1,6 @@
 package com.legacymap.backend.config;
 
+import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.JwtUtil;
 import com.legacymap.backend.service.google.CustomOAuth2UserService;
 import com.legacymap.backend.service.google.CustomOidcUserService;
@@ -29,13 +30,11 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    @Value("${app.frontend.url}")
-    private String frontendUrl;
-
-    public SecurityConfig(JwtUtil jwtUtil) {
+    public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
-        log.info("🔧 SecurityConfig initialized with JwtUtil");
+        this.userRepository = userRepository;
     }
 
     @Bean
@@ -68,23 +67,24 @@ public class SecurityConfig {
     SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
         log.info("🔒 Configuring API Security Chain");
 
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil);
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository);
         log.info("✅ JwtAuthenticationFilter created");
 
         http
-                .securityMatcher("/api/**")
+                .securityMatcher("/api/**", "/legacy/api/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
                         .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                         .requestMatchers("/api/trees/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
                         .requestMatchers("/api/debug/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/admin/users").hasRole("ADMIN")

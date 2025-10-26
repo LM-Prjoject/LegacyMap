@@ -13,6 +13,7 @@ export interface User {
     createdAt: string;
     updatedAt?: string; // 🔥 THÊM: từ database
     provider?: string; // 🔥 THÊM: từ database
+    passwordChangedAt?: string | null;
 
     // Optional fields for display (có thể không có trong response)
     firstName?: string;

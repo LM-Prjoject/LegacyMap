@@ -1,5 +1,7 @@
 package com.legacymap.backend.service;
 
+import com.legacymap.backend.dto.request.ChangePasswordRequest;
+import com.legacymap.backend.dto.response.ApiResponse;
 import com.legacymap.backend.dto.response.AuthenticationResponse;
 import com.legacymap.backend.entity.User;
 import com.legacymap.backend.entity.UserProfile;
@@ -13,12 +15,15 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-// import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 @Service
@@ -129,11 +134,13 @@ public class AuthenticationService {
 
     public String generateAccessToken(User user) {
         Instant now = Instant.now();
+        Integer pwdv = user.getPasswordVersion() == null ? 0 : user.getPasswordVersion();
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("role", user.getRoleName())
                 .claim("purpose", "ACCESS")
+                .claim("pwdv", pwdv)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusMillis(accessTtlMillis)))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -159,5 +166,49 @@ public class AuthenticationService {
     public void resetFailedAttempts(User user) {
         user.setFailedAttempts(0);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public ApiResponse<Void> changePassword(ChangePasswordRequest request) {
+        UUID currentUserId = getCurrentUserIdFromContext();
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (Boolean.TRUE.equals(user.getIsBanned())) {
+            throw new AppException(ErrorCode.USER_BANNED);
+        }
+        if (Boolean.FALSE.equals(user.getIsActive())) {
+            throw new AppException(ErrorCode.ACCOUNT_DISABLED);
+        }
+
+        if (user.getPasswordHash() == null ||
+                !passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            return ApiResponse.error(ErrorCode.INVALID_PASSWORD);
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            return ApiResponse.error(ErrorCode.BAD_REQUEST, "Mật khẩu mới không được trùng với mật khẩu cũ");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setFailedAttempts(0);
+        user.setIsActive(true);
+        user.setPasswordChangedAt(OffsetDateTime.now());
+        user.setPasswordVersion((user.getPasswordVersion() == null ? 0 : user.getPasswordVersion()) + 1);
+
+        userRepository.save(user);
+        return ApiResponse.success(null, "Đổi mật khẩu thành công");
+    }
+
+    private UUID getCurrentUserIdFromContext() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        try {
+            return UUID.fromString(auth.getName());
+        } catch (IllegalArgumentException e) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
     }
 }
