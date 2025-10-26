@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Album} from 'lucide-react';
+import { LogOut, User, Album, TreePine } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
@@ -83,15 +83,15 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         return name.charAt(0).toUpperCase();
     };
 
-    // ✅ NEW: Check if user is admin
+    // Check if user is admin
     const isAdmin = () => {
         if (!user) return false;
         return user.roleName === 'admin' || user.role === 'admin';
     };
 
-    // ✅ NEW: Get dashboard URL based on role
+    // ✅ UPDATED: Get dashboard URL based on role
     const getDashboardUrl = () => {
-        return isAdmin() ? '/admin' : '/dashboard';
+        return isAdmin() ? '/admin/dashboard' : '/dashboard';
     };
 
     return (
@@ -198,8 +198,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                     {user?.email}
                                                 </p>
                                             </div>
-
-                                            {/* ✅ DASHBOARD BUTTON - Redirects based on role */}
+                                          
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
@@ -210,11 +209,16 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }`}
                                             >
                                                 {isAdmin() ? (
-                                                    <Album className="h-4 w-4" />
+                                                    <>
+                                                        <Album className="h-4 w-4" />
+                                                        Admin Dashboard
+                                                    </>
                                                 ) : (
-                                                    <Album className="h-4 w-4" />
+                                                    <>
+                                                        <TreePine className="h-4 w-4" />
+                                                        Tạo cây gia phả
+                                                    </>
                                                 )}
-                                                {isAdmin() ? 'Admin Dashboard' : 'Dashboard'}
                                             </button>
 
                                             <button
