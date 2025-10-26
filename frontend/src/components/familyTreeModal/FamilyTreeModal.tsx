@@ -1,5 +1,6 @@
 import { FC, useEffect, useRef, useState } from 'react';
 import { X, Loader } from 'lucide-react';
+import { showToast } from '@/lib/toast';
 import api, {
     FamilyTreeCreateRequest,
     FamilyTree,
@@ -125,7 +126,7 @@ const FamilyTreeModal: FC<Props> = ({
         setError(''); setSuccess('');
 
         if (!form.name.trim()) {
-            setError('Tên gia phả không được để trống');
+            showToast.error('Tên gia phả không được để trống');
             return;
         }
 
@@ -148,18 +149,30 @@ const FamilyTreeModal: FC<Props> = ({
             };
 
             if (isEdit && initialData) {
+                const hasChanged =
+                    updatePayload.name !== initialData.name ||
+                    (updatePayload.description || '') !== (initialData.description || '') ||
+                    updatePayload.isPublic !== !!initialData.isPublic ||
+                    (updatePayload.coverImageUrl || '') !== (initialData.coverImageUrl || '');
+
+                if (!hasChanged) {
+                    showToast.warning('Không có thay đổi nào để lưu');
+                    setLoading(false);
+                    return;
+                }
+
                 const updated = await api.updateTree(userId, initialData.id, updatePayload);
-                setSuccess('Cập nhật gia phả thành công!');
+                showToast.success('Cập nhật gia phả thành công!');
                 onUpdated?.(updated);
             } else {
                 const created = await api.createTree(userId, createPayload);
-                setSuccess('Tạo gia phả thành công!');
+                showToast.success('Tạo gia phả thành công!');
                 onCreated?.(created);
             }
 
             setTimeout(() => onClose(), 900);
         } catch (e: any) {
-            setError(e?.message || 'Lỗi không xác định');
+            showToast.error(e?.message || 'Đã xảy ra lỗi không xác định');
         } finally {
             setLoading(false);
         }

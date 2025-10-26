@@ -31,10 +31,13 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
+
     }
 
     @Bean
@@ -165,7 +168,7 @@ public class SecurityConfig {
 
                             // ✅ FIXED: Redirect về homepage thay vì /signin
                             // Frontend sẽ tự hiển thị modal SignIn với error message
-                            String redirectUrl = frontendUrl + "/?error="
+                            String redirectUrl =    frontendUrl + "/?error="
                                     + URLEncoder.encode(errorParam, StandardCharsets.UTF_8);
                             log.info("🔄 Redirecting to: {}", redirectUrl);
 
