@@ -32,7 +32,7 @@ public class AdminServiceImpl implements AdminService {
 
     private final UserRepository userRepository;
     private final FamilyTreeRepository familyTreeRepository;
-    private final PersonRepository personRepository; // ✅ NEW: Inject PersonRepository
+    private final PersonRepository personRepository;
 
     @Override
     public List<UserListResponse> getAllUsers() {
@@ -81,23 +81,38 @@ public class AdminServiceImpl implements AdminService {
                     return new AppException(ErrorCode.USER_NOT_FOUND);
                 });
 
-        log.info("📋 Current user status - Email: {}, isBanned: {}", user.getEmail(), user.getIsBanned());
+        String email = user.getEmail();
+        log.info("📋 Current user status - Email: {}, isBanned: {}", email, user.getIsBanned());
 
         if (Boolean.TRUE.equals(user.getIsBanned())) {
-            log.warn("⚠️ User {} is already banned", user.getEmail());
+            log.warn("⚠️ User {} is already banned", email);
             throw new AppException(ErrorCode.USER_ALREADY_BANNED);
         }
 
-        user.setIsBanned(true);
-        user.setBannedAt(OffsetDateTime.now());
+        // ✅ NEW: Tìm tất cả accounts có cùng email
+        List<User> allAccountsWithSameEmail = userRepository.findAllByEmail(email);
+        log.info("🔍 Found {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
 
-        try {
-            userRepository.save(user);
-            log.info("🚫 ✅ Admin successfully banned user: {} ({})", user.getEmail(), userId);
-        } catch (Exception e) {
-            log.error("❌ Failed to save banned user: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to ban user", e);
+        OffsetDateTime banTime = OffsetDateTime.now();
+
+        // ✅ NEW: Ban tất cả accounts có cùng email
+        for (User account : allAccountsWithSameEmail) {
+            if (Boolean.FALSE.equals(account.getIsBanned()) || account.getIsBanned() == null) {
+                account.setIsBanned(true);
+                account.setBannedAt(banTime);
+
+                try {
+                    userRepository.save(account);
+                    log.info("🚫 Banned account: {} (ID: {}, Provider: {})",
+                            account.getEmail(), account.getId(), account.getProvider());
+                } catch (Exception e) {
+                    log.error("❌ Failed to ban account {}: {}", account.getId(), e.getMessage(), e);
+                    throw new RuntimeException("Failed to ban account: " + account.getId(), e);
+                }
+            }
         }
+
+        log.info("✅ Successfully banned {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
     }
 
     @Override
@@ -113,23 +128,36 @@ public class AdminServiceImpl implements AdminService {
                     return new AppException(ErrorCode.USER_NOT_FOUND);
                 });
 
-        log.info("📋 Current user status - Email: {}, isBanned: {}", user.getEmail(), user.getIsBanned());
+        String email = user.getEmail();
+        log.info("📋 Current user status - Email: {}, isBanned: {}", email, user.getIsBanned());
 
         if (Boolean.FALSE.equals(user.getIsBanned()) || user.getIsBanned() == null) {
-            log.warn("⚠️ User {} is not banned", user.getEmail());
+            log.warn("⚠️ User {} is not banned", email);
             throw new AppException(ErrorCode.USER_NOT_BANNED);
         }
 
-        user.setIsBanned(false);
-        user.setBannedAt(null);
+        // ✅ NEW: Tìm tất cả accounts có cùng email
+        List<User> allAccountsWithSameEmail = userRepository.findAllByEmail(email);
+        log.info("🔍 Found {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
 
-        try {
-            userRepository.save(user);
-            log.info("✅ ✅ Admin successfully unbanned user: {} ({})", user.getEmail(), userId);
-        } catch (Exception e) {
-            log.error("❌ Failed to save unbanned user: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to unban user", e);
+        // ✅ NEW: Unban tất cả accounts có cùng email
+        for (User account : allAccountsWithSameEmail) {
+            if (Boolean.TRUE.equals(account.getIsBanned())) {
+                account.setIsBanned(false);
+                account.setBannedAt(null);
+
+                try {
+                    userRepository.save(account);
+                    log.info("✅ Unbanned account: {} (ID: {}, Provider: {})",
+                            account.getEmail(), account.getId(), account.getProvider());
+                } catch (Exception e) {
+                    log.error("❌ Failed to unban account {}: {}", account.getId(), e.getMessage(), e);
+                    throw new RuntimeException("Failed to unban account: " + account.getId(), e);
+                }
+            }
         }
+
+        log.info("✅ Successfully unbanned {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
     }
 
     @Override
@@ -143,13 +171,11 @@ public class AdminServiceImpl implements AdminService {
 
             log.info("📊 Found {} family trees in database", familyTrees.size());
 
-            // ✅ NEW: Convert and populate member counts
             List<FamilyTreeResponse> response = familyTrees.stream()
                     .map(tree -> {
                         try {
                             FamilyTreeResponse dto = FamilyTreeResponse.fromEntity(tree);
 
-                            // ✅ Count members for this tree
                             long memberCount = personRepository.countByFamilyTree_Id(tree.getId());
                             dto.setMemberCount(memberCount);
 
@@ -185,7 +211,6 @@ public class AdminServiceImpl implements AdminService {
             List<User> bannedUsers = userRepository.findByIsBannedTrue();
             List<FamilyTree> allTrees = familyTreeRepository.findAll();
 
-            // ✅ NEW: Count total members across all family trees
             long totalMembers = personRepository.countAllPersons();
 
             stats.put("totalUsers", allUsers.size());
@@ -193,7 +218,7 @@ public class AdminServiceImpl implements AdminService {
             stats.put("bannedUsers", bannedUsers.size());
             stats.put("activeUsers", allUsers.size() - bannedUsers.size());
             stats.put("totalFamilyTrees", allTrees.size());
-            stats.put("totalMembers", totalMembers); // ✅ NEW
+            stats.put("totalMembers", totalMembers);
             stats.put("adminUserEmails", adminUsers.stream().map(User::getEmail).collect(Collectors.toList()));
 
             log.info("📊 Admin Stats: {}", stats);

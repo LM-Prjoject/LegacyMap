@@ -6,6 +6,7 @@ import com.legacymap.backend.service.google.CustomOAuth2UserService;
 import com.legacymap.backend.service.google.CustomOidcUserService;
 import com.legacymap.backend.service.google.OAuth2SuccessHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -20,6 +21,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 @Slf4j
@@ -62,13 +65,12 @@ public class SecurityConfig {
     @Bean
     @Order(1)
     SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
-        log.info("🔐 Configuring API Security Chain");
+        log.info("🔒 Configuring API Security Chain");
 
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository);
         log.info("✅ JwtAuthenticationFilter created");
 
         http
-//                .securityMatcher("/api/**", "/legacy/**")
                 .securityMatcher("/api/**", "/legacy/api/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -76,7 +78,6 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
                         .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify/**").permitAll()
@@ -85,7 +86,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/trees/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
                         .requestMatchers("/api/debug/**").permitAll()
-                                       
+
                         .requestMatchers(HttpMethod.GET, "/api/admin/users").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/admin/users/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/admin/users/*/ban").hasRole("ADMIN")
@@ -127,9 +128,48 @@ public class SecurityConfig {
                                 .oidcUserService(oidcUserService)
                         )
                         .successHandler(successHandler)
+                        // ✅ FIXED: Handle OAuth2 authentication errors
                         .failureHandler((req, res, ex) -> {
-                            ex.printStackTrace();
-                            res.sendRedirect("/login?error");
+                            log.error("❌ OAuth2 login failed: {}", ex.getMessage());
+
+                            String errorParam = "auth_failed";
+
+                            // ✅ FIXED: Check cả direct exception message và cause
+                            String exceptionMessage = ex.getMessage();
+
+                            // Check direct exception message first
+                            if (exceptionMessage != null && exceptionMessage.toLowerCase().contains("banned")) {
+                                errorParam = "banned";
+                                log.warn("🚫 Detected banned account (from direct message)");
+                            } else if (exceptionMessage != null && exceptionMessage.toLowerCase().contains("disabled")) {
+                                errorParam = "disabled";
+                                log.warn("⚠️ Detected disabled account (from direct message)");
+                            }
+                            // Then check cause if not found
+                            else if (ex.getCause() != null) {
+                                String causeMsg = ex.getCause().getMessage();
+                                log.error("❌ Cause: {}", causeMsg);
+
+                                if (causeMsg != null) {
+                                    String lowerMsg = causeMsg.toLowerCase();
+
+                                    if (lowerMsg.contains("banned")) {
+                                        errorParam = "banned";
+                                        log.warn("🚫 Detected banned account (from cause)");
+                                    } else if (lowerMsg.contains("disabled")) {
+                                        errorParam = "disabled";
+                                        log.warn("⚠️ Detected disabled account (from cause)");
+                                    }
+                                }
+                            }
+
+                            // ✅ FIXED: Redirect về homepage thay vì /signin
+                            // Frontend sẽ tự hiển thị modal SignIn với error message
+                            String redirectUrl = frontendUrl + "/?error="
+                                    + URLEncoder.encode(errorParam, StandardCharsets.UTF_8);
+                            log.info("🔄 Redirecting to: {}", redirectUrl);
+
+                            res.sendRedirect(redirectUrl);
                         })
                 );
 
