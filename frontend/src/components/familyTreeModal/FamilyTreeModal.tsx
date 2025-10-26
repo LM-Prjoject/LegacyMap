@@ -19,18 +19,19 @@ interface Props {
 const MAX_SIZE = 5 * 1024 * 1024;
 
 const FamilyTreeModal: FC<Props> = ({
-                                              userId,
-                                              onClose,
-                                              onCreated,
-                                              onUpdated,
-                                              uploadImage,
-                                              isEdit = false,
-                                              initialData = null,
-                                          }) => {
+                                        userId,
+                                        onClose,
+                                        onCreated,
+                                        onUpdated,
+                                        uploadImage,
+                                        isEdit = false,
+                                        initialData = null,
+                                    }) => {
     const [loading, setLoading] = useState(false);
     const [imgUploading, setImgUploading] = useState(false);
     const [error, setError] = useState<string>('');
     const [success, setSuccess] = useState<string>('');
+
     const [form, setForm] = useState<FamilyTreeCreateRequest>({
         name: '',
         description: '',
@@ -55,9 +56,7 @@ const FamilyTreeModal: FC<Props> = ({
 
     useEffect(() => {
         return () => {
-            if (preview) {
-                URL.revokeObjectURL(preview);
-            }
+            if (preview && preview.startsWith('blob:')) URL.revokeObjectURL(preview);
         };
     }, [preview]);
 
@@ -69,6 +68,7 @@ const FamilyTreeModal: FC<Props> = ({
                 isPublic: !!initialData.isPublic,
                 coverImageUrl: initialData.coverImageUrl || '',
             });
+            setPreview(initialData.coverImageUrl || '');
         }
     }, [initialData]);
 
@@ -80,31 +80,44 @@ const FamilyTreeModal: FC<Props> = ({
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setError('');
         const f = e.target.files?.[0] || null;
-        if (!f) { setFile(null); setPreview(''); return; }
+
+        if (preview && preview.startsWith('blob:')) {
+            URL.revokeObjectURL(preview);
+        }
+
+        if (!f) {
+            setFile(null);
+            setPreview(form.coverImageUrl || '');
+            return;
+        }
+
         if (!f.type.startsWith('image/')) { setError('File không phải là ảnh'); e.target.value = ''; return; }
         if (f.size > MAX_SIZE) { setError('Ảnh tối đa 5MB'); e.target.value = ''; return; }
+
         setFile(f);
         setPreview(URL.createObjectURL(f));
     };
 
     const clearFile = () => {
+        if (preview && preview.startsWith('blob:')) URL.revokeObjectURL(preview);
         setFile(null);
-        if (preview) URL.revokeObjectURL(preview);
-        setPreview('');
+        setPreview(form.coverImageUrl || '');
         if (fileRef.current) fileRef.current.value = '';
     };
 
-    const ensureCoverUrl = async (): Promise<string> => {
-        if (form.coverImageUrl) return form.coverImageUrl;
+    const ensureCoverUrl = async (): Promise<string | undefined> => {
         if (file) {
             setImgUploading(true);
             try {
                 const url = await uploadImage(file);
                 setForm(p => ({ ...p, coverImageUrl: url }));
                 return url;
-            } finally { setImgUploading(false); }
+            } finally {
+                setImgUploading(false);
+            }
         }
-        return '';
+
+        return form.coverImageUrl ? form.coverImageUrl : undefined;
     };
 
     const onSubmit = async () => {
@@ -118,22 +131,20 @@ const FamilyTreeModal: FC<Props> = ({
 
         setLoading(true);
         try {
-            const coverUrl = await ensureCoverUrl();
+            const coverUrlOrUndef = await ensureCoverUrl();
 
-            // payload cho update
             const updatePayload: FamilyTreeUpdateRequest = {
                 name: form.name.trim(),
                 description: form.description?.trim(),
                 isPublic: !!form.isPublic,
-                // update: để undefined khi rỗng
-                coverImageUrl: coverUrl || undefined,
+                coverImageUrl: coverUrlOrUndef,
             };
 
             const createPayload: FamilyTreeCreateRequest = {
                 name: updatePayload.name!,
                 description: updatePayload.description,
-                isPublic: updatePayload.isPublic,
-                coverImageUrl: coverUrl || undefined,
+                isPublic: updatePayload.isPublic!,
+                coverImageUrl: typeof coverUrlOrUndef === 'string' ? coverUrlOrUndef : undefined,
             };
 
             if (isEdit && initialData) {
@@ -215,9 +226,16 @@ const FamilyTreeModal: FC<Props> = ({
                             {preview && (
                                 <div className="mt-3 relative w-full h-32 rounded-lg overflow-hidden border border-white/15">
                                     <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-                                    <button type="button" onClick={clearFile} className="absolute top-2 right-2 p-1 rounded-lg bg-white/80 hover:bg-white shadow" aria-label="Xóa ảnh">
-                                        <X size={12} className="text-slate-700" />
-                                    </button>
+                                    {preview.startsWith('blob:') && (
+                                        <button
+                                            type="button"
+                                            onClick={clearFile}
+                                            className="absolute top-2 right-2 p-1 rounded-lg bg-white/80 hover:bg-white shadow"
+                                            aria-label="Xóa ảnh"
+                                        >
+                                            <X size={12} className="text-slate-700" />
+                                        </button>
+                                    )}
                                 </div>
                             )}
 
@@ -225,10 +243,6 @@ const FamilyTreeModal: FC<Props> = ({
                                 <div className="mt-2 flex items-center gap-2 text-white/80 text-sm">
                                     <Loader className="animate-spin" size={14} /> Đang upload ảnh...
                                 </div>
-                            )}
-
-                            {form.coverImageUrl && !preview && (
-                                <p className="mt-2 text-xs text-white/60 break-all">Đã có URL: {form.coverImageUrl}</p>
                             )}
                         </div>
 
