@@ -1,4 +1,4 @@
-import { ChangeEvent, RefObject } from "react";
+import { ChangeEvent, RefObject, useMemo } from "react";
 import { X, Save, Mail, Phone, Users, Calendar, Home, MapPin, User as UserIcon } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { SearchCombo, type Option } from "@/components/ui/SearchCombo";
@@ -15,6 +15,14 @@ export type Form = {
     avatarUrl?: string;
     address: Address;
 };
+
+function getTodayLocalISO() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
 
 export default function ProfileEditModal({
                                              me,
@@ -51,19 +59,19 @@ export default function ProfileEditModal({
     onProvinceChange: (codeStr: string) => void;
     onWardChange: (codeStr: string) => void;
 }) {
+    const today = useMemo(() => getTodayLocalISO(), []);
+    const invalidDob = !!(form.dob && form.dob > today);
+
     return (
         <div className="fixed inset-0 z-[120]">
-            {/* Overlay */}
             <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => !saving && onCancel()} />
 
-            {/* Centered container */}
             <div className="absolute inset-0 z-[121] flex items-center justify-center p-4 sm:p-6">
                 <div
                     role="dialog"
                     aria-modal="true"
                     className="w-full max-w-3xl h-[85svh] sm:h-[85vh] bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col min-h-0 overscroll-contain"
                 >
-                    {/* Header */}
                     <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
                         <h3 className="text-lg font-semibold text-slate-900">Chỉnh sửa thông tin</h3>
                         <button onClick={() => !saving && onCancel()} className="p-2 rounded-lg hover:bg-slate-100" title="Đóng">
@@ -71,9 +79,7 @@ export default function ProfileEditModal({
                         </button>
                     </div>
 
-                    {/* Body */}
                     <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
-                        {/* Avatar picker */}
                         <div className="flex items-center gap-4 mb-6">
                             <div className="relative">
                                 <div
@@ -103,7 +109,6 @@ export default function ProfileEditModal({
                             </div>
                         </div>
 
-                        {/* Fields */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Field label="Họ và tên" icon={<UserIcon className="w-4 h-4 text-slate-400" />}>
                                 <input
@@ -135,7 +140,21 @@ export default function ProfileEditModal({
                             </Field>
 
                             <Field label="Ngày sinh" icon={<Calendar className="w-4 h-4 text-slate-400" />}>
-                                <input type="date" name="dob" value={form.dob || ""} onChange={onFieldChange} className="w-full bg-transparent outline-none" />
+                                <input
+                                    type="date"
+                                    name="dob"
+                                    value={form.dob || ""}
+                                    max={today}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v && v > today) {
+                                            e.target.value = today;
+                                        }
+                                        onFieldChange(e);
+                                    }}
+                                    className="w-full bg-transparent outline-none"
+                                    aria-invalid={invalidDob}
+                                />
                             </Field>
 
                             <Field label="Tên tộc" icon={<Users className="w-4 h-4 text-slate-400" />}>
@@ -194,7 +213,7 @@ export default function ProfileEditModal({
                         </button>
                         <button
                             onClick={onSave}
-                            disabled={saving}
+                            disabled={saving || invalidDob}
                             className="flex items-center gap-2 px-5 h-10 rounded-xl bg-emerald-600 text-white font-medium shadow hover:bg-emerald-700 disabled:opacity-60"
                         >
                             <Save className="w-5 h-5" />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Settings, Shield } from 'lucide-react';
+import { LogOut, User, Album} from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
@@ -210,14 +210,13 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }`}
                                             >
                                                 {isAdmin() ? (
-                                                    <Shield className="h-4 w-4" />
+                                                    <Album className="h-4 w-4" />
                                                 ) : (
-                                                    <User className="h-4 w-4" />
+                                                    <Album className="h-4 w-4" />
                                                 )}
                                                 {isAdmin() ? 'Admin Dashboard' : 'Dashboard'}
                                             </button>
 
-                                            {/* ✅ SETTINGS BUTTON - For all users */}
                                             <button
                                                 onClick={() => {
                                                     setShowDropdown(false);
@@ -225,10 +224,9 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 }}
                                                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                             >
-                                                <Settings className="h-4 w-4" />
-                                                Cài đặt
+                                                <User className="h-4 w-4" />
+                                                Trang cá nhân
                                             </button>
-
                                             <hr className="my-2" />
 
                                             <button

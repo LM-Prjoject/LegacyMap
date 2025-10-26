@@ -1,6 +1,7 @@
 package com.legacymap.backend.controller.auth;
 
 import com.legacymap.backend.dto.request.AuthenticationRequest;
+import com.legacymap.backend.dto.request.ChangePasswordRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
 import com.legacymap.backend.dto.response.AuthenticationResponse;
 import com.legacymap.backend.entity.AuthToken;
@@ -9,19 +10,20 @@ import com.legacymap.backend.entity.UserProfile;
 import com.legacymap.backend.repository.AuthTokenRepository;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.repository.UserProfileRepository;
-import com.legacymap.backend.service.AuthTokenService;
 import com.legacymap.backend.service.AuthenticationService;
-import com.legacymap.backend.service.UserService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -34,8 +36,6 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthTokenRepository authTokenRepository;
-    private final UserService userService;
-    private final AuthTokenService authTokenService;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final AuthenticationService authenticationService;
@@ -157,6 +157,14 @@ public class AuthController {
             userJson.put("isActive", user.getIsActive());
             userJson.put("isVerified", user.getIsVerified());
 
+            userJson.put("provider", user.getProvider());
+
+            OffsetDateTime changedAt = user.getPasswordChangedAt();
+            userJson.put(
+                    "passwordChangedAt",
+                    changedAt != null ? changedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME) : null
+            );
+
             if (profile != null) {
                 Map<String, Object> profileJson = new HashMap<>();
                 profileJson.put("fullName", profile.getFullName());
@@ -176,5 +184,10 @@ public class AuthController {
             result.put("error", "Invalid or expired token");
             return ResponseEntity.status(401).body(result);
         }
+    }
+
+    @PostMapping(value = "/change-password", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        return authenticationService.changePassword(request);
     }
 }
