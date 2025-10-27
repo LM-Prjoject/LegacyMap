@@ -41,7 +41,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
 
-        // Check error từ Google OAuth hoặc backend
         const errorParam = urlParams.get('error');
         if (errorParam) {
             let errorMessage = '';
