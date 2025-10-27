@@ -121,25 +121,25 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                     <div className="hidden md:flex items-center gap-16">
                         <a
                             href="#features"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Tính năng
                         </a>
                         <a
                             href="#about"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Về chúng tôi
                         </a>
                         <a
                             href="#testimonials"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Khách hàng
                         </a>
                         <a
                             href="#cta"
-                            className={`${linkColor} no-underline hover:no-underline transition-colors`}
+                            className={`${linkColor} no-underline px-3 py-2 hover:bg-blue-50 hover:md:text-[#0072BC] transition-colors duration-300 group-aria-expanded:bg-white rounded-full`}
                         >
                             Liên hệ
                         </a>
