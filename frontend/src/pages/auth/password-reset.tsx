@@ -1,58 +1,23 @@
-// src/pages/auth/password-reset.tsx
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
-import { Player } from '@lottiefiles/react-lottie-player';
-
-const DRAGON_URL = '/lottie/Chinese_Dragon_Cartoon_Character2.json';
-
-function Dragons() {
-    return (
-        <>
-            <div className="pointer-events-none absolute left-2 md:left-6 top-1/2 -translate-y-1/2 hidden sm:block">
-                <div className="dragon-move-in-left">
-                    <Player autoplay loop src={DRAGON_URL} style={{ width: 380, height: 380, pointerEvents: 'none' }} />
-                </div>
-            </div>
-
-            <div className="pointer-events-none absolute right-2 md:right-6 top-1/2 -translate-y-1/2 hidden sm:block [animation-delay:200ms]">
-                <div className="scale-x-[-1] dragon-move-in-right">
-                    <Player autoplay loop src={DRAGON_URL} style={{ width: 380, height: 380, pointerEvents: 'none' }} />
-                </div>
-            </div>
-
-            <svg className="absolute inset-0 w-full h-full opacity-[.06] pointer-events-none">
-                <defs>
-                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <circle cx="20" cy="20" r="1" fill="#d4af37" />
-                    </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
-
-            <style>{`
-        .dragon-move-in-left  { animation: dragon-in-left  6s ease-in-out infinite; will-change: transform; }
-        .dragon-move-in-right { animation: dragon-in-right 6s ease-in-out infinite; will-change: transform; }
-        @keyframes dragon-in-left  { 0%,100% { transform: translateX(0) } 50% { transform: translateX(16px) } }
-        @keyframes dragon-in-right { 0%,100% { transform: translateX(0) } 50% { transform: translateX(-16px) } }
-      `}</style>
-        </>
-    )
-}
+import DragonsBackground from '@/components/visual/DragonsBackground';
 
 const forgotPasswordSchema = z.object({
     email: z.string().email('Email không hợp lệ'),
 });
 
-const resetPasswordSchema = z.object({
-    password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
-    confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-    message: 'Mật khẩu xác nhận không khớp',
-    path: ['confirmPassword'],
-});
+const resetPasswordSchema = z
+    .object({
+        password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
+        confirmPassword: z.string(),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+        message: 'Mật khẩu xác nhận không khớp',
+        path: ['confirmPassword'],
+    });
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
@@ -64,13 +29,10 @@ interface PasswordResetProps {
 }
 
 const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordResetProps) => {
-    // Xóa dòng này: const navigate = useNavigate();
-
     const [isEmailSent, setIsEmailSent] = useState<boolean>(false);
     const [isResetSuccess, setIsResetSuccess] = useState<boolean>(false);
     const [isRecovery, setIsRecovery] = useState<boolean>(false);
 
-    // Hiển thị form đặt lại khi có token (ưu tiên từ props), ngược lại hiển thị form quên mật khẩu
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const urlToken = urlParams.get('token');
@@ -85,7 +47,6 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         }
     }, [isResetSuccess, onShowSignIn]);
 
-    // Gửi email đặt lại mật khẩu
     const {
         register: registerForgot,
         handleSubmit: handleForgotSubmit,
@@ -96,13 +57,12 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         try {
             const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8080/legacy/api';
             const params = new URLSearchParams();
-            // Email sẽ dẫn về trang chủ với query ?token=...
             params.set('redirect', `${window.location.origin}`);
 
             const res = await fetch(`${API_BASE}/auth/password/forgot?${params.toString()}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: data.email })
+                body: JSON.stringify({ email: data.email }),
             });
             const payload = await res.json().catch(() => ({} as any));
             if (res.ok && payload?.success) {
@@ -117,7 +77,6 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         }
     };
 
-    // Đặt lại mật khẩu khi đang ở trạng thái recovery
     const {
         register: registerReset,
         handleSubmit: handleResetSubmit,
@@ -138,7 +97,7 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
             const res = await fetch(`${API_BASE}/auth/password/reset`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, newPassword: data.password })
+                body: JSON.stringify({ token, newPassword: data.password }),
             });
             const payload = await res.json().catch(() => ({} as any));
             if (res.ok && payload?.success) {
@@ -153,23 +112,19 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         }
     };
 
-    // Nếu ở trạng thái recovery → hiển thị form đặt lại mật khẩu
     if (isRecovery) {
         return (
             <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+                <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
 
-                <div className="flex min-h-full items-center justify-center p-4">
+                <div className="flex min-h-full items-center justify-center p-4 relative">
+                    <DragonsBackground/>
+
                     <div className="relative w-full max-w-md">
                         <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
                             <div className="flex justify-between items-center mb-2">
-                                <h2 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">
-                                    Đặt lại mật khẩu
-                                </h2>
-                                <button
-                                    onClick={onClose}
-                                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                                >
+                                <h2 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Đặt lại mật khẩu</h2>
+                                <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                                     <X className="h-6 w-6" />
                                 </button>
                             </div>
@@ -195,7 +150,9 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                                             className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
                                             placeholder="Nhập mật khẩu mới"
                                         />
-                                        {resetErrors.password && <p className="text-red-500 text-sm mt-1">{resetErrors.password.message}</p>}
+                                        {resetErrors.password && (
+                                            <p className="text-red-500 text-sm mt-1">{resetErrors.password.message}</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -225,42 +182,37 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                         </div>
                     </div>
                 </div>
-                {/* 2 con rồng */}
-                <Dragons />
             </div>
         );
     }
 
-    // Chưa ở trạng thái recovery → form nhập email
+    // Form nhập email để nhận link đặt lại
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
 
-            <div className="flex min-h-full items-center justify-center p-4">
+            <div className="flex min-h-full items-center justify-center p-4 relative">
+                {/* Nền rồng tái sử dụng */}
+                <DragonsBackground
+                    // size={380}
+                    // showGrid
+                />
+
                 <div className="relative w-full max-w-md">
                     <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
                         <div className="flex justify-between items-center mb-2">
-                            <h2 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">
-                                Quên mật khẩu
-                            </h2>
-                            <button
-                                onClick={onClose}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                            >
+                            <h2 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Quên mật khẩu</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <X className="h-6 w-6" />
                             </button>
                         </div>
 
-                        <p className="text-sm text-slate-600 mb-6">
-                            Nhập email để nhận liên kết đặt lại mật khẩu
-                        </p>
+                        <p className="text-sm text-slate-600 mb-6">Nhập email để nhận liên kết đặt lại mật khẩu</p>
 
                         {isEmailSent ? (
                             <div className="text-center">
                                 <div className="text-green-600 mb-4">Đã gửi email đặt lại mật khẩu!</div>
-                                <p className="text-gray-600 mb-4">
-                                    Vui lòng kiểm tra hộp thư của bạn và làm theo hướng dẫn.
-                                </p>
+                                <p className="text-gray-600 mb-4">Vui lòng kiểm tra hộp thư của bạn và làm theo hướng dẫn.</p>
                                 <button
                                     type="button"
                                     onClick={onShowSignIn}
@@ -279,7 +231,9 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                                         className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
                                         placeholder="Nhập email của bạn"
                                     />
-                                    {forgotErrors.email && <p className="text-red-500 text-sm mt-1">{forgotErrors.email.message}</p>}
+                                    {forgotErrors.email && (
+                                        <p className="text-red-500 text-sm mt-1">{forgotErrors.email.message}</p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -306,9 +260,6 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                     </div>
                 </div>
             </div>
-
-            {/* 2 con rồng */}
-            <Dragons />
         </div>
     );
 };
