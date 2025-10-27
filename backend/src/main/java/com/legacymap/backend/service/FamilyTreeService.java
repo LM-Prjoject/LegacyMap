@@ -3,6 +3,7 @@ package com.legacymap.backend.service;
 import com.legacymap.backend.dto.request.FamilyTreeCreateRequest;
 import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
+import com.legacymap.backend.dto.request.PersonUpdateRequest;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.entity.User;
@@ -99,5 +100,35 @@ public class FamilyTreeService {
     public List<Person> listMembers(UUID treeId, UUID userId) {
         FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         return personRepository.findAllByFamilyTree_Id(tree.getId());
+    }
+
+    @Transactional
+    public Person updateMember(UUID treeId, UUID userId, UUID personId, PersonUpdateRequest req) {
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        Person p = personRepository.findById(personId)
+                .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
+        if (!p.getFamilyTree().getId().equals(tree.getId())) {
+            throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
+        }
+        if (req.getFullName() != null) p.setFullName(req.getFullName());
+        if (req.getGender() != null) p.setGender(req.getGender());
+        if (req.getBirthDate() != null) p.setBirthDate(req.getBirthDate());
+        if (req.getDeathDate() != null) p.setDeathDate(req.getDeathDate());
+        if (req.getBirthPlace() != null) p.setBirthPlace(req.getBirthPlace());
+        if (req.getDeathPlace() != null) p.setDeathPlace(req.getDeathPlace());
+        if (req.getBiography() != null) p.setBiography(req.getBiography());
+        if (req.getAvatarUrl() != null) p.setAvatarUrl(req.getAvatarUrl());
+        return personRepository.save(p);
+    }
+
+    @Transactional
+    public void deleteMember(UUID treeId, UUID userId, UUID personId) {
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        Person p = personRepository.findById(personId)
+                .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
+        if (!p.getFamilyTree().getId().equals(tree.getId())) {
+            throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
+        }
+        personRepository.delete(p);
     }
 }

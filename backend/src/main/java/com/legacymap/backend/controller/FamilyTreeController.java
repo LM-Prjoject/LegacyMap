@@ -3,15 +3,18 @@ package com.legacymap.backend.controller;
 import com.legacymap.backend.dto.request.FamilyTreeCreateRequest;
 import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
+import com.legacymap.backend.dto.request.PersonUpdateRequest;
 import com.legacymap.backend.dto.request.RelationshipCreateRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.entity.Relationship;
+import com.legacymap.backend.dto.response.RelationshipSuggestion;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.service.FamilyTreeService;
 import com.legacymap.backend.service.RelationshipService;
+import com.legacymap.backend.service.RelationshipSuggestionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +32,9 @@ public class FamilyTreeController {
 
     @Autowired
     private RelationshipService relationshipService;
+
+    @Autowired
+    private RelationshipSuggestionService relationshipSuggestionService;
 
     private UUID parseUserId(String userId) {
         try {
@@ -87,6 +93,25 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success(people));
     }
 
+    @PutMapping("/{treeId}/members/{personId}")
+    public ResponseEntity<ApiResponse<Person>> updateMember(
+            @PathVariable("treeId") UUID treeId,
+            @PathVariable("personId") UUID personId,
+            @RequestParam("userId") String userId,
+            @RequestBody PersonUpdateRequest req) {
+        Person person = familyTreeService.updateMember(treeId, parseUserId(userId), personId, req);
+        return ResponseEntity.ok(ApiResponse.success(person));
+    }
+
+    @DeleteMapping("/{treeId}/members/{personId}")
+    public ResponseEntity<ApiResponse<Void>> deleteMember(
+            @PathVariable("treeId") UUID treeId,
+            @PathVariable("personId") UUID personId,
+            @RequestParam("userId") String userId) {
+        familyTreeService.deleteMember(treeId, parseUserId(userId), personId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
     @PostMapping("/{treeId}/relationships")
     public ResponseEntity<ApiResponse<Relationship>> createRelationship(
             @PathVariable("treeId") UUID treeId,
@@ -94,6 +119,16 @@ public class FamilyTreeController {
             @RequestBody @Valid RelationshipCreateRequest req) {
         Relationship rel = relationshipService.create(treeId, parseUserId(userId), req);
         return ResponseEntity.ok(ApiResponse.success(rel));
+    }
+
+    @GetMapping("/{treeId}/relationships/suggest")
+    public ResponseEntity<ApiResponse<List<RelationshipSuggestion>>> suggestRelationship(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("userId") String userId,
+            @RequestParam("person1Id") UUID person1Id,
+            @RequestParam("person2Id") UUID person2Id) {
+        List<RelationshipSuggestion> out = relationshipSuggestionService.suggest(treeId, parseUserId(userId), person1Id, person2Id);
+        return ResponseEntity.ok(ApiResponse.success(out));
     }
 
     @DeleteMapping("/{treeId}/relationships/{relationshipId}")
