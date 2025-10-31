@@ -1,9 +1,9 @@
-// src/components/admin/BanUnbanButton.tsx
 import React, { useState } from 'react';
 
 interface BanUnbanButtonProps {
     userId: string;
     isBanned: boolean;
+    role?: string; // 🔥 THÊM PROP ROLE
     onBan: (userId: string) => Promise<void>;
     onUnban: (userId: string) => Promise<void>;
 }
@@ -11,8 +11,9 @@ interface BanUnbanButtonProps {
 const BanUnbanButton: React.FC<BanUnbanButtonProps> = ({
                                                            userId,
                                                            isBanned,
+                                                           role, // 🔥 NHẬN PROP ROLE
                                                            onBan,
-                                                           onUnban
+                                                           onUnban,
                                                        }) => {
     const [loading, setLoading] = useState(false);
 
@@ -31,23 +32,46 @@ const BanUnbanButton: React.FC<BanUnbanButtonProps> = ({
         }
     };
 
+    // 🔥 KIỂM TRA NẾU USER LÀ ADMIN THÌ ẨN NÚT BAN
+    const isAdmin = role === 'ADMIN' || role === 'admin';
+
+    if (isAdmin && !isBanned) {
+        return (
+            <button
+                disabled
+                className="
+                    w-full px-4 py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2
+                    bg-gray-600/30 text-gray-400 cursor-not-allowed
+                    border border-gray-500/30
+                "
+            >
+                <span className="flex items-center gap-2">
+                    <span>👑</span>
+                    <span>Admin</span>
+                </span>
+            </button>
+        );
+    }
+
     return (
         <button
             onClick={handleClick}
             disabled={loading}
             className={`
-                px-4 py-2 rounded-lg font-medium transition-all text-sm
-                disabled:opacity-50 disabled:cursor-not-allowed
-                ${isBanned
-                ? 'bg-green-500 text-white hover:bg-green-600'
-                : 'bg-red-500 text-white hover:bg-red-600'
+                w-full px-4 py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2
+                transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed
+                shadow-md shadow-black/30 hover:shadow-[#d1b98a]/30
+                ${
+                isBanned
+                    ? 'bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] text-[#20283d] hover:from-[#f4e9c8] hover:to-[#ffffff]'
+                    : 'bg-gradient-to-br from-[#7f1d1d] to-[#b91c1c] text-[#f4e9c8] hover:from-[#b91c1c] hover:to-[#ef4444]'
             }
             `}
         >
             {loading ? (
-                <span className="flex items-center justify-center">
+                <span className="flex items-center justify-center gap-2">
                     <svg
-                        className="animate-spin h-4 w-4 mr-2"
+                        className="animate-spin h-4 w-4 text-current"
                         viewBox="0 0 24 24"
                     >
                         <circle
@@ -68,7 +92,19 @@ const BanUnbanButton: React.FC<BanUnbanButtonProps> = ({
                     Đang xử lý...
                 </span>
             ) : (
-                isBanned ? '✅ Mở khóa' : '🚫 Khóa'
+                <span className="flex items-center gap-2">
+                    {isBanned ? (
+                        <>
+                            <span>✅</span>
+                            <span>Mở khóa</span>
+                        </>
+                    ) : (
+                        <>
+                            <span>🚫</span>
+                            <span>Khóa</span>
+                        </>
+                    )}
+                </span>
             )}
         </button>
     );

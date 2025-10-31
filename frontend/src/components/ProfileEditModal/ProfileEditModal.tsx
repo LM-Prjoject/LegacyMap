@@ -63,163 +63,188 @@ export default function ProfileEditModal({
     const invalidDob = !!(form.dob && form.dob > today);
 
     return (
-        <div className="fixed inset-0 z-[120]">
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => !saving && onCancel()} />
+        <div className="fixed inset-0 z-[120] flex items-center justify-center">
+            {/* Overlay với gradient vàng đen */}
+            <div
+                className="absolute inset-0 bg-gradient-to-br from-[#000000]/70 via-[#1b2233]/80 to-[#2e3a57]/90 backdrop-blur-sm"
+                onClick={() => !saving && onCancel()}
+            />
 
-            <div className="absolute inset-0 z-[121] flex items-center justify-center p-4 sm:p-6">
-                <div
-                    role="dialog"
-                    aria-modal="true"
-                    className="w-full max-w-3xl h-[85svh] sm:h-[85vh] bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col min-h-0 overscroll-contain"
-                >
-                    <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white z-10">
-                        <h3 className="text-lg font-semibold text-slate-900">Chỉnh sửa thông tin</h3>
-                        <button onClick={() => !saving && onCancel()} className="p-2 rounded-lg hover:bg-slate-100" title="Đóng">
-                            <X className="w-5 h-5 text-slate-600" />
-                        </button>
-                    </div>
+            {/* Modal */}
+            <div className="relative z-[121] w-full max-w-3xl h-[85vh] rounded-2xl bg-[#1b2233]/95 border border-[#D1B066]/30 shadow-2xl flex flex-col overflow-hidden animate-fade-in-up">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-[#D1B066]/30 flex items-center justify-between bg-[#2e3a57]/40 backdrop-blur-sm">
+                    <h3 className="text-lg font-bold text-[#D1B066] tracking-wide">
+                        ✏️ Chỉnh sửa thông tin
+                    </h3>
+                    <button
+                        onClick={() => !saving && onCancel()}
+                        className="p-2 rounded-lg hover:bg-[#D1B066]/10 transition"
+                        title="Đóng"
+                    >
+                        <X className="w-5 h-5 text-[#D1B066]" />
+                    </button>
+                </div>
 
-                    <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="relative">
-                                <div
-                                    onClick={onPickAvatar}
-                                    className="w-[120px] h-[120px] rounded-full overflow-hidden border-4 border-white ring-2 ring-slate-200 shadow cursor-pointer hover:scale-[1.02] transition"
-                                    title="Đổi ảnh đại diện"
-                                >
-                                    {form.avatarUrl ? (
-                                        <img src={form.avatarUrl} alt="avatar" className="w-full h-full object-cover select-none" draggable={false} />
-                                    ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-4xl font-semibold">
-                                            {(form.fullName || me.username || "U").charAt(0).toUpperCase()}
-                                        </div>
-                                    )}
-                                </div>
-                                {uploadingAvatar && (
-                                    <div className="absolute inset-0 grid place-items-center rounded-full bg-black/40 text-white text-xs">
-                                        Đang tải...
+                {/* Body */}
+                <div className="px-6 py-5 flex-1 overflow-y-auto custom-scrollbar">
+                    {/* Avatar */}
+                    <div className="flex items-center gap-6 mb-8">
+                        <div className="relative">
+                            <div
+                                onClick={onPickAvatar}
+                                className="w-[120px] h-[120px] rounded-full overflow-hidden border-4 border-[#D1B066]/50 ring-2 ring-[#D1B066]/30 shadow-lg cursor-pointer hover:scale-[1.03] transition-transform"
+                                title="Đổi ảnh đại diện"
+                            >
+                                {form.avatarUrl ? (
+                                    <img
+                                        src={form.avatarUrl}
+                                        alt="avatar"
+                                        className="w-full h-full object-cover select-none"
+                                        draggable={false}
+                                    />
+                                ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-[#2e3a57] to-[#1b2233] flex items-center justify-center text-[#D1B066] text-5xl font-bold">
+                                        {(form.fullName || me.username || "U").charAt(0).toUpperCase()}
                                     </div>
                                 )}
-                                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
                             </div>
-
-                            <div className="text-slate-600">
-                                <div className="font-medium">Ảnh đại diện</div>
-                                <div className="text-sm">Nhấn vào ảnh để tải lên ảnh mới.</div>
-                            </div>
+                            {uploadingAvatar && (
+                                <div className="absolute inset-0 grid place-items-center bg-black/50 text-white text-sm rounded-full">
+                                    Đang tải...
+                                </div>
+                            )}
+                            <input
+                                ref={fileRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={onAvatarSelected}
+                            />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Field label="Họ và tên" icon={<UserIcon className="w-4 h-4 text-slate-400" />}>
-                                <input
-                                    name="fullName"
-                                    value={form.fullName || ""}
-                                    onChange={onFieldChange}
-                                    placeholder="Ví dụ: Nguyễn Văn A"
-                                    className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                                />
-                            </Field>
-
-                            <Field label="Số điện thoại" icon={<Phone className="w-4 h-4 text-slate-400" />}>
-                                <input
-                                    name="phone"
-                                    value={form.phone || ""}
-                                    onChange={onFieldChange}
-                                    placeholder="SĐT"
-                                    className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                                />
-                            </Field>
-
-                            <Field label="Giới tính" icon={<Users className="w-4 h-4 text-slate-400" />}>
-                                <select name="gender" value={form.gender || ""} onChange={onFieldChange} className="w-full bg-transparent outline-none">
-                                    <option value="">Chọn giới tính</option>
-                                    <option value="male">Nam</option>
-                                    <option value="female">Nữ</option>
-                                    <option value="other">Khác</option>
-                                </select>
-                            </Field>
-
-                            <Field label="Ngày sinh" icon={<Calendar className="w-4 h-4 text-slate-400" />}>
-                                <input
-                                    type="date"
-                                    name="dob"
-                                    value={form.dob || ""}
-                                    max={today}
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        if (v && v > today) {
-                                            e.target.value = today;
-                                        }
-                                        onFieldChange(e);
-                                    }}
-                                    className="w-full bg-transparent outline-none"
-                                    aria-invalid={invalidDob}
-                                />
-                            </Field>
-
-                            <Field label="Tên tộc" icon={<Users className="w-4 h-4 text-slate-400" />}>
-                                <input
-                                    name="clanName"
-                                    value={form.clanName || ""}
-                                    onChange={onFieldChange}
-                                    placeholder="Ví dụ: Lê, Nguyễn…"
-                                    className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                                />
-                            </Field>
-
-                            <Field label="Email" icon={<Mail className="w-4 h-4 text-slate-400" />}>
-                                <input value={me.email} disabled className="w-full bg-transparent outline-none text-slate-700" />
-                            </Field>
-
-                            <Field label="Số nhà" icon={<Home className="w-4 h-4 text-slate-400" />}>
-                                <input
-                                    name="address.houseNumber"
-                                    value={form.address?.houseNumber || ""}
-                                    onChange={onFieldChange}
-                                    placeholder="VD: 123/4 abc"
-                                    className="w-full bg-transparent outline-none placeholder:text-slate-400"
-                                />
-                            </Field>
-
-                            {/* Province */}
-                            <Field label="Tỉnh/Thành phố" icon={<MapPin className="w-4 h-4 text-slate-400" />}>
-                                <SearchCombo
-                                    bare
-                                    value={provinceCode}
-                                    onChange={(v) => onProvinceChange(String(v ?? ""))}
-                                    options={provinceOptions}
-                                    placeholder="Tỉnh/thành..."
-                                />
-                            </Field>
-
-                            {/* Ward */}
-                            <Field label="Phường/Xã" icon={<MapPin className="w-4 h-4 text-slate-400" />}>
-                                <SearchCombo
-                                    bare
-                                    value={wardCode}
-                                    onChange={(v) => onWardChange(String(v ?? ""))}
-                                    options={wardOptions}
-                                    placeholder={provinceCode ? "Phường/xã..." : ""}
-                                    disabled={!provinceCode}
-                                />
-                            </Field>
+                        <div>
+                            <div className="text-[#D1B066] font-semibold">Ảnh đại diện</div>
+                            <div className="text-sm text-white/70">
+                                Nhấn vào ảnh để tải lên ảnh mới.
+                            </div>
                         </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
-                        <button onClick={onCancel} disabled={saving} className="px-4 h-10 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                            Hủy
-                        </button>
-                        <button
-                            onClick={onSave}
-                            disabled={saving || invalidDob}
-                            className="flex items-center gap-2 px-5 h-10 rounded-xl bg-emerald-600 text-white font-medium shadow hover:bg-emerald-700 disabled:opacity-60"
-                        >
-                            <Save className="w-5 h-5" />
-                            {saving ? "Đang lưu..." : "Lưu"}
-                        </button>
+                    {/* Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-white">
+                        <Field label="Họ và tên" icon={<UserIcon className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <input
+                                name="fullName"
+                                value={form.fullName || ""}
+                                onChange={onFieldChange}
+                                placeholder="VD: Nguyễn Văn A"
+                                className="w-full bg-transparent text-white outline-none placeholder:text-white/40"
+                            />
+                        </Field>
+
+                        <Field label="Số điện thoại" icon={<Phone className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <input
+                                name="phone"
+                                value={form.phone || ""}
+                                onChange={onFieldChange}
+                                placeholder="SĐT"
+                                className="w-full bg-transparent text-white outline-none placeholder:text-white/40"
+                            />
+                        </Field>
+
+                        <Field label="Giới tính" icon={<Users className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <select
+                                name="gender"
+                                value={form.gender || ""}
+                                onChange={onFieldChange}
+                                className="w-full bg-transparent text-white outline-none [&>option]:bg-[#2e3a57] [&>option]:text-white"
+                            >
+                                <option value="">Chọn giới tính</option>
+                                <option value="male">Nam</option>
+                                <option value="female">Nữ</option>
+                                <option value="other">Khác</option>
+                            </select>
+                        </Field>
+
+                        <Field label="Ngày sinh" icon={<Calendar className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <input
+                                type="date"
+                                name="dob"
+                                value={form.dob || ""}
+                                onChange={onFieldChange}
+                                className="w-full bg-transparent text-white outline-none"
+                            />
+                        </Field>
+
+                        <Field label="Tên tộc" icon={<Users className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <input
+                                name="clanName"
+                                value={form.clanName || ""}
+                                onChange={onFieldChange}
+                                placeholder="VD: Lê, Nguyễn..."
+                                className="w-full bg-transparent text-white outline-none placeholder:text-white/40"
+                            />
+                        </Field>
+
+                        <Field label="Email" icon={<Mail className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <input
+                                value={me.email}
+                                disabled
+                                className="w-full bg-transparent text-white/80 outline-none"
+                            />
+                        </Field>
+
+                        <Field label="Số nhà" icon={<Home className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <input
+                                name="address.houseNumber"
+                                value={form.address?.houseNumber || ""}
+                                onChange={onFieldChange}
+                                placeholder="VD: 123/4 ABC"
+                                className="w-full bg-transparent text-white outline-none placeholder:text-white/40"
+                            />
+                        </Field>
+
+                        <Field label="Tỉnh/Thành phố" icon={<MapPin className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <SearchCombo
+                                bare
+                                value={provinceCode}
+                                onChange={(v) => onProvinceChange(String(v ?? ""))}
+                                options={provinceOptions}
+                                placeholder="Tỉnh/thành..."
+                            />
+                        </Field>
+
+                        <Field label="Phường/Xã" icon={<MapPin className="w-4 h-4 text-[#D1B066]/70" />}>
+                            <SearchCombo
+                                bare
+                                value={wardCode}
+                                onChange={(v) => onWardChange(String(v ?? ""))}
+                                options={wardOptions}
+                                placeholder={provinceCode ? "Phường/xã..." : ""}
+                                disabled={!provinceCode}
+                            />
+                        </Field>
                     </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-[#D1B066]/30 flex items-center justify-end gap-3 bg-[#2e3a57]/40 backdrop-blur-sm">
+                    <button
+                        onClick={onCancel}
+                        disabled={saving}
+                        className="px-4 h-10 rounded-xl border border-[#D1B066]/40 text-[#D1B066] font-medium hover:bg-[#D1B066]/10 transition disabled:opacity-60"
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        onClick={onSave}
+                        disabled={saving}
+                        className="flex items-center gap-2 px-5 h-10 rounded-xl font-medium text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-lg hover:brightness-110 transition disabled:opacity-60"
+                    >
+                        <Save className="w-5 h-5" />
+                        {saving ? "Đang lưu..." : "Lưu"}
+                    </button>
                 </div>
             </div>
         </div>
