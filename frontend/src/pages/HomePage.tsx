@@ -1,3 +1,4 @@
+// src/pages/dashboard/HomePage.tsx
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import HeroSection from '@/components/home/HeroSection';
@@ -17,6 +18,7 @@ export default function HomePage() {
     const [showPasswordReset, setShowPasswordReset] = useState(false);
     const [resetToken, setResetToken] = useState<string | null>(null);
 
+    // Tự động scroll mượt khi click anchor
     useEffect(() => {
         const handleAnchorClick = (e: MouseEvent) => {
             const target = e.target as HTMLAnchorElement;
@@ -31,30 +33,27 @@ export default function HomePage() {
                 }
             }
         };
-
         document.addEventListener('click', handleAnchorClick);
         return () => document.removeEventListener('click', handleAnchorClick);
     }, []);
 
-    // Nếu URL có ?token=... (từ email), tự mở modal đặt lại mật khẩu
+    // Xử lý token reset mật khẩu
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
         if (token) {
             setShowPasswordReset(true);
             setResetToken(token);
-            // Xóa token khỏi URL để tránh mở lại khi refresh
             const url = new URL(window.location.href);
             url.searchParams.delete('token');
             window.history.replaceState({}, '', url.toString());
         }
     }, []);
 
-    // Nếu URL có ?showLogin=1 (sau verify email), tự mở modal đăng nhập
+    // Nếu có ?showLogin=1 → mở modal đăng nhập
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const showLogin = params.get('showLogin');
-        if (showLogin === '1') {
+        if (params.get('showLogin') === '1') {
             setShowSignIn(true);
             const url = new URL(window.location.href);
             url.searchParams.delete('showLogin');
@@ -62,29 +61,20 @@ export default function HomePage() {
         }
     }, []);
 
-    // ✅ NEW: Tự động mở modal SignIn khi có error từ Google OAuth
+    // Nếu có lỗi Google OAuth → mở modal đăng nhập
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const error = params.get('error');
-
-        if (error) {
-            // Mở modal SignIn để hiển thị error message
-            setShowSignIn(true);
-
-            // NOTE: Không xóa error param ở đây
-            // Để SignIn component tự xử lý và xóa sau khi hiển thị message
-        }
+        if (error) setShowSignIn(true);
     }, []);
 
     return (
-        <div className="min-h-screen bg-white">
-
+        <div className="min-h-screen bg-[#fffaf3] text-[#20283d]">
+            {/* Modals */}
             {showSignIn && (
                 <SignIn
                     onClose={() => {
                         setShowSignIn(false);
-
-                        // ✅ Xóa error param khi đóng modal
                         const params = new URLSearchParams(window.location.search);
                         if (params.has('error')) {
                             params.delete('error');
@@ -104,7 +94,6 @@ export default function HomePage() {
                 />
             )}
 
-            {/* Modal đăng ký */}
             {showSignUp && (
                 <SignUp
                     onClose={() => setShowSignUp(false)}
@@ -115,7 +104,6 @@ export default function HomePage() {
                 />
             )}
 
-            {/* Modal quên mật khẩu */}
             {showPasswordReset && (
                 <PasswordReset
                     onClose={() => setShowPasswordReset(false)}
@@ -127,36 +115,16 @@ export default function HomePage() {
                 />
             )}
 
-            {/* ========== NAVBAR ========== */}
-            <Navbar
-                onLoginClick={() => setShowSignIn(true)}
-                onSignupClick={() => setShowSignUp(true)}
-            />
+            {/* Navbar */}
+            <Navbar onLoginClick={() => setShowSignIn(true)} onSignupClick={() => setShowSignUp(true)} />
 
-            {/* ========== MAIN CONTENT ========== */}
+            {/* Nội dung chính */}
             <main>
-                <section id="hero">
-                    <HeroSection
-                        onSignupClick={() => setShowSignUp(true)}
-                    />
-                </section>
-
-                <section id="stats">
-                    <StatsSection />
-                </section>
-
-                <section id="features" className="scroll-mt-24">
-                    <FeaturesSection />
-                </section>
-
-                <section id="about" className="scroll-mt-24">
-                    <AboutSection />
-                </section>
-
-                <section id="testimonials" className="scroll-mt-24">
-                    <TestimonialsSection />
-                </section>
-
+                <section id="hero"><HeroSection onSignupClick={() => setShowSignUp(true)} /></section>
+                <section id="stats"><StatsSection /></section>
+                <section id="features" className="scroll-mt-24"><FeaturesSection /></section>
+                <section id="about" className="scroll-mt-24"><AboutSection /></section>
+                <section id="testimonials" className="scroll-mt-24"><TestimonialsSection /></section>
                 <section id="cta" className="scroll-mt-24">
                     <CTASection
                         onLoginClick={() => setShowSignIn(true)}

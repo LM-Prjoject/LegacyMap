@@ -81,28 +81,43 @@ public class AdminServiceImpl implements AdminService {
                     return new AppException(ErrorCode.USER_NOT_FOUND);
                 });
 
+        // 🔥 NEW: Kiểm tra không cho phép ban admin
+        if ("admin".equalsIgnoreCase(user.getRoleName())) {
+            log.error("🚫 Cannot ban admin user: {} ({})", user.getEmail(), userId);
+            throw new AppException(ErrorCode.CANNOT_BAN_ADMIN);
+        }
+
         String email = user.getEmail();
-        log.info("📋 Current user status - Email: {}, isBanned: {}", email, user.getIsBanned());
+        log.info("📋 Current user status - Email: {}, isBanned: {}, role: {}",
+                email, user.getIsBanned(), user.getRoleName());
 
         if (Boolean.TRUE.equals(user.getIsBanned())) {
             log.warn("⚠️ User {} is already banned", email);
             throw new AppException(ErrorCode.USER_ALREADY_BANNED);
         }
 
-        // ✅ NEW: Tìm tất cả accounts có cùng email
+        // ✅ Tìm tất cả accounts có cùng email
         List<User> allAccountsWithSameEmail = userRepository.findAllByEmail(email);
         log.info("🔍 Found {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
 
         OffsetDateTime banTime = OffsetDateTime.now();
 
-        // ✅ NEW: Ban tất cả accounts có cùng email
+        // ✅ Ban tất cả accounts có cùng email (chỉ những account không phải admin)
+        int bannedCount = 0;
         for (User account : allAccountsWithSameEmail) {
+            // 🔥 NEW: Skip admin accounts
+            if ("admin".equalsIgnoreCase(account.getRoleName())) {
+                log.warn("⚠️ Skipping admin account: {} (ID: {})", account.getEmail(), account.getId());
+                continue;
+            }
+
             if (Boolean.FALSE.equals(account.getIsBanned()) || account.getIsBanned() == null) {
                 account.setIsBanned(true);
                 account.setBannedAt(banTime);
 
                 try {
                     userRepository.save(account);
+                    bannedCount++;
                     log.info("🚫 Banned account: {} (ID: {}, Provider: {})",
                             account.getEmail(), account.getId(), account.getProvider());
                 } catch (Exception e) {
@@ -112,7 +127,12 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        log.info("✅ Successfully banned {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
+        if (bannedCount == 0) {
+            log.error("❌ No accounts were banned (all were admin accounts)");
+            throw new AppException(ErrorCode.CANNOT_BAN_ADMIN);
+        }
+
+        log.info("✅ Successfully banned {} account(s) with email: {}", bannedCount, email);
     }
 
     @Override
@@ -136,11 +156,11 @@ public class AdminServiceImpl implements AdminService {
             throw new AppException(ErrorCode.USER_NOT_BANNED);
         }
 
-        // ✅ NEW: Tìm tất cả accounts có cùng email
+        // ✅ Tìm tất cả accounts có cùng email
         List<User> allAccountsWithSameEmail = userRepository.findAllByEmail(email);
         log.info("🔍 Found {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
 
-        // ✅ NEW: Unban tất cả accounts có cùng email
+        // ✅ Unban tất cả accounts có cùng email
         for (User account : allAccountsWithSameEmail) {
             if (Boolean.TRUE.equals(account.getIsBanned())) {
                 account.setIsBanned(false);
