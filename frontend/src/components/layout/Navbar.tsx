@@ -210,7 +210,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                             >
                                                 {isAdmin() ? (
                                                     <>
-                                                        <Shield className="h-4 w-4" />
+                                                        <Album className="h-4 w-4" />
                                                         Admin Dashboard
                                                     </>
                                                 ) : (
@@ -229,7 +229,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                 className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/5 transition flex items-center gap-2"
                                             >
                                                 <User className="h-4 w-4" />
-                                                Thông tin cá nhân
+                                                Trang cá nhân
                                             </button>
 
                                             <hr className="my-2 border-[rgba(209,185,138,0.25)]" />

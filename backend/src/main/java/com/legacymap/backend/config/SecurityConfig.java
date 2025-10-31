@@ -1,5 +1,6 @@
 package com.legacymap.backend.config;
 
+import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.JwtUtil;
 import com.legacymap.backend.service.google.CustomOAuth2UserService;
 import com.legacymap.backend.service.google.CustomOidcUserService;
@@ -29,13 +30,14 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
-
+    private final UserRepository userRepository;
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-    public SecurityConfig(JwtUtil jwtUtil) {
+    public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
-        log.info("🔧 SecurityConfig initialized with JwtUtil");
+        this.userRepository = userRepository;
+
     }
 
     @Bean
@@ -66,25 +68,30 @@ public class SecurityConfig {
     @Bean
     @Order(1)
     SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
-        log.info("🔒 Configuring API Security Chain");
+        log.info("Configuring API Security Chain");
 
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil);
-        log.info("✅ JwtAuthenticationFilter created");
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository);
+        log.info("JwtAuthenticationFilter created");
 
         http
-                .securityMatcher("/api/**")
+                .securityMatcher("/api/**", "/legacy/api/**")
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // Permit các HEAD & OPTIONS request cho tất cả endpoint
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/**").permitAll()
+
                         .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                         .requestMatchers("/api/trees/**").permitAll()
-                        .requestMatchers("/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
                         .requestMatchers("/api/debug/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/admin/users").hasRole("ADMIN")
@@ -96,7 +103,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 );
 
-        log.info("✅ API Security Chain configured");
+        log.info("API Security Chain configured");
         return http.build();
     }
 
@@ -106,7 +113,7 @@ public class SecurityConfig {
                                  CustomOAuth2UserService oAuth2UserService,
                                  CustomOidcUserService oidcUserService,
                                  OAuth2SuccessHandler successHandler) throws Exception {
-        log.info("🌐 Configuring Web Security Chain");
+        log.info("Configuring Web Security Chain");
 
         http
                 .securityMatcher("/**")
@@ -128,52 +135,52 @@ public class SecurityConfig {
                                 .oidcUserService(oidcUserService)
                         )
                         .successHandler(successHandler)
-                        // ✅ FIXED: Handle OAuth2 authentication errors
+                        // FIXED: Handle OAuth2 authentication errors
                         .failureHandler((req, res, ex) -> {
-                            log.error("❌ OAuth2 login failed: {}", ex.getMessage());
+                            log.error("OAuth2 login failed: {}", ex.getMessage());
 
                             String errorParam = "auth_failed";
 
-                            // ✅ FIXED: Check cả direct exception message và cause
+                            // FIXED: Check cả direct exception message và cause
                             String exceptionMessage = ex.getMessage();
 
                             // Check direct exception message first
                             if (exceptionMessage != null && exceptionMessage.toLowerCase().contains("banned")) {
                                 errorParam = "banned";
-                                log.warn("🚫 Detected banned account (from direct message)");
+                                log.warn("Detected banned account (from direct message)");
                             } else if (exceptionMessage != null && exceptionMessage.toLowerCase().contains("disabled")) {
                                 errorParam = "disabled";
-                                log.warn("⚠️ Detected disabled account (from direct message)");
+                                log.warn("⚠Detected disabled account (from direct message)");
                             }
                             // Then check cause if not found
                             else if (ex.getCause() != null) {
                                 String causeMsg = ex.getCause().getMessage();
-                                log.error("❌ Cause: {}", causeMsg);
+                                log.error("Cause: {}", causeMsg);
 
                                 if (causeMsg != null) {
                                     String lowerMsg = causeMsg.toLowerCase();
 
                                     if (lowerMsg.contains("banned")) {
                                         errorParam = "banned";
-                                        log.warn("🚫 Detected banned account (from cause)");
+                                        log.warn("Detected banned account (from cause)");
                                     } else if (lowerMsg.contains("disabled")) {
                                         errorParam = "disabled";
-                                        log.warn("⚠️ Detected disabled account (from cause)");
+                                        log.warn("Detected disabled account (from cause)");
                                     }
                                 }
                             }
 
-                            // ✅ FIXED: Redirect về homepage thay vì /signin
+                            // FIXED: Redirect về homepage thay vì /signin
                             // Frontend sẽ tự hiển thị modal SignIn với error message
-                            String redirectUrl = frontendUrl + "/?error="
+                            String redirectUrl =    frontendUrl + "/?error="
                                     + URLEncoder.encode(errorParam, StandardCharsets.UTF_8);
-                            log.info("🔄 Redirecting to: {}", redirectUrl);
+                            log.info("Redirecting to: {}", redirectUrl);
 
                             res.sendRedirect(redirectUrl);
                         })
                 );
 
-        log.info("✅ Web Security Chain configured");
+        log.info("Web Security Chain configured");
         return http.build();
     }
 }

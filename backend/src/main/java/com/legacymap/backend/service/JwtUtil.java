@@ -83,8 +83,8 @@ public class JwtUtil {
         String token = Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("email", email)
-                .claim("role", role) // 🔥 GIỮ NGUYÊN để frontend hoạt động
-                .claim("role_name", role) // 🔥 ĐỒNG BỘ với database
+                .claim("role", role)
+                .claim("role_name", role)
                 .claim("purpose", "ACCESS")
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
@@ -200,6 +200,19 @@ public class JwtUtil {
         } catch (Exception e) {
             log.error("❌ Admin token validation failed: {}", e.getMessage());
             return false;
+        }
+    }
+
+    public Integer extractPasswordVersion(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            Object v = claims.get("pwdv");
+            if (v instanceof Integer i) return i;
+            if (v instanceof Number n) return n.intValue();
+            return null;
+        } catch (Exception e) {
+            log.error("❌ Error extracting pwdv: {}", e.getMessage());
+            return null;
         }
     }
 }

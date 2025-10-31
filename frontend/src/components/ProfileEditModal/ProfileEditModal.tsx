@@ -1,4 +1,4 @@
-import { ChangeEvent, RefObject } from "react";
+import { ChangeEvent, RefObject, useMemo } from "react";
 import { X, Save, Mail, Phone, Users, Calendar, Home, MapPin, User as UserIcon } from "lucide-react";
 import { Field } from "@/components/ui/Field";
 import { SearchCombo, type Option } from "@/components/ui/SearchCombo";
@@ -15,6 +15,14 @@ export type Form = {
     avatarUrl?: string;
     address: Address;
 };
+
+function getTodayLocalISO() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
 
 export default function ProfileEditModal({
                                              me,
@@ -51,6 +59,9 @@ export default function ProfileEditModal({
     onProvinceChange: (codeStr: string) => void;
     onWardChange: (codeStr: string) => void;
 }) {
+    const today = useMemo(() => getTodayLocalISO(), []);
+    const invalidDob = !!(form.dob && form.dob > today);
+
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center">
             {/* Overlay với gradient vàng đen */}

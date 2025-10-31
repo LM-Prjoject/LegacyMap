@@ -58,6 +58,12 @@ public class User {
         @Column(name = "failed_attempts")
         private Integer failedAttempts;
 
+        @Column(name = "password_changedat")
+        private OffsetDateTime passwordChangedAt;
+
+        @Column(name = "password_version", nullable = false, columnDefinition = "integer default 0")
+        private Integer passwordVersion = 0;
+
         @PrePersist
         void prePersist() {
                 createdAt = OffsetDateTime.now();

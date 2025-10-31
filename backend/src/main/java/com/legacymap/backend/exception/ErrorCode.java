@@ -14,6 +14,8 @@ public enum ErrorCode {
     TOKEN_EXPIRED("Token has expired", 1011),
     TOKEN_ALREADY_USED("Token already used", 1012),
     INVALID_PURPOSE("Invalid token purpose", 1013),
+    INVALID_PASSWORD("Invalid password", 1024),
+    BAD_REQUEST("Bad request", 1025),
 
     // Authentication & Authorization
     UNAUTHENTICATED("You are not authenticated", 1014),
@@ -36,8 +38,8 @@ public enum ErrorCode {
     ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110),
     CANNOT_BAN_ADMIN("Cannot ban admin users", 1111);  // 🔥 THÊM MỚI
 
-    private final int code;
     private final String message;
+    private final int code;
 
     ErrorCode(String message, int code) {
         this.message = message;
