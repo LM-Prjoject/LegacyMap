@@ -1,7 +1,7 @@
 // src/components/layout/Navbar.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Shield, TreePine, Menu } from 'lucide-react';
+import { LogOut, User,Album, TreePine, Menu } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';

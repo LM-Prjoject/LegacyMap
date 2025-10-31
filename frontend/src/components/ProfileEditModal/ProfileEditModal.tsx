@@ -172,8 +172,16 @@ export default function ProfileEditModal({
                                 type="date"
                                 name="dob"
                                 value={form.dob || ""}
-                                onChange={onFieldChange}
+                                max={today}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (v && v > today) {
+                                        e.target.value = today;
+                                    }
+                                    onFieldChange(e);
+                                }}
                                 className="w-full bg-transparent text-white outline-none"
+                                aria-invalid={invalidDob}
                             />
                         </Field>
 
@@ -226,6 +234,15 @@ export default function ProfileEditModal({
                             />
                         </Field>
                     </div>
+
+                    {/* Validation message */}
+                    {invalidDob && (
+                        <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                            <p className="text-red-300 text-sm">
+                                ⚠️ Ngày sinh không thể lớn hơn ngày hiện tại
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -239,8 +256,8 @@ export default function ProfileEditModal({
                     </button>
                     <button
                         onClick={onSave}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-5 h-10 rounded-xl font-medium text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-lg hover:brightness-110 transition disabled:opacity-60"
+                        disabled={saving || invalidDob}
+                        className="flex items-center gap-2 px-5 h-10 rounded-xl font-medium text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-lg hover:brightness-110 transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         <Save className="w-5 h-5" />
                         {saving ? "Đang lưu..." : "Lưu"}
