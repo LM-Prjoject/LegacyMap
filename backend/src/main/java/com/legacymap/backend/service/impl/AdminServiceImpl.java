@@ -81,7 +81,7 @@ public class AdminServiceImpl implements AdminService {
                     return new AppException(ErrorCode.USER_NOT_FOUND);
                 });
 
-        // 🔥 NEW: Kiểm tra không cho phép ban admin
+        // 🔥 CRITICAL: Kiểm tra không cho phép ban admin
         if ("admin".equalsIgnoreCase(user.getRoleName())) {
             log.error("🚫 Cannot ban admin user: {} ({})", user.getEmail(), userId);
             throw new AppException(ErrorCode.CANNOT_BAN_ADMIN);
@@ -105,7 +105,7 @@ public class AdminServiceImpl implements AdminService {
         // ✅ Ban tất cả accounts có cùng email (chỉ những account không phải admin)
         int bannedCount = 0;
         for (User account : allAccountsWithSameEmail) {
-            // 🔥 NEW: Skip admin accounts
+            // 🔥 CRITICAL: Skip admin accounts
             if ("admin".equalsIgnoreCase(account.getRoleName())) {
                 log.warn("⚠️ Skipping admin account: {} (ID: {})", account.getEmail(), account.getId());
                 continue;
@@ -161,6 +161,7 @@ public class AdminServiceImpl implements AdminService {
         log.info("🔍 Found {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
 
         // ✅ Unban tất cả accounts có cùng email
+        int unbannedCount = 0;
         for (User account : allAccountsWithSameEmail) {
             if (Boolean.TRUE.equals(account.getIsBanned())) {
                 account.setIsBanned(false);
@@ -168,6 +169,7 @@ public class AdminServiceImpl implements AdminService {
 
                 try {
                     userRepository.save(account);
+                    unbannedCount++;
                     log.info("✅ Unbanned account: {} (ID: {}, Provider: {})",
                             account.getEmail(), account.getId(), account.getProvider());
                 } catch (Exception e) {
@@ -177,7 +179,12 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        log.info("✅ Successfully unbanned {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
+        if (unbannedCount == 0) {
+            log.warn("⚠️ No accounts were unbanned");
+            throw new AppException(ErrorCode.USER_NOT_BANNED);
+        }
+
+        log.info("✅ Successfully unbanned {} account(s) with email: {}", unbannedCount, email);
     }
 
     @Override
