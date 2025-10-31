@@ -40,11 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         String method = request.getMethod();
 
-        log.debug("🌐 JwtFilter: {} {}", method, path);
+        log.debug("JwtFilter: {} {}", method, path);
 
         // Skip JWT filter for public endpoints
         if (isPublicEndpoint(path, method)) {
-            log.debug("✅ Public endpoint, skipping JWT filter: {}", path);
+            log.debug("Public endpoint, skipping JWT filter: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
@@ -52,32 +52,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null) {
-            log.warn("⚠️ No Authorization header for protected endpoint: {} {}", method, path);
+            log.warn("No Authorization header for protected endpoint: {} {}", method, path);
             filterChain.doFilter(request, response);
             return;
         }
 
         if (!authHeader.startsWith("Bearer ")) {
-            log.warn("⚠️ Authorization header does not start with Bearer: {}", authHeader.substring(0, Math.min(20, authHeader.length())));
+            log.warn("Authorization header does not start with Bearer: {}", authHeader.substring(0, Math.min(20, authHeader.length())));
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
             String token = authHeader.substring(7);
-            log.info("🔐 Processing JWT token for {} {}", method, path);
+            log.info("Processing JWT token for {} {}", method, path);
 
-            // 🔥 CRITICAL: Debug token for admin endpoints
+            // CRITICAL: Debug token for admin endpoints
             if (path.contains("/admin/")) {
-                log.info("🎯 ADMIN ENDPOINT DETECTED - Debugging token...");
+                log.info("ADMIN ENDPOINT DETECTED - Debugging token...");
                 jwtUtil.debugToken(token);
             }
 
-            // 🔥 Validate JWT token
+            // Validate JWT token
             UUID userId = jwtUtil.validateToken(token);
 
             if (userId == null) {
-                log.error("❌ JWT validation failed - token is invalid or expired");
+                log.error("JWT validation failed - token is invalid or expired");
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -92,21 +92,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             if (SecurityContextHolder.getContext().getAuthentication() != null) {
-                log.debug("⚠️ Authentication already set, skipping");
+                log.debug("Authentication already set, skipping");
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            log.info("✅ JWT valid for userId: {}", userId);
+            log.info("JWT valid for userId: {}", userId);
 
-            // 🔥 Extract role from token
+            // Extract role from token
             String roleFromToken = jwtUtil.extractRole(token);
-            log.info("🔍 Role extracted from token: '{}'", roleFromToken);
+            log.info("Role extracted from token: '{}'", roleFromToken);
 
-            // 🔥 Build authorities list
+            // Build authorities list
             List<SimpleGrantedAuthority> authorities = buildAuthorities(roleFromToken);
 
-            log.info("🎯 Final authorities for user {}: {}", userId, authorities);
+            log.info("Final authorities for user {}: {}", userId, authorities);
 
             // Create authentication object
             UsernamePasswordAuthenticationToken authentication =
@@ -119,43 +119,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            log.info("✅ Authentication set for user: {} with authorities: {}", userId, authorities);
+            log.info("Authentication set for user: {} with authorities: {}", userId, authorities);
 
-            // 🔥 Special check for admin endpoints
+            // Special check for admin endpoints
             if (path.contains("/admin/")) {
                 boolean hasAdminRole = authorities.stream()
                         .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
 
                 if (hasAdminRole) {
-                    log.info("🎯 ✅ ADMIN ACCESS GRANTED for user {} to path: {}", userId, path);
+                    log.info("ADMIN ACCESS GRANTED for user {} to path: {}", userId, path);
                 } else {
-                    log.error("🚫 ❌ ADMIN ACCESS DENIED for user {} to path: {} - Missing ROLE_ADMIN", userId, path);
-                    log.error("🚫 User authorities: {}", authorities);
+                    log.error("ADMIN ACCESS DENIED for user {} to path: {} - Missing ROLE_ADMIN", userId, path);
+                    log.error("User authorities: {}", authorities);
                 }
             }
 
         } catch (Exception e) {
-            log.error("💥 JWT processing exception: {}", e.getMessage(), e);
+            log.error("JWT processing exception: {}", e.getMessage(), e);
         }
 
         filterChain.doFilter(request, response);
     }
 
     /**
-     * 🔥 Build authorities from role string
+     * Build authorities from role string
      */
     private List<SimpleGrantedAuthority> buildAuthorities(String role) {
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
         if (role == null || role.trim().isEmpty()) {
-            log.warn("⚠️ Role is null or empty, defaulting to ROLE_USER");
+            log.warn("Role is null or empty, defaulting to ROLE_USER");
             authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
             return authorities;
         }
 
         // Normalize role (remove whitespace, convert to uppercase)
         String normalizedRole = role.trim().toUpperCase();
-        log.debug("🔄 Normalized role: '{}' -> '{}'", role, normalizedRole);
+        log.debug("Normalized role: '{}' -> '{}'", role, normalizedRole);
 
         // Add role with ROLE_ prefix if not present
         String roleAuthority;
@@ -166,19 +166,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         authorities.add(new SimpleGrantedAuthority(roleAuthority));
-        log.debug("✅ Added authority: {}", roleAuthority);
+        log.debug("Added authority: {}", roleAuthority);
 
-        // 🔥 If role is ADMIN, also add ROLE_USER for backward compatibility
+        // If role is ADMIN, also add ROLE_USER for backward compatibility
         if (roleAuthority.equals("ROLE_ADMIN")) {
             authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-            log.debug("✅ Added ROLE_USER for admin (backward compatibility)");
+            log.debug("Added ROLE_USER for admin (backward compatibility)");
         }
 
         return authorities;
     }
 
     /**
-     * 🔥 Check if endpoint is public
+     * Check if endpoint is public
      */
     private boolean isPublicEndpoint(String path, String method) {
         // Public API endpoints

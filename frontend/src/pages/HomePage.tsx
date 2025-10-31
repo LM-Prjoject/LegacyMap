@@ -62,7 +62,7 @@ export default function HomePage() {
         }
     }, []);
 
-    // ✅ NEW: Tự động mở modal SignIn khi có error từ Google OAuth
+    // NEW: Tự động mở modal SignIn khi có error từ Google OAuth
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const error = params.get('error');
@@ -84,7 +84,7 @@ export default function HomePage() {
                     onClose={() => {
                         setShowSignIn(false);
 
-                        // ✅ Xóa error param khi đóng modal
+                        // Xóa error param khi đóng modal
                         const params = new URLSearchParams(window.location.search);
                         if (params.has('error')) {
                             params.delete('error');

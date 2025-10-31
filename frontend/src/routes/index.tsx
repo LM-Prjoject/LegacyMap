@@ -12,7 +12,9 @@ import UserManagement from '@/pages/admin/UserManagement'
 import UserDetail from '@/pages/admin/UserDetail'
 import AdminLayout from '@/components/admin/AdminLayout'
 import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
-
+import EventsPage from '@/pages/event/EventsPage'
+import EventFormPage from "@/pages/event/EventFormPage.tsx";
+import EventDetailPage from '@/pages/event/EventDetailPage'
 
 export const router = createBrowserRouter([
     {
@@ -54,7 +56,19 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute><TreesList /></ProtectedRoute>
     },
 
-    // ✅ Admin routes với đầy đủ children
+    {
+        path: '/events',
+        element: <ProtectedRoute><EventsPage /></ProtectedRoute>
+    },
+    {
+        path: '/events/create',
+        element: <ProtectedRoute><EventFormPage /></ProtectedRoute>
+    },
+    {
+        path: '/events/:id',
+        element: <ProtectedRoute><EventDetailPage /></ProtectedRoute>
+    },
+
     {
         path: '/admin',
         element: (
@@ -70,7 +84,7 @@ export const router = createBrowserRouter([
                 element: <AdminDashboard />
             },
             {
-                path: 'dashboard', // ← THÊM
+                path: 'dashboard',
                 element: <AdminDashboard />
             },
             {
@@ -83,12 +97,12 @@ export const router = createBrowserRouter([
             },
             {
                 path: 'trees',
-                element: <FamilyTreesPage />  // ✅ Thay vì <div>Coming soon...</div>
+                element: <FamilyTreesPage />
             },
             {
-                path: 'settings', // ← THÊM
+                path: 'settings',
                 element: <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">⚙️ Settings</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Settings</h2>
                     <p className="text-gray-600">Coming soon...</p>
                 </div>
             }

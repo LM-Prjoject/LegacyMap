@@ -1,12 +1,13 @@
 package com.legacymap.backend.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,17 +19,22 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Event {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "family_tree_id", nullable = false)
+    @JoinColumn(name = "family_tree_id")
     private FamilyTree familyTree;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "personal_owner_id")
+    private User personalOwner;
 
     @Column(nullable = false, length = 200)
     private String title;
@@ -38,6 +44,7 @@ public class Event {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 50)
+    @ColumnTransformer(read = "lower(event_type)", write = "lower(?)")
     private EventType eventType;
 
     @Column(name = "start_date", nullable = false)
@@ -51,6 +58,7 @@ public class Event {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "calendar_type", length = 10)
+    @ColumnTransformer(read = "lower(calendar_type)", write = "lower(?)")
     private CalendarType calendarType = CalendarType.SOLAR;
 
     @Column(name = "is_recurring")
@@ -60,23 +68,27 @@ public class Event {
     @Column(name = "recurrence_rule", length = 20)
     private RecurrenceRule recurrenceRule = RecurrenceRule.NONE;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "related_persons", columnDefinition = "jsonb")
-    private String relatedPersons;
+    private JsonNode relatedPersons;
 
     @Column(length = 300)
     private String location;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "location_coordinates", columnDefinition = "jsonb")
-    private String locationCoordinates;
+    private JsonNode locationCoordinates;
 
-    @Column(columnDefinition = "jsonb")
-    private String reminder = "{\"days_before\": 3, \"methods\": [\"notification\"]}";
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "reminder", columnDefinition = "jsonb")
+    private JsonNode reminder;
 
     @Column(name = "is_public")
     private Boolean isPublic = true;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
+    @ColumnTransformer(write = "lower(?)")
     private EventStatus status = EventStatus.ACTIVE;
 
     @CreationTimestamp

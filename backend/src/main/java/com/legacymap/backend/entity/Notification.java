@@ -37,7 +37,7 @@ public class Notification {
     private NotificationType type;
 
     @Column(name = "related_entity", columnDefinition = "jsonb")
-    private String relatedEntity; // JSON: {type:'family_tree', id:'uuid'}
+    private String relatedEntity;
 
     @Column(name = "is_read")
     private Boolean isRead = false;
