@@ -22,7 +22,7 @@ public class EmailService {
     }
 
     public void sendVerificationEmail(String toEmail, String userName, String token) throws MessagingException {
-        // ✅ Tự động dùng URL theo môi trường (Render hoặc Local)
+        // Tự động dùng URL theo môi trường (Render hoặc Local)
         String verifyUrl = backendUrl + "/legacy/api/auth/verify?token=" + token;
 
         log.info("📧 Sending verification email to {} with verify URL: {}", toEmail, verifyUrl);
@@ -56,5 +56,23 @@ public class EmailService {
             </div>
         """;
         return String.format(template, userName, verifyUrl);
+    }
+
+    public void sendEmail(String toEmail, String subject, String message) {
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setFrom("legacymap180@gmail.com");
+            helper.setText(message, false);
+
+            mailSender.send(mimeMessage);
+            log.info("Sent email to {}: {}", toEmail, subject);
+        } catch (MessagingException e) {
+            log.error("Failed to send email to {}", toEmail, e);
+            throw new RuntimeException("Failed to send email", e);
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.legacymap.backend.config;
 
+import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,10 +23,11 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
-        log.info("🔧 JwtAuthenticationFilter instantiated with JwtUtil");
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -35,7 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String path = request.getRequestURI();
+        String path = request.getServletPath();
         String method = request.getMethod();
 
         log.debug("🌐 JwtFilter: {} {}", method, path);
@@ -76,6 +78,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (userId == null) {
                 log.error("❌ JWT validation failed - token is invalid or expired");
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            Integer tokenPwdv = jwtUtil.extractPasswordVersion(token);
+            Integer currentPwdv = userRepository.findById(userId)
+                    .map(u -> u.getPasswordVersion() == null ? 0 : u.getPasswordVersion())
+                    .orElse(0);
+            if (tokenPwdv == null || !tokenPwdv.equals(currentPwdv)) {
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -171,13 +182,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private boolean isPublicEndpoint(String path, String method) {
         // Public API endpoints
-        if (path.startsWith("/api/auth/") ||
-                path.startsWith("/api/users/register") ||
-                path.startsWith("/api/trees/") ||
-                path.startsWith("/v3/api-docs") ||
-                path.startsWith("/swagger-ui") ||
-                path.startsWith("/actuator") ||
-                path.startsWith("/api/debug")) {
+        if ("POST".equalsIgnoreCase(method) && (
+                path.equals("/api/auth/login") ||
+                        path.equals("/api/users/register") ||
+                        path.equals("/api/auth/forgot-password") ||
+                        path.equals("/api/auth/reset-password")
+        )) {
+            return true;
+        }
+
+        if ("GET".equalsIgnoreCase(method) && (
+                path.startsWith("/api/auth/verify") ||
+                        path.startsWith("/api/trees") ||
+                        path.startsWith("/v3/api-docs") ||
+                        path.startsWith("/swagger-ui") ||
+                        path.startsWith("/actuator")
+        )) {
             return true;
         }
 

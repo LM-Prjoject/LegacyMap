@@ -9,6 +9,7 @@ import PicNoi from "@/assets/picnoi.png";
 import ProfileEditModal, { type Form } from "@/components/ProfileEditModal/ProfileEditModal";
 import { fetchProvinces, fetchWardsByProvince, type Province, type Ward } from "@/api/locations";
 import { type Option } from "@/components/ui/SearchCombo";
+import AccountSecuritySection from "@/components/AccountSecuritySection/AccountSecuritySection";
 
 function LabeledText({ label, value }: { label: string; value: string }) {
     return (
@@ -34,7 +35,6 @@ export default function ProfilePage() {
     const [wards, setWards] = useState<Ward[]>([]);
     const [wardCode, setWardCode] = useState<number | "">("");
 
-    /** Load provinces once */
     useEffect(() => {
         fetchProvinces().then(setProvinces).catch(() => setProvinces([]));
     }, []);
@@ -189,6 +189,7 @@ export default function ProfilePage() {
         );
     }
 
+    const isLocal = me?.provider?.toLowerCase?.() === "local";
     return (
         <div className={`min-h-screen overflow-x-hidden relative ${editing ? "overflow-hidden" : ""}`}>
             {/* Enhanced Background */}
@@ -342,6 +343,7 @@ export default function ProfilePage() {
                             </div>
                         </section>
                     </div>
+                    {isLocal && <AccountSecuritySection me={me} onChanged={(u) => setMe(u)} />}
                 </div>
             </div>
 
