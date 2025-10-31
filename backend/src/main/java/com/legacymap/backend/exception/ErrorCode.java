@@ -30,10 +30,11 @@ public enum ErrorCode {
     RELATIONSHIP_SELF_LINK("Cannot create relationship to the same person", 1106),
 
     // Admin related
-    USER_BANNED("Your account has been banned. Please contact support", 1107),  // 🔥 THÊM MỚI
+    USER_BANNED("Your account has been banned. Please contact support", 1107),
     USER_ALREADY_BANNED("User is already banned", 1108),
     USER_NOT_BANNED("User is not banned", 1109),
-    ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110);
+    ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110),
+    CANNOT_BAN_ADMIN("Cannot ban admin users", 1111);  // 🔥 THÊM MỚI
 
     private final int code;
     private final String message;
