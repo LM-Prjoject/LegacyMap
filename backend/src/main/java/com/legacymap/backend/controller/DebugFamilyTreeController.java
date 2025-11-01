@@ -1,4 +1,3 @@
-// src/main/java/com/legacymap/backend/controller/DebugFamilyTreeController.java
 package com.legacymap.backend.controller;
 
 import com.legacymap.backend.repository.FamilyTreeRepository;
@@ -23,11 +22,11 @@ public class DebugFamilyTreeController {
     @GetMapping("/family-trees-simple")
     public ResponseEntity<?> getSimpleFamilyTrees() {
         try {
-            log.info("🔍 Starting simple family trees debug...");
+            log.info("Starting simple family trees debug...");
 
             // Test 1: Basic count
             long count = familyTreeRepository.count();
-            log.info("🔍 Family trees count: {}", count);
+            log.info("Family trees count: {}", count);
 
             // Test 2: Simple data without relationships
             var result = new HashMap<String, Object>();
@@ -35,11 +34,11 @@ public class DebugFamilyTreeController {
             result.put("status", "SUCCESS");
             result.put("message", "Basic count works");
 
-            log.info("🔍 Simple debug completed successfully");
+            log.info("Simple debug completed successfully");
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {
-            log.error("❌ SIMPLE DEBUG ERROR: {}", e.getMessage(), e);
+            log.error("SIMPLE DEBUG ERROR: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(
                     Map.of(
                             "error", e.getMessage(),
@@ -53,11 +52,11 @@ public class DebugFamilyTreeController {
     @GetMapping("/family-trees-with-data")
     public ResponseEntity<?> getFamilyTreesWithData() {
         try {
-            log.info("🔍 Testing family trees with data...");
+            log.info("Testing family trees with data...");
 
             // Test with actual data but simplified
             var trees = familyTreeRepository.findAll();
-            log.info("🔍 Found {} trees", trees.size());
+            log.info("Found {} trees", trees.size());
 
             var simplifiedTrees = trees.stream()
                     .map(tree -> Map.of(
@@ -74,11 +73,11 @@ public class DebugFamilyTreeController {
                     "status", "SUCCESS"
             );
 
-            log.info("🔍 Data debug completed successfully");
+            log.info("Data debug completed successfully");
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {
-            log.error("❌ DATA DEBUG ERROR: {}", e.getMessage(), e);
+            log.error("DATA DEBUG ERROR: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(
                     Map.of(
                             "error", e.getMessage(),

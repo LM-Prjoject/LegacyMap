@@ -38,7 +38,7 @@ public class EventReminderService {
     @Transactional
     public void createRemindersForEvent(Event event) {
         try {
-            Map<String, Object> reminderConfig = objectMapper.readValue(
+            Map<String, Object> reminderConfig = objectMapper.convertValue(
                     event.getReminder(),
                     objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class)
             );
@@ -56,7 +56,7 @@ public class EventReminderService {
 
             createReminderForUser(event, event.getCreatedBy(), methods, reminderTime);
 
-        } catch (JsonProcessingException e) {
+        } catch (IllegalArgumentException e) {
             log.error("Error parsing reminder config for event {}", event.getId(), e);
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }

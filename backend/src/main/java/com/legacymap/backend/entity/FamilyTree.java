@@ -1,4 +1,3 @@
-// src/main/java/com/legacymap/backend/entity/FamilyTree.java
 package com.legacymap.backend.entity;
 
 import jakarta.persistence.*;

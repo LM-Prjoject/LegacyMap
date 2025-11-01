@@ -1,4 +1,3 @@
-// src/main/java/com/legacymap/backend/controller/AdminController.java
 package com.legacymap.backend.controller;
 
 import com.legacymap.backend.dto.response.ApiResponse;
@@ -28,7 +27,7 @@ public class AdminController {
     @GetMapping("/users")
     public ResponseEntity<List<UserListResponse>> getAllUsers() {
         List<UserListResponse> users = adminService.getAllUsers();
-        log.info("📋 Admin retrieved {} users", users.size());
+        log.info("Admin retrieved {} users", users.size());
         return ResponseEntity.ok(users);
     }
 
@@ -54,17 +53,16 @@ public class AdminController {
                 .build());
     }
 
-    // 🔥 SỬA: Trả về DTO thay vì Entity
     @GetMapping("/family-trees")
     public ResponseEntity<List<FamilyTreeResponse>> getAllFamilyTrees() {
-        log.info("🎯 AdminController.getAllFamilyTrees() CALLED"); // ✅ THÊM DÒNG NÀY
+        log.info("AdminController.getAllFamilyTrees() CALLED");
         try {
-            log.info("📊 Admin accessing all family trees");
+            log.info("Admin accessing all family trees");
             List<FamilyTreeResponse> familyTrees = adminService.getAllFamilyTrees();
-            log.info("✅ Admin retrieved {} family trees", familyTrees.size());
+            log.info("Admin retrieved {} family trees", familyTrees.size());
             return ResponseEntity.ok(familyTrees);
         } catch (Exception e) {
-            log.error("❌ Error getting family trees: {}", e.getMessage(), e);
+            log.error("Error getting family trees: {}", e.getMessage(), e);
             return ResponseEntity.status(500).build();
         }
     }
@@ -72,11 +70,11 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getAdminStats() {
         try {
-            log.info("📈 Admin accessing stats");
+            log.info("Admin accessing stats");
             Map<String, Object> stats = adminService.getAdminStats();
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
-            log.error("❌ Error getting admin stats: {}", e.getMessage());
+            log.error("Error getting admin stats: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }

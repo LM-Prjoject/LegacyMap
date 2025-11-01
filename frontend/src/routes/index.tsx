@@ -1,18 +1,22 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import SignIn from '@/pages/auth/SignIn';
-import SignUp from '@/pages/auth/SignUp';
-import PasswordReset from '@/pages/auth/password-reset';
-import TreesList from '@/pages/dashboard/TreesList';
-import HomePage from '@/pages/HomePage';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx";
-import ProfilePage from "@/pages/auth/ProfilePage.tsx";
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import UserManagement from '@/pages/admin/UserManagement';
-import UserDetail from '@/pages/admin/UserDetail';
-import AdminLayout from '@/components/admin/AdminLayout';
-import FamilyTreesPage from '@/pages/admin/FamilyTreesPage';
-import SettingsPage from '@/pages/admin/SettingsPage'; // ✅ Thêm import mới
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import SignIn from '@/pages/auth/SignIn'
+import SignUp from '@/pages/auth/SignUp'
+import PasswordReset from '@/pages/auth/password-reset'
+import TreesList from '@/pages/dashboard/TreesList'
+import HomePage from '@/pages/HomePage'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx"
+import ProfilePage from "@/pages/auth/ProfilePage.tsx"
+import AdminDashboard from '@/pages/admin/AdminDashboard'
+import UserManagement from '@/pages/admin/UserManagement'
+import UserDetail from '@/pages/admin/UserDetail'
+import AdminLayout from '@/components/admin/AdminLayout'
+import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
+import EventsPage from '@/pages/event/EventsPage'
+import EventFormPage from "@/pages/event/EventFormPage.tsx";
+import EventDetailPage from '@/pages/event/EventDetailPage'
+import SettingsPage from '@/pages/admin/SettingsPage';
+
 
 export const router = createBrowserRouter([
     {
@@ -68,7 +72,19 @@ export const router = createBrowserRouter([
         ),
     },
 
-    // ✅ Khu vực quản trị
+    {
+        path: '/events',
+        element: <ProtectedRoute><EventsPage /></ProtectedRoute>
+    },
+    {
+        path: '/events/create',
+        element: <ProtectedRoute><EventFormPage /></ProtectedRoute>
+    },
+    {
+        path: '/events/:id',
+        element: <ProtectedRoute><EventDetailPage /></ProtectedRoute>
+    },
+
     {
         path: '/admin',
         element: (
@@ -100,7 +116,7 @@ export const router = createBrowserRouter([
                 element: <FamilyTreesPage />,
             },
             {
-                path: 'settings', // ✅ Cập nhật: dùng trang thật thay vì “Coming soon...”
+                path: 'settings',
                 element: <SettingsPage />,
             },
         ],

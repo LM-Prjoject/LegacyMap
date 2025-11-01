@@ -36,7 +36,6 @@ public class User {
         @Column(name = "is_active", nullable = false)
         private Boolean isActive = true;
 
-        // 🔥 THÊM MỚI - Admin fields
         @Column(name = "is_banned", nullable = false)
         private Boolean isBanned = false;
 

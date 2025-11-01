@@ -2,6 +2,7 @@ package com.legacymap.backend.repository;
 
 import com.legacymap.backend.entity.Event;
 import com.legacymap.backend.entity.FamilyTree;
+import com.legacymap.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,8 +15,9 @@ import java.util.UUID;
 @Repository
 public interface EventRepository extends JpaRepository<Event, UUID> {
 
-    List<Event> findByFamilyTreeAndStartDateBetweenOrderByStartDateAsc(
-            FamilyTree familyTree, LocalDateTime start, LocalDateTime end);
+    List<Event> findByPersonalOwnerOrderByStartDateAsc(User personalOwner);
+
+    List<Event> findByFamilyTreeAndStartDateBetweenOrderByStartDateAsc(FamilyTree familyTree, LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT e FROM Event e WHERE e.familyTree = :familyTree " +
             "AND (e.startDate BETWEEN :startDate AND :endDate " +
@@ -30,13 +32,13 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     @Query("SELECT e FROM Event e WHERE e.familyTree.id IN :familyTreeIds " +
             "AND e.status = 'ACTIVE' " +
             "AND e.startDate >= :startDate " +
-            "ORDER BY e.startDate ASC " +
-            "LIMIT :limit")
-    List<Event> findUpcomingEvents(
-            @Param("familyTreeIds") List<UUID> familyTreeIds,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("limit") int limit);
+            "ORDER BY e.startDate ASC")
+    List<Event> findUpcomingEvents(@Param("familyTreeIds") List<UUID> familyTreeIds,
+                                   @Param("startDate") LocalDateTime startDate,
+                                   org.springframework.data.domain.Pageable pageable);
 
     @Query("SELECT e FROM Event e WHERE e.isRecurring = true AND e.startDate BETWEEN :start AND :end")
     List<Event> findRecurringEventsInRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    List<Event> findByCreatedByAndFamilyTreeIsNullOrderByStartDateAsc(User createdBy);
 }

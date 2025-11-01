@@ -8,19 +8,19 @@ export const http = axios.create({
 http.interceptors.request.use((config) => {
     const token = localStorage.getItem('authToken');
 
-    // 🔍 Debug logging
-    console.log('🚀 HTTP Request:', {
+    // Debug logging
+    console.log('HTTP Request:', {
         method: config.method?.toUpperCase(),
-        url: `${config.baseURL}${config.url}`, // ✅ Full URL
+        url: `${config.baseURL}${config.url}`,
         hasToken: !!token,
         tokenPreview: token ? `${token.substring(0, 20)}...` : 'NO TOKEN'
     });
 
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('✅ Token added to Authorization header');
+        console.log('Token added to Authorization header');
     } else {
-        console.warn('⚠️ No token found - request will be anonymous');
+        console.warn('No token found - request will be anonymous');
     }
 
     return config;
@@ -29,7 +29,7 @@ http.interceptors.request.use((config) => {
 // Response interceptor để xử lý lỗi
 http.interceptors.response.use(
     (response) => {
-        console.log('✅ HTTP Response:', {
+        console.log('HTTP Response:', {
             status: response.status,
             url: response.config.url,
             data: response.data
@@ -37,7 +37,7 @@ http.interceptors.response.use(
         return response;
     },
     (error) => {
-        console.error('❌ HTTP Error:', {
+        console.error('HTTP Error:', {
             url: error?.config?.url,
             fullUrl: `${error?.config?.baseURL}${error?.config?.url}`,
             method: error?.config?.method?.toUpperCase(),
@@ -47,9 +47,9 @@ http.interceptors.response.use(
             headers: error?.config?.headers
         });
 
-        // ✅ Xử lý 401 Unauthorized
+        // Xử lý 401 Unauthorized
         if (error?.response?.status === 401) {
-            console.error('🚫 Unauthorized - Clearing auth data and redirecting to login');
+            console.error('Unauthorized - Clearing auth data and redirecting to login');
             localStorage.removeItem('authToken');
             localStorage.removeItem('user');
 
@@ -59,9 +59,9 @@ http.interceptors.response.use(
             }
         }
 
-        // ✅ Xử lý 403 Forbidden
+        // Xử lý 403 Forbidden
         if (error?.response?.status === 403) {
-            console.error('🚫 Forbidden - User does not have required role (ADMIN)');
+            console.error('Forbidden - User does not have required role (ADMIN)');
             alert('You do not have permission to perform this action. Admin role required.');
         }
 
