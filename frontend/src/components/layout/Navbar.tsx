@@ -1,7 +1,7 @@
 // src/components/layout/Navbar.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User,Album, TreePine, Menu } from 'lucide-react';
+import { LogOut, User, Album, TreePine, Menu, CalendarFold, Bell } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
@@ -230,6 +230,28 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                             >
                                                 <User className="h-4 w-4" />
                                                 Trang cá nhân
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowDropdown(false);
+                                                    navigate('/events');
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                            >
+                                                <CalendarFold className="h-4 w-4" />
+                                                Sự kiện
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowDropdown(false);
+                                                    navigate('/notifications');
+                                                }}
+                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                            >
+                                                <Bell className="h-4 w-4" />
+                                                Thông báo
                                             </button>
 
                                             <hr className="my-2 border-[rgba(209,185,138,0.25)]" />

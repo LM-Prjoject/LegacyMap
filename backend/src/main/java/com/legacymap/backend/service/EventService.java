@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,11 +49,16 @@ public class EventService {
 
     @Transactional
     public EventResponse create(UUID treeId, UUID userId, EventCreateRequest request) {
-        FamilyTree tree = findTreeWithAccessOrThrow(treeId, userId);
         User creator = loadUserOrThrow(userId);
+        FamilyTree tree = null;
+
+        if (treeId != null) {
+            tree = findTreeWithAccessOrThrow(treeId, userId);
+        }
 
         Event event = Event.builder()
                 .familyTree(tree)
+                .personalOwner(tree == null ? creator : null)
                 .createdBy(creator)
                 .title(request.getTitle())
                 .description(request.getDescription())
@@ -70,15 +76,15 @@ public class EventService {
 
         try {
             if (request.getRelatedPersons() != null) {
-                event.setRelatedPersons(objectMapper.writeValueAsString(request.getRelatedPersons()));
+                event.setRelatedPersons(objectMapper.valueToTree(request.getRelatedPersons()));
             }
             if (request.getLocationCoordinates() != null) {
-                event.setLocationCoordinates(objectMapper.writeValueAsString(request.getLocationCoordinates()));
+                event.setLocationCoordinates(objectMapper.valueToTree(request.getLocationCoordinates()));
             }
             if (request.getReminder() != null) {
-                event.setReminder(objectMapper.writeValueAsString(request.getReminder()));
+                event.setReminder(objectMapper.valueToTree(request.getReminder()));
             }
-        } catch (JsonProcessingException e) {
+        } catch (IllegalArgumentException e) {
             log.error("Error parsing JSON data", e);
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
@@ -117,16 +123,16 @@ public class EventService {
 
         try {
             if (request.getRelatedPersons() != null) {
-                event.setRelatedPersons(objectMapper.writeValueAsString(request.getRelatedPersons()));
+                event.setRelatedPersons(objectMapper.valueToTree(request.getRelatedPersons()));
             }
             if (request.getLocationCoordinates() != null) {
-                event.setLocationCoordinates(objectMapper.writeValueAsString(request.getLocationCoordinates()));
+                event.setLocationCoordinates(objectMapper.valueToTree(request.getLocationCoordinates()));
             }
             if (request.getReminder() != null) {
-                event.setReminder(objectMapper.writeValueAsString(request.getReminder()));
+                event.setReminder(objectMapper.valueToTree(request.getReminder()));
                 eventReminderService.updateRemindersForEvent(event);
             }
-        } catch (JsonProcessingException e) {
+        } catch (IllegalArgumentException e) {
             log.error("Error parsing JSON data", e);
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
@@ -171,6 +177,15 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
+    public List<EventResponse> getPersonalEvents(UUID userId) {
+        return eventRepository.findByCreatedByAndFamilyTreeIsNullOrderByStartDateAsc(
+                        loadUserOrThrow(userId))
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<EventResponse> getUpcomingEvents(UUID userId, int limit) {
         User user = loadUserOrThrow(userId);
         List<FamilyTree> userTrees = familyTreeRepository.findAllByCreatedBy(user);
@@ -179,7 +194,8 @@ public class EventService {
                 .map(FamilyTree::getId)
                 .collect(Collectors.toList());
 
-        return eventRepository.findUpcomingEvents(treeIds, LocalDateTime.now(), limit)
+        return eventRepository.findUpcomingEvents(treeIds, LocalDateTime.now(),
+                        PageRequest.of(0, limit))
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -199,7 +215,7 @@ public class EventService {
     private EventResponse mapToResponse(Event event) {
         EventResponse response = new EventResponse();
         response.setId(event.getId());
-        response.setFamilyTreeId(event.getFamilyTree().getId());
+        response.setFamilyTreeId(event.getFamilyTree() != null ? event.getFamilyTree().getId() : null);
         response.setCreatedBy(event.getCreatedBy().getId());
         response.setTitle(event.getTitle());
         response.setDescription(event.getDescription());
@@ -218,24 +234,24 @@ public class EventService {
 
         try {
             if (event.getRelatedPersons() != null) {
-                response.setRelatedPersons(objectMapper.readValue(
+                response.setRelatedPersons(objectMapper.convertValue(
                         event.getRelatedPersons(),
                         objectMapper.getTypeFactory().constructCollectionType(List.class, EventResponse.RelatedPerson.class)
                 ));
             }
             if (event.getLocationCoordinates() != null) {
-                response.setLocationCoordinates(objectMapper.readValue(
+                response.setLocationCoordinates(objectMapper.convertValue(
                         event.getLocationCoordinates(),
                         objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class)
                 ));
             }
             if (event.getReminder() != null) {
-                response.setReminder(objectMapper.readValue(
+                response.setReminder(objectMapper.convertValue(
                         event.getReminder(),
                         EventResponse.ReminderConfig.class
                 ));
             }
-        } catch (JsonProcessingException e) {
+        } catch (IllegalArgumentException e) {
             log.error("Error parsing JSON from database for event {}", event.getId(), e);
         }
 
