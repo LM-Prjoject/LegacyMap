@@ -36,13 +36,14 @@ public enum ErrorCode {
     USER_ALREADY_BANNED("User is already banned", 1108),
     USER_NOT_BANNED("User is not banned", 1109),
     ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110),
+    CANNOT_BAN_ADMIN("Cannot ban admin users", 1111),  // 🔥 THÊM MỚI
 
     // Event related
-    EVENT_NOT_FOUND("Event not found", 1111),
-    INVALID_INPUT_DATA("Invalid input data", 1112),
+    EVENT_NOT_FOUND("Event not found", 1112),
+    INVALID_INPUT_DATA("Invalid input data", 1113),
 
     // Notification related
-    NOTIFICATION_NOT_FOUND("Notification not found", 1113);
+    NOTIFICATION_NOT_FOUND("Notification not found", 1114);
 
     private final String message;
     private final int code;

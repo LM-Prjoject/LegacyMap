@@ -15,45 +15,61 @@ import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
 import EventsPage from '@/pages/event/EventsPage'
 import EventFormPage from "@/pages/event/EventFormPage.tsx";
 import EventDetailPage from '@/pages/event/EventDetailPage'
+import SettingsPage from '@/pages/admin/SettingsPage';
+
 
 export const router = createBrowserRouter([
     {
         path: '/',
-        element: <HomePage />
+        element: <HomePage />,
     },
     {
         path: '/homepage',
-        element: <ProtectedRoute><HomePage /></ProtectedRoute>
+        element: (
+            <ProtectedRoute>
+                <HomePage />
+            </ProtectedRoute>
+        ),
     },
     {
         path: '/signin',
-        element: <SignIn
-            onClose={() => window.history.back()}
-            onShowPasswordReset={() => window.location.href = '/password-reset'}
-            onShowSignUp={() => window.location.href = '/signup'}
-        />
+        element: (
+            <SignIn
+                onClose={() => window.history.back()}
+                onShowPasswordReset={() => (window.location.href = '/password-reset')}
+                onShowSignUp={() => (window.location.href = '/signup')}
+            />
+        ),
     },
     {
         path: '/signup',
-        element: <SignUp
-            onClose={() => window.history.back()}
-            onShowSignIn={() => window.location.href = '/signin'}
-        />
+        element: (
+            <SignUp
+                onClose={() => window.history.back()}
+                onShowSignIn={() => (window.location.href = '/signin')}
+            />
+        ),
     },
     {
         path: '/auth/google-success',
-        element: <GoogleSuccess />
+        element: <GoogleSuccess />,
     },
     {
         path: '/password-reset',
-        element: <PasswordReset
-            onClose={() => window.history.back()}
-            onShowSignIn={() => window.location.href = '/signin'}
-        />
+        element: (
+            <PasswordReset
+                onClose={() => window.history.back()}
+                onShowSignIn={() => (window.location.href = '/signin')}
+            />
+        ),
     },
     {
         path: '/dashboard',
-        element: <ProtectedRoute><TreesList /></ProtectedRoute>
+        element: (
+            <ProtectedRoute>
+                <TreesList />
+            </ProtectedRoute>
+        ),
     },
 
     {
@@ -81,56 +97,57 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <AdminDashboard />
+                element: <AdminDashboard />,
             },
             {
                 path: 'dashboard',
-                element: <AdminDashboard />
+                element: <AdminDashboard />,
             },
             {
                 path: 'users',
-                element: <UserManagement />
+                element: <UserManagement />,
             },
             {
                 path: 'users/:userId',
-                element: <UserDetail />
+                element: <UserDetail />,
             },
             {
                 path: 'trees',
-                element: <FamilyTreesPage />
+                element: <FamilyTreesPage />,
             },
             {
                 path: 'settings',
-                element: <div className="bg-white rounded-lg shadow p-6">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Settings</h2>
-                    <p className="text-gray-600">Coming soon...</p>
-                </div>
-            }
-        ]
+                element: <SettingsPage />,
+            },
+        ],
     },
 
     {
         path: '/app',
-        element: <Navigate to="/dashboard" replace />
+        element: <Navigate to="/dashboard" replace />,
     },
     {
         path: '/app/trees/:treeId',
-        element: <Navigate to="/tree/:treeId" replace />
+        element: <Navigate to="/tree/:treeId" replace />,
     },
     {
         path: '/forgot-password',
-        element: <Navigate to="/password-reset" replace />
+        element: <Navigate to="/password-reset" replace />,
     },
     {
         path: '/reset-password',
-        element: <Navigate to="/password-reset" replace />
+        element: <Navigate to="/password-reset" replace />,
     },
     {
         path: '/forgot',
-        element: <Navigate to="/password-reset" replace />
+        element: <Navigate to="/password-reset" replace />,
     },
     {
         path: '/profile',
-        element: <ProtectedRoute><ProfilePage /></ProtectedRoute>
+        element: (
+            <ProtectedRoute>
+                <ProfilePage />
+            </ProtectedRoute>
+        ),
     },
-])
+]);
