@@ -9,7 +9,7 @@ import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
 
 import bg from "@/assets/bg.jpg";
-import Navbar from "@/components/layout/Navbar";
+// import Navbar from "@/components/layout/Navbar";
 import { ArrowLeft, LucideUserPlus } from "lucide-react";
 
 export default function TreeDetails() {
@@ -71,13 +71,24 @@ export default function TreeDetails() {
     const handleAddClick = () => setMemberOpen(true);
 
     const handleCreateMember = async (values: MemberFormValues) => {
-        if (!treeId || !userId) return;
+        if (!treeId || !userId || memberSubmitting) return;
         setMemberSubmitting(true);
+
         try {
             let avatarUrl = values.avatarUrl;
+
             if (values.avatarFile) {
-                try { avatarUrl = await uploadMemberAvatarToSupabase(values.avatarFile); } catch {}
+                const toastId = showToast.loading("Đang tải ảnh lên…");
+                try {
+                    avatarUrl = await uploadMemberAvatarToSupabase(values.avatarFile);
+                } catch (err: any) {
+                    showToast.error(`Upload lỗi: ${err?.message || "Không thể tải ảnh lên."}`);
+                    return;
+                } finally {
+                    showToast.dismiss(toastId);
+                }
             }
+
             const created = await api.addMember(userId, treeId, {
                 fullName: values.fullName.trim(),
                 gender: values.gender || undefined,
@@ -89,10 +100,13 @@ export default function TreeDetails() {
                 avatarUrl: avatarUrl || undefined,
             });
 
-            setPersons((prev) => {
+            setPersons(prev => {
                 const shouldSuggest = prev.length > 0;
                 const next = [...prev, created];
-                if (shouldSuggest) { setSource(created); setModalOpen(true); }
+                if (shouldSuggest) {
+                    setSource(created);
+                    setModalOpen(true);
+                }
                 return next;
             });
 
@@ -200,7 +214,7 @@ export default function TreeDetails() {
         <div className="relative min-h-screen">
             <img src={bg} className="absolute inset-0 w-full h-full object-cover -z-10" />
             <div className="absolute inset-0 bg-slate-900/40 -z-10" />
-            <Navbar />
+            {/*<Navbar />*/}
 
             <div className="px-4 md:px-6 mt-2">
                 <div className="w-full rounded-xl bg-gradient-to-r text-white">

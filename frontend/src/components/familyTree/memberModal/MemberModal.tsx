@@ -254,7 +254,7 @@ export default function MemberModal({
                                     <img
                                         src={preview}
                                         alt="avatar preview"
-                                        className="w-20 h-20 rounded-lg object-cover border cursor-pointer"
+                                        className={`w-20 h-20 rounded-lg object-cover border cursor-pointer ${ submitting ? "opacity-60 pointer-events-none" : "" }`}
                                         onClick={() => inputRef.current?.click()}
                                     />
                                     <button
@@ -263,6 +263,8 @@ export default function MemberModal({
                                         className="absolute -top-2 -right-2 bg-white border border-slate-300 rounded-full w-6 h-6 flex items-center justify-center text-slate-700 hover:bg-slate-100 shadow"
                                         aria-label="Xoá ảnh"
                                         title="Xoá ảnh"
+                                        disabled={submitting}
+                                        style={{ opacity: submitting ? 0.6 : 1, pointerEvents: submitting ? "none" : "auto" }}
                                     >
                                         <X size={14} />
                                     </button>
