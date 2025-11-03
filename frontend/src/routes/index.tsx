@@ -12,6 +12,7 @@ import UserManagement from '@/pages/admin/UserManagement'
 import UserDetail from '@/pages/admin/UserDetail'
 import AdminLayout from '@/components/admin/AdminLayout'
 import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
+import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx';
 
 
 export const router = createBrowserRouter([
@@ -100,10 +101,6 @@ export const router = createBrowserRouter([
         element: <Navigate to="/dashboard" replace />
     },
     {
-        path: '/app/trees/:treeId',
-        element: <Navigate to="/tree/:treeId" replace />
-    },
-    {
         path: '/forgot-password',
         element: <Navigate to="/password-reset" replace />
     },
@@ -119,4 +116,8 @@ export const router = createBrowserRouter([
         path: '/profile',
         element: <ProtectedRoute><ProfilePage /></ProtectedRoute>
     },
+    {
+        path: '/trees/:treeId',
+        element: <ProtectedRoute><TreeDetails /></ProtectedRoute>
+    }
 ])
