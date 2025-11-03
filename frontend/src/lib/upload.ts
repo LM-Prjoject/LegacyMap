@@ -59,25 +59,27 @@ export async function uploadAvatarToSupabase(file: File): Promise<string> {
 }
 
 export async function uploadMemberAvatarToSupabase(file: File): Promise<string> {
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const filename = `${crypto.randomUUID()}.${ext}`;
-    const path = `members/${filename}`; // ✅ thư mục mới
+    const path = `members/${filename}`;
 
-    const { error } = await supabase.storage.from('legacymap').upload(path, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: file.type || 'image/jpeg',
-    });
+    const type = file.type && file.type.startsWith("image/") ? file.type : `image/${ext === "png" ? "png" : "jpeg"}`;
+
+    const { error } = await supabase.storage
+        .from("legacymap")
+        .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: type,
+        });
 
     if (error) {
-        console.error('Upload member avatar failed:', error);
-        throw new Error('Không thể tải ảnh thành viên lên Supabase.');
+        console.error("Upload member avatar failed:", error);
+        throw new Error("Không thể tải ảnh thành viên lên Supabase.");
     }
 
-    const { data } = supabase.storage.from('legacymap').getPublicUrl(path);
-    if (!data?.publicUrl) {
-        throw new Error('Không thể lấy URL ảnh đại diện công khai của thành viên.');
-    }
+    const { data } = supabase.storage.from("legacymap").getPublicUrl(path);
+    if (!data?.publicUrl) throw new Error("Không thể lấy URL ảnh đại diện công khai của thành viên.");
 
     return data.publicUrl;
 }
