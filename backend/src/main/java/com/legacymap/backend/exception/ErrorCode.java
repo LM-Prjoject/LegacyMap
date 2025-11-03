@@ -39,7 +39,15 @@ public enum ErrorCode {
     USER_BANNED("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ", 1107),
     USER_ALREADY_BANNED("Người dùng này đã bị khóa", 1108),
     USER_NOT_BANNED("Người dùng này chưa bị khóa", 1109),
-    ADMIN_ACTION_FORBIDDEN("Hành động quản trị bị từ chối", 1110);
+    CANNOT_BAN_ADMIN("Cannot ban admin users", 1111),
+    ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110),
+
+    // Event related
+    EVENT_NOT_FOUND("Event not found", 1111),
+    INVALID_INPUT_DATA("Invalid input data", 1112),
+
+    // Notification related
+    NOTIFICATION_NOT_FOUND("Notification not found", 1113);
 
     private final int code;
     private final String message;
