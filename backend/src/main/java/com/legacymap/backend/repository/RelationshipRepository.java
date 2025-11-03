@@ -12,4 +12,5 @@ public interface RelationshipRepository extends JpaRepository<Relationship, UUID
     Optional<Relationship> findByIdAndFamilyTree_Id(UUID id, UUID treeId);
     Optional<Relationship> findByFamilyTree_IdAndPerson1_IdAndPerson2_IdAndRelationshipType(UUID treeId, UUID p1, UUID p2, String relationshipType);
     List<Relationship> findAllByFamilyTree_Id(UUID treeId);
+    List<Relationship> findByFamilyTreeId(UUID treeId);
 }
