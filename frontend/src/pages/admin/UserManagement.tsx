@@ -16,23 +16,23 @@ const UserManagement: React.FC = () => {
     if (loading) {
         return (
             <div className="flex flex-col justify-center items-center h-96">
-                <div className="w-16 h-16 border-4 border-[#D1B066] border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-white/80 mt-4">Đang tải danh sách người dùng...</p>
+                <div className="w-16 h-16 border-4 border-[#d1b98a] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-[#f4e9c8]/80 mt-4">Đang tải danh sách người dùng...</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="bg-red-500/20 border border-red-400/50 rounded-xl p-8">
+            <div className="bg-[#2e3a57]/80 border border-red-500/40 text-red-300 rounded-2xl p-8 shadow-lg shadow-black/30">
                 <div className="flex items-start">
                     <span className="text-4xl mr-4">⚠️</span>
                     <div className="flex-1">
-                        <h3 className="text-xl font-bold text-red-200 mb-2">Lỗi Tải Dữ Liệu</h3>
+                        <h3 className="text-xl font-bold mb-2 text-[#f4e9c8]">Lỗi Tải Dữ Liệu</h3>
                         <p className="text-red-300 mb-4">{error}</p>
                         <button
                             onClick={refreshUsers}
-                            className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all font-semibold"
+                            className="px-6 py-3 bg-[#d1b98a] text-[#20283d] rounded-lg font-semibold hover:bg-[#f4e9c8] transition-all"
                         >
                             Thử Lại
                         </button>
@@ -43,20 +43,21 @@ const UserManagement: React.FC = () => {
     }
 
     return (
-        <div>
+        <div className="space-y-8">
             {/* Header */}
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-4xl font-bold text-white mb-2">
+                    <h2 className="text-4xl font-bold bg-gradient-to-r from-[#d1b98a] to-[#f4e9c8] bg-clip-text text-transparent mb-2">
                         Quản Lý Người Dùng
                     </h2>
-                    <p className="text-white/60 text-lg">
+                    <p className="text-[#f4e9c8]/70 text-lg">
                         Quản lý và giám sát tất cả người dùng trong hệ thống
                     </p>
                 </div>
+
                 <button
                     onClick={refreshUsers}
-                    className="px-6 py-3 bg-[#D1B066] text-[#084289] rounded-lg hover:bg-[#f4d88a] transition-all flex items-center font-bold"
+                    className="px-6 py-3 rounded-lg flex items-center font-semibold bg-[#d1b98a] text-[#20283d] hover:bg-[#f4e9c8] transition-all shadow-md shadow-black/30"
                 >
                     <svg
                         className="w-5 h-5 mr-2"
@@ -76,13 +77,8 @@ const UserManagement: React.FC = () => {
             </div>
 
             {/* Stats Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <StatCard
-                    label="Tổng Người Dùng"
-                    value={users.length}
-                    icon="👥"
-                    color="blue"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatCard label="Tổng Người Dùng" value={users.length} icon="👥" color="gold" />
                 <StatCard
                     label="Đang Hoạt Động"
                     value={users.filter((u: User) => !u.isBanned).length}
@@ -99,21 +95,19 @@ const UserManagement: React.FC = () => {
                     label="Quản Trị Viên"
                     value={users.filter((u: User) => u.role === 'ADMIN').length}
                     icon="👑"
-                    color="gold"
+                    color="blue"
                 />
             </div>
 
             {/* User List */}
-            <UserList
-                users={users}
-                onBan={banUser}
-                onUnban={unbanUser}
-                onViewDetail={handleViewDetail}
-            />
+            <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
+                <UserList users={users} onBan={banUser} onUnban={unbanUser} onViewDetail={handleViewDetail} />
+            </div>
         </div>
     );
 };
 
+// 🟡 StatCard (chỉ đổi style, không đổi logic)
 interface StatCardProps {
     label: string;
     value: number;
@@ -122,21 +116,23 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color }) => {
-    const colorClasses = {
-        blue: 'bg-[#2563eb]',
-        green: 'bg-green-500',
-        red: 'bg-red-500',
-        gold: 'bg-[#D1B066]',
+    const colorMap = {
+        blue: 'from-[#3b82f6] to-[#2563eb]',
+        green: 'from-green-400 to-green-600',
+        red: 'from-red-400 to-red-600',
+        gold: 'from-[#d1b98a] to-[#f4e9c8]',
     };
 
     return (
-        <div className={`${colorClasses[color]} rounded-xl p-6 shadow-lg`}>
-            <div className="flex items-center justify-between">
+        <div
+            className={`bg-gradient-to-br ${colorMap[color]} p-[1px] rounded-2xl shadow-lg shadow-black/30`}
+        >
+            <div className="bg-[#1b2233]/95 rounded-2xl p-6 flex justify-between items-center transition-all hover:shadow-[#d1b98a]/30 hover:-translate-y-1">
                 <div>
-                    <p className="text-white/80 text-sm font-medium mb-1">{label}</p>
-                    <p className="text-4xl font-bold text-white">{value}</p>
+                    <p className="text-gray-300 text-sm mb-1">{label}</p>
+                    <p className="text-4xl font-bold text-[#f4e9c8]">{value}</p>
                 </div>
-                <div className="text-5xl opacity-80">{icon}</div>
+                <div className="text-4xl opacity-90">{icon}</div>
             </div>
         </div>
     );

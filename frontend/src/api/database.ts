@@ -22,10 +22,10 @@ export const databaseApi = {
                 .select('*')
                 .limit(10)
 
-            console.log('👥 Users data:', data)
+            console.log('Users data:', data)
             return { data, error }
         } catch (err) {
-            console.error('❌ Error fetching users:', err)
+            console.error('Error fetching users:', err)
             return { data: null, error: err }
         }
     },
@@ -38,10 +38,10 @@ export const databaseApi = {
                 .select('*')
                 .limit(10)
 
-            console.log('📋 User profiles:', data)
+            console.log('User profiles:', data)
             return { data, error }
         } catch (err) {
-            console.error('❌ Error fetching user profiles:', err)
+            console.error('Error fetching user profiles:', err)
             return { data: null, error: err }
         }
     },
@@ -54,10 +54,10 @@ export const databaseApi = {
                 .select('*')
                 .limit(10)
 
-            console.log('🌳 Family trees:', data)
+            console.log('Family trees:', data)
             return { data, error }
         } catch (err) {
-            console.error('❌ Error fetching family trees:', err)
+            console.error('Error fetching family trees:', err)
             return { data: null, error: err }
         }
     }
