@@ -101,7 +101,7 @@
   }
 }
 
-/* ---- Components / utilities tuỳ biến dùng trong UI ---- */
+/* ---- Components / utilities tùy biến dùng trong UI ---- */
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center px-5 py-2.5 rounded-lg font-semibold
@@ -120,4 +120,47 @@
   .card {
     @apply bg-card text-card-foreground rounded-2xl shadow-lg border border-border;
   }
+}
+
+/* ===================================== */
+/* Custom Scrollbar - Gold Theme */
+/* ===================================== */
+
+/* Chrome, Safari, Edge, Opera */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e2a3a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ffd89b 0%, #d4af7a 100%);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #f5e6d3 0%, #ffd89b 100%);
+  box-shadow: 0 0 10px rgba(255, 216, 155, 0.5);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ffd89b #1e2a3a;
+}
+
+/* Prevent scrollbar layout shift */
+html, body {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
 }
