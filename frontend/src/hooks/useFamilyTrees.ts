@@ -1,4 +1,3 @@
-// src/hooks/useFamilyTrees.ts
 import { useState, useEffect, useCallback } from 'react';
 
 export interface FamilyTree {
@@ -10,7 +9,7 @@ export interface FamilyTree {
     coverImageUrl?: string;
     createdAt: string;
     updatedAt: string;
-    memberCount?: number; // ✅ THÊM DÒNG NÀY
+    memberCount?: number;
 }
 
 interface UseFamilyTreesReturn {
