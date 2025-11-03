@@ -17,7 +17,7 @@ export const signInSchema = z.object({
         .trim()
         .min(3, 'Nhập email hoặc username')
         .refine((v) => isEmail(v) || isUsername(v), { message: 'Email hoặc username không hợp lệ' }),
-    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+    password: z.string().min(8, 'Mật khẩu tối thiểu 8 ký tự'),
 });
 export type SignInInput = z.infer<typeof signInSchema>;
 type SignInFormData = SignInInput;
@@ -47,22 +47,22 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
             switch(errorParam) {
                 case 'banned':
-                    errorMessage = '🚫 Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để biết thêm chi tiết.';
+                    errorMessage = 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để biết thêm chi tiết.';
                     break;
                 case 'disabled':
-                    errorMessage = '⚠️ Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ admin.';
+                    errorMessage = 'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ admin.';
                     break;
                 case 'auth_failed':
-                    errorMessage = '❌ Đăng nhập Google thất bại. Vui lòng thử lại.';
+                    errorMessage = 'Đăng nhập Google thất bại. Vui lòng thử lại.';
                     break;
                 case 'user_not_found':
-                    errorMessage = '❌ Tài khoản Google chưa được đăng ký trong hệ thống.';
+                    errorMessage = 'Tài khoản Google chưa được đăng ký trong hệ thống.';
                     break;
                 case 'missing_email':
-                    errorMessage = '❌ Không lấy được email từ Google. Vui lòng thử lại.';
+                    errorMessage = 'Không lấy được email từ Google. Vui lòng thử lại.';
                     break;
                 default:
-                    errorMessage = `❌ Đăng nhập thất bại: ${errorParam}`;
+                    errorMessage = `Đăng nhập thất bại: ${errorParam}`;
             }
 
             setError(errorMessage);
@@ -115,7 +115,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         resolver: zodResolver(signInSchema),
     });
 
-    // ✅ UPDATED: Loại bỏ logic phân biệt admin/user redirect
     const onSubmit = async (data: SignInFormData) => {
         try {
             setLoading(true);
@@ -136,7 +135,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 localStorage.setItem('authToken', token);
                 localStorage.setItem('user', JSON.stringify(user));
 
-                // ✅ UPDATED: Tất cả user (kể cả admin) đều redirect về homepage
                 console.log('✅ Login successful - redirecting to homepage');
                 window.location.href = '/';
             } else {
@@ -151,15 +149,15 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 const backendMessage = error.response.data.message;
 
                 if (backendMessage.includes('banned') || backendMessage.includes('USER_BANNED')) {
-                    errorMessage = '🚫 Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.';
+                    errorMessage = 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.';
                 } else if (backendMessage.includes('disabled') || backendMessage.includes('ACCOUNT_DISABLED')) {
-                    errorMessage = '⚠️ Tài khoản đã bị vô hiệu hóa.';
+                    errorMessage = 'Tài khoản đã bị vô hiệu hóa.';
                 } else if (backendMessage.includes('not verified') || backendMessage.includes('ACCOUNT_NOT_VERIFIED')) {
-                    errorMessage = '📧 Vui lòng xác minh email trước khi đăng nhập.';
+                    errorMessage = 'Vui lòng xác minh email trước khi đăng nhập.';
                 } else if (backendMessage.includes('credentials') || backendMessage.includes('INVALID_CREDENTIALS')) {
-                    errorMessage = '❌ Tài khoản hoặc mật khẩu không đúng.';
+                    errorMessage = 'Tài khoản hoặc mật khẩu không đúng.';
                 } else if (backendMessage.includes('Google') || backendMessage.includes('OAUTH_GOOGLE_ONLY')) {
-                    errorMessage = '🔐 Tài khoản này chỉ có thể đăng nhập bằng Google.';
+                    errorMessage = 'Tài khoản này chỉ có thể đăng nhập bằng Google.';
                 } else {
                     errorMessage = backendMessage;
                 }
