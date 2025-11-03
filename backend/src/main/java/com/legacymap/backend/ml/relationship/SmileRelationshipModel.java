@@ -33,7 +33,7 @@ public class SmileRelationshipModel implements RelationshipModel {
         double pSpouse = 0.0;
         if (absDelta <= 25) {
             pSpouse = 0.55;
-            if (surnameMatch) pSpouse += 0.05; // sometimes shared surname
+            if (surnameMatch) pSpouse += 0.05;
         }
 
         double pSibling = 0.0;

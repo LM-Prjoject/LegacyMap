@@ -6,7 +6,7 @@ import { showToast } from "@/lib/toast";
 import { uploadAvatarToSupabase } from "@/lib/upload";
 import PicChim from "@/assets/picchim.png";
 import PicNoi from "@/assets/picnoi.png";
-import ProfileEditModal, { type Form } from "@/components/ProfileEditModal/ProfileEditModal";
+import ProfileEditModal, { type Form } from "@/components/profileEditModal/ProfileEditModal";
 import { fetchProvinces, fetchWardsByProvince, type Province, type Ward } from "@/api/locations";
 import { type Option } from "@/components/ui/SearchCombo";
 import AccountSecuritySection from "@/components/AccountSecuritySection/AccountSecuritySection";

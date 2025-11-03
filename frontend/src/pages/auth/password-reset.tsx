@@ -11,7 +11,7 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z
     .object({
-        password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
+        password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự'),
         confirmPassword: z.string(),
     })
     .refine((data) => data.password === data.confirmPassword, {
@@ -68,7 +68,7 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
             if (res.ok && payload?.success) {
                 setIsEmailSent(true);
             } else {
-                const msg = payload?.message || 'Gửi email thất bại. Vui lòng thử lại.';
+                    const msg = payload?.message || 'Gửi email thất bại. Vui lòng thử lại.';
                 alert(msg);
             }
         } catch (error) {
