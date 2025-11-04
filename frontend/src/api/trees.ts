@@ -274,6 +274,25 @@ async function addMember(
   return pickData<Person>(json);
 }
 
+async function updateMember(
+    userId: string,
+    treeId: string,
+    personId: string,
+    req: Partial<PersonCreateRequest>
+): Promise<Person> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/members/${encodeURIComponent(personId)}?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "PUT",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(req),
+      }
+  );
+  const json = await safeJson<ApiResponse<Person>>(res);
+  if (!res.ok) throw new Error(json?.message || "Cập nhật thông tin thất bại");
+  return pickData<Person>(json);
+}
+
 async function listRelationships(
     userId: string,
     treeId: string
@@ -382,6 +401,26 @@ export async function suggestForSource(
   return results.sort((a, b) => b.confidence - a.confidence);
 }
 
+async function listPersonRelationships(
+    userId: string,
+    treeId: string,
+    personId: string
+): Promise<Relationship[]> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/persons/${encodeURIComponent(personId)}/relationships?userId=${encodeURIComponent(userId)}`,
+      {
+        headers: authHeaders(),
+      }
+  );
+  const json = await safeJson<ApiResponse<any[]>>(res);
+  if (!res.ok) {
+    throw new Error(json?.message || 'Không tải được danh sách mối quan hệ');
+  }
+  const picked = pickData<any[] | { items: any[] }>(json);
+  const raw = Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
+  return raw.map(mapRelationship);
+}
+
 const api = {
   listTrees,
   createTree,
@@ -389,7 +428,9 @@ const api = {
   deleteTree,
   listMembers,
   addMember,
+  updateMember,
   listRelationships,
+  listPersonRelationships,
   createRelationship,
   suggestRelationship,
 };

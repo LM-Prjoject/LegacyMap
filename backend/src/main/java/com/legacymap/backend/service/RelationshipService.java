@@ -12,12 +12,14 @@ import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.RelationshipRepository;
 import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.dto.response.RelationshipDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class RelationshipService {
@@ -157,7 +159,55 @@ public class RelationshipService {
         relationshipRepository.delete(rel);
     }
 
-    public List<Relationship> listByTree(UUID treeId, UUID userId) {
-        return relationshipRepository.findByFamilyTreeId(treeId);
+    public List<RelationshipDTO> listByTree(UUID treeId, UUID userId) {
+        try {
+            // Tạm thời bỏ qua kiểm tra quyền, chỉ kiểm tra sự tồn tại của cây
+            if (!familyTreeRepository.existsById(treeId)) {
+                throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
+            }
+            
+            List<Relationship> relationships = relationshipRepository.findByFamilyTreeId(treeId);
+            System.out.println("Found " + relationships.size() + " relationships for tree: " + treeId);
+            
+            // Chuyển đổi từ Entity sang DTO
+            return relationships.stream()
+                    .map(RelationshipDTO::fromEntity)
+                    .collect(Collectors.toList());
+                    
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Lỗi khi lấy danh sách mối quan hệ: " + e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_ERROR);
+        }
+    }
+
+    public List<RelationshipDTO> listByPerson(UUID treeId, UUID userId, UUID personId) {
+        try {
+            // Check if tree exists and user has access
+            FamilyTree tree = loadOwnedTree(treeId, userId);
+            
+            // Check if person exists and belongs to the tree
+            Person person = loadPerson(personId);
+            if (!person.getFamilyTree().getId().equals(treeId)) {
+                throw new AppException(ErrorCode.PERSON_NOT_FOUND);
+            }
+            
+            // Get all relationships where the person is either person1 or person2
+            List<Relationship> relationships = relationshipRepository.findByPerson1IdOrPerson2Id(personId, personId);
+            
+            // Convert to DTOs
+            return relationships.stream()
+                    .map(RelationshipDTO::fromEntity)
+                    .collect(Collectors.toList());
+                    
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Lỗi khi lấy danh sách mối quan hệ của người dùng: " + e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 }
