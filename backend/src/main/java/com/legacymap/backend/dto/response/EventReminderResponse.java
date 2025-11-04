@@ -18,3 +18,5 @@ public class EventReminderResponse {
     private EventReminder.ReminderStatus status;
     private OffsetDateTime createdAt;
 }
+
+
