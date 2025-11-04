@@ -1,5 +1,6 @@
 package com.legacymap.backend.dto.request;
 
+import com.legacymap.backend.enums.RelationshipType;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -12,6 +13,6 @@ public class RelationshipCreateRequest {
     @NotNull
     private UUID person2Id;
     @NotNull
-    private String relationshipType; // parent, child, spouse, sibling
+    private RelationshipType relationshipType;
     private String notes;
 }
