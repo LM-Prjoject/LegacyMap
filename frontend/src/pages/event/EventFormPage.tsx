@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
 import { eventsApi } from '@/api/eventApi';
 import { EventCreateRequest, EventType, CalendarType, RecurrenceRule } from '@/types/event';
+import { useEventContext } from '@/contexts/EventContext';
+import { formatInTimeZone } from 'date-fns-tz';
 
 const EventFormPage: React.FC = () => {
     const navigate = useNavigate();
-
+    const {triggerEventsUpdate} = useEventContext();
     const [formData, setFormData] = useState<EventCreateRequest>({
         title: '',
         description: '',
@@ -37,6 +39,18 @@ const EventFormPage: React.FC = () => {
         setError(null);
 
         try {
+            const vnZone = 'Asia/Ho_Chi_Minh';
+            const startIso = formatInTimeZone(new Date(formData.startDate), vnZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+            const endIso = formData.endDate
+                ? formatInTimeZone(new Date(formData.endDate), vnZone, "yyyy-MM-dd'T'HH:mm:ssXXX")
+                : undefined;
+
+            const request: EventCreateRequest = {
+                ...formData,
+                startDate: startIso,
+                endDate: endIso,
+            };
+
             const userData = localStorage.getItem('user');
             let familyTreeId: string | null = null;
 
@@ -49,7 +63,9 @@ const EventFormPage: React.FC = () => {
                 throw new Error('Family tree ID not found. Please log in again or create a family tree first.');
             }
 
-            await eventsApi.createEvent(formData, isPersonalEvent ? undefined : familyTreeId!);
+            await eventsApi.createEvent(request, isPersonalEvent ? undefined : familyTreeId!);
+
+            triggerEventsUpdate();
             navigate('/events');
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Failed to create event');

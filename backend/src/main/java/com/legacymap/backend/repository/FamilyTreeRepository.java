@@ -12,15 +12,15 @@ import java.util.UUID;
 @Repository
 public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
 
-    // ✅ Tìm family trees theo thứ tự mới nhất (cho Admin)
+    // Tìm family trees theo thứ tự mới nhất (cho Admin)
     List<FamilyTree> findAllByOrderByCreatedAtDesc();
 
-    // ✅ Tìm family trees theo User object (cho FamilyTreeService)
+    // Tìm family trees theo User object (cho FamilyTreeService)
     List<FamilyTree> findAllByCreatedBy(User user);
 
-    // ✅ Tìm 1 family tree theo ID và User owner (cho FamilyTreeService & RelationshipService)
+    // Tìm 1 family tree theo ID và User owner (cho FamilyTreeService & RelationshipService)
     Optional<FamilyTree> findByIdAndCreatedBy(UUID id, User user);
 
-    // ✅ Đếm số lượng family trees
+    // Đếm số lượng family trees
     long count();
 }

@@ -6,10 +6,8 @@
         async createEvent(request: EventCreateRequest, familyTreeId?: string): Promise<Event> {
             let response;
             if (familyTreeId) {
-                // Sự kiện thuộc cây gia phả
                 response = await http.post<Event>(`/events/family-tree/${familyTreeId}`, request);
             } else {
-                // Sự kiện cá nhân
                 response = await http.post<Event>(`/events/personal`, request);
             }
 
@@ -39,16 +37,28 @@
             return response.data;
         },
 
+        // Get personal events
+        async getPersonalEvents(): Promise<Event[]> {
+            const response = await http.get<Event[]>('/events/personal');
+            return response.data;
+        },
+
         // Get upcoming events
         async getUpcomingEvents(limit: number = 10): Promise<Event[]> {
-            const response = await http.get<Event[]>(`/events/upcoming?limit=${limit}`);
+            const response = await http.get<Event[]>('/events/upcoming', { params: { limit } });
             return response.data;
         },
 
         // Get events in date range
         async getEventsInDateRange(familyTreeId: string, start: string, end: string): Promise<Event[]> {
             const response = await http.get<Event[]>(
-                `/events/family-tree/${familyTreeId}/range?start=${start}&end=${end}`
+                `/events/family-tree/${familyTreeId}/range`,
+                {
+                    params: {
+                        start: start,
+                        end: end
+                    }
+                }
             );
             return response.data;
         }

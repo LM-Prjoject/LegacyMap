@@ -105,6 +105,12 @@
 			<optional>true</optional>
 		</dependency>
 
+		<dependency>
+			<groupId>cn.6tail</groupId>
+			<artifactId>lunar</artifactId>
+			<version>1.7.6</version>
+		</dependency>
+
 		<!-- Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

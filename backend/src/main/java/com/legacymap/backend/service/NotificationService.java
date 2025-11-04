@@ -3,7 +3,6 @@ package com.legacymap.backend.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legacymap.backend.dto.request.NotificationCreateRequest;
-import com.legacymap.backend.dto.request.NotificationUpdateRequest;
 import com.legacymap.backend.dto.response.NotificationResponse;
 import com.legacymap.backend.dto.response.NotificationStatsResponse;
 import com.legacymap.backend.entity.Notification;
@@ -18,8 +17,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -106,7 +108,7 @@ public class NotificationService {
                 .findByUserOrderByCreatedAtDesc(user, Pageable.ofSize(1))
                 .getContent();
 
-        LocalDateTime lastNotificationTime = recentNotifications.isEmpty() ?
+        OffsetDateTime lastNotificationTime = recentNotifications.isEmpty() ?
                 null : recentNotifications.get(0).getCreatedAt();
 
         return NotificationStatsResponse.builder()
@@ -153,17 +155,20 @@ public class NotificationService {
     @Transactional
     public void cleanupOldNotifications(UUID userId, int daysToKeep) {
         User user = loadUserOrThrow(userId);
-        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(daysToKeep);
+        OffsetDateTime cutoffDate = OffsetDateTime.now(ZoneOffset.UTC).minusDays(daysToKeep);
 
         int deletedCount = notificationRepository.deleteOldNotifications(user, cutoffDate);
         log.info("Deleted {} old notifications for user {}", deletedCount, userId);
     }
 
-    public void sendEventReminderNotification(UUID userId, String eventTitle, LocalDateTime eventTime, UUID eventId) {
+    public void sendEventReminderNotification(UUID userId, String eventTitle, OffsetDateTime eventTime, UUID eventId) {
+        String formattedTime = eventTime
+                .atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+                .format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+
         NotificationCreateRequest request = new NotificationCreateRequest();
         request.setTitle("Nhắc nhở sự kiện");
-        request.setMessage(String.format("Sự kiện \"%s\" sẽ diễn ra vào %s",
-                eventTitle, eventTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"))));
+        request.setMessage(String.format("Sự kiện \"%s\" sẽ diễn ra vào %s", eventTitle, formattedTime));
         request.setType(Notification.NotificationType.EVENT_REMINDER);
         request.setRelatedEntity(Map.of(
                 "type", "event",
@@ -204,7 +209,8 @@ public class NotificationService {
         response.setMessage(notification.getMessage());
         response.setType(notification.getType());
         response.setIsRead(notification.getIsRead());
-        response.setCreatedAt(notification.getCreatedAt());
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        response.setCreatedAt(notification.getCreatedAt().atZoneSameInstant(vnZone).toOffsetDateTime());
 
         try {
             if (notification.getRelatedEntity() != null) {
