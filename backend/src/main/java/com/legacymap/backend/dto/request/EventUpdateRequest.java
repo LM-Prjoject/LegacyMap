@@ -2,18 +2,18 @@ package com.legacymap.backend.dto.request;
 
 import com.legacymap.backend.entity.Event;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Data
 public class EventUpdateRequest {
     private String title;
     private String description;
     private Event.EventType eventType;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
     private Boolean isFullDay;
     private Event.CalendarType calendarType;
     private Boolean isRecurring;
@@ -24,4 +24,5 @@ public class EventUpdateRequest {
     private EventCreateRequest.ReminderConfig reminder;
     private Boolean isPublic;
     private Event.EventStatus status;
+    private UUID personalOwnerId;
 }

@@ -11,7 +11,6 @@ import java.util.UUID;
 
 @Repository
 public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
-
     List<FamilyTree> findAllByOrderByCreatedAtDesc();
 
     List<FamilyTree> findAllByCreatedBy(User user);
