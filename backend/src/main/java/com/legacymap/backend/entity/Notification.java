@@ -6,9 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
-import java.util.Map;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -44,7 +42,7 @@ public class Notification {
 
     @CreationTimestamp
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     public enum NotificationType {
         SYSTEM, UPDATE, INVITE, ALERT, EVENT_REMINDER

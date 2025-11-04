@@ -12,8 +12,11 @@ import UserManagement from '@/pages/admin/UserManagement'
 import UserDetail from '@/pages/admin/UserDetail'
 import AdminLayout from '@/components/admin/AdminLayout'
 import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
+import EventsPage from '@/pages/event/EventsPage'
+import EventFormPage from "@/pages/event/EventFormPage.tsx";
+import EventDetailPage from '@/pages/event/EventDetailPage'
+import { EventProvider } from '@/contexts/EventContext';
 import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx';
-
 
 export const router = createBrowserRouter([
     {
@@ -54,8 +57,32 @@ export const router = createBrowserRouter([
         path: '/dashboard',
         element: <ProtectedRoute><TreesList /></ProtectedRoute>
     },
+    {
+        path: '/events',
+        element: (
+            <ProtectedRoute>
+                <EventProvider>
+                    <EventsPage />
+                </EventProvider>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/events/create',
+        element: (
+            <ProtectedRoute>
+                <EventProvider>
+                    <EventFormPage />
+                </EventProvider>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/events/:id',
+        element: <ProtectedRoute><EventDetailPage /></ProtectedRoute>
+    },
 
-    // ✅ Admin routes với đầy đủ children
+    // Admin routes với đầy đủ children
     {
         path: '/admin',
         element: (
@@ -84,10 +111,10 @@ export const router = createBrowserRouter([
             },
             {
                 path: 'trees',
-                element: <FamilyTreesPage />  // ✅ Thay vì <div>Coming soon...</div>
+                element: <FamilyTreesPage />
             },
             {
-                path: 'settings', // ← THÊM
+                path: 'settings',
                 element: <div className="bg-white rounded-lg shadow p-6">
                     <h2 className="text-2xl font-bold text-gray-800 mb-4">⚙️ Settings</h2>
                     <p className="text-gray-600">Coming soon...</p>

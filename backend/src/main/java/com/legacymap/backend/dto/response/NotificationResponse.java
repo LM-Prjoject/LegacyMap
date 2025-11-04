@@ -2,8 +2,7 @@ package com.legacymap.backend.dto.response;
 
 import com.legacymap.backend.entity.Notification;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -16,5 +15,5 @@ public class NotificationResponse {
     private Notification.NotificationType type;
     private Map<String, Object> relatedEntity;
     private Boolean isRead;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 }

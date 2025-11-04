@@ -3,24 +3,25 @@ package com.legacymap.backend.controller;
 import com.legacymap.backend.dto.request.EventCreateRequest;
 import com.legacymap.backend.dto.request.EventUpdateRequest;
 import com.legacymap.backend.dto.response.EventResponse;
+import com.legacymap.backend.entity.Event;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.EventService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
+import lombok.extern.slf4j.Slf4j;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
+@Slf4j
 public class EventController {
 
     private final EventService eventService;
@@ -97,8 +98,8 @@ public class EventController {
     @GetMapping("/family-tree/{familyTreeId}/range")
     public ResponseEntity<List<EventResponse>> getEventsInDateRange(
             @PathVariable UUID familyTreeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime end) {
         return ResponseEntity.ok(eventService.getEventsInDateRange(familyTreeId, getCurrentUserId(), start, end));
     }
 }

@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { eventsApi } from '@/api/eventApi';
 import type { Event, EventCreateRequest, EventUpdateRequest } from '@/types/event';
+import {useEventContext} from "@/contexts/EventContext.tsx";
+import { addDays, formatISO } from 'date-fns';
 
 export const useEvents = (familyTreeId?: string) => {
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { triggerEventsUpdate } = useEventContext();
 
     const fetchEvents = async () => {
-        if (!familyTreeId) return;
-
         setLoading(true);
         setError(null);
         try {
-            const data = await eventsApi.getFamilyTreeEvents(familyTreeId);
+            const data = familyTreeId
+                ? await eventsApi.getFamilyTreeEvents(familyTreeId)
+                : await eventsApi.getPersonalEvents();
             setEvents(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch events');
@@ -23,12 +26,11 @@ export const useEvents = (familyTreeId?: string) => {
     };
 
     const createEvent = async (request: EventCreateRequest): Promise<Event | null> => {
-        if (!familyTreeId) return null;
-
         setError(null);
         try {
-            const newEvent = await eventsApi.createEvent(familyTreeId, request);
+            const newEvent = await eventsApi.createEvent(request, familyTreeId);
             setEvents(prev => [...prev, newEvent]);
+            triggerEventsUpdate();
             return newEvent;
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to create event');
@@ -43,6 +45,7 @@ export const useEvents = (familyTreeId?: string) => {
             setEvents(prev => prev.map(event =>
                 event.id === eventId ? updatedEvent : event
             ));
+            triggerEventsUpdate();
             return updatedEvent;
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update event');
@@ -55,6 +58,7 @@ export const useEvents = (familyTreeId?: string) => {
         try {
             await eventsApi.deleteEvent(eventId);
             setEvents(prev => prev.filter(event => event.id !== eventId));
+            triggerEventsUpdate();
             return true;
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete event');
@@ -79,27 +83,34 @@ export const useEvents = (familyTreeId?: string) => {
     };
 };
 
-export const useUpcomingEvents = (limit: number = 10) => {
+export const useUpcomingEvents = (familyTreeId?: string, daysAhead = 30) => {
     const [events, setEvents] = useState<Event[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchUpcomingEvents = async () => {
-        setLoading(true);
-        setError(null);
+    const fetchEvents = useCallback(async () => {
         try {
-            const data = await eventsApi.getUpcomingEvents(limit);
+            setLoading(true);
+            setError(null);
+
+            const now = new Date();
+            const start = formatISO(now);
+            const end = formatISO(addDays(now, daysAhead));
+
+            const data = familyTreeId
+                ? await eventsApi.getEventsInDateRange(familyTreeId, start, end)
+                : await eventsApi.getUpcomingEvents();
             setEvents(data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch upcoming events');
+        } catch (err: any) {
+            setError(err.message || 'Lỗi tải sự kiện');
         } finally {
             setLoading(false);
         }
-    };
+    }, [familyTreeId, daysAhead]);
 
     useEffect(() => {
-        fetchUpcomingEvents();
-    }, [limit]);
+        fetchEvents();
+    }, [fetchEvents]);
 
-    return { events, loading, error, refetch: fetchUpcomingEvents };
+    return { events, loading, error, refetch: fetchEvents };
 };

@@ -8,8 +8,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -44,22 +44,20 @@ public class Event {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 50)
-    @ColumnTransformer(read = "lower(event_type)", write = "lower(?)")
     private EventType eventType;
 
     @Column(name = "start_date", nullable = false)
-    private LocalDateTime startDate;
+    private OffsetDateTime startDate;
 
     @Column(name = "end_date")
-    private LocalDateTime endDate;
+    private OffsetDateTime endDate;
 
     @Column(name = "is_full_day")
     private Boolean isFullDay = false;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "calendar_type", length = 10)
-    @ColumnTransformer(read = "lower(calendar_type)", write = "lower(?)")
-    private CalendarType calendarType = CalendarType.SOLAR;
+    private CalendarType calendarType = CalendarType.solar;
 
     @Column(name = "is_recurring")
     private Boolean isRecurring = false;
@@ -88,24 +86,23 @@ public class Event {
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    @ColumnTransformer(write = "lower(?)")
-    private EventStatus status = EventStatus.ACTIVE;
+    private EventStatus status = EventStatus.active;
 
     @CreationTimestamp
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     public enum EventType {
-        DEATH_ANNIVERSARY, WEDDING_ANNIVERSARY, BIRTHDAY,
-        FUNERAL, WEDDING, FAMILY_REUNION, CEREMONY, OTHER
+        death_anniversary, wedding_anniversary, birthday,
+        funeral, wedding, family_reunion, ceremony, other
     }
 
     public enum CalendarType {
-        SOLAR, LUNAR
+        solar, lunar
     }
 
     public enum RecurrenceRule {
@@ -113,6 +110,6 @@ public class Event {
     }
 
     public enum EventStatus {
-        ACTIVE, CANCELLED, COMPLETED
+        active, cancelled, completed
     }
 }

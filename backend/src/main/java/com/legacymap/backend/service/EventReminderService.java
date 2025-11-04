@@ -1,6 +1,5 @@
 package com.legacymap.backend.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legacymap.backend.dto.response.EventReminderResponse;
 import com.legacymap.backend.entity.Event;
@@ -17,7 +16,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,9 +52,9 @@ public class EventReminderService {
                 return;
             }
 
-            LocalDateTime reminderTime = event.getStartDate().minusDays(daysBefore);
+            OffsetDateTime reminderTimeUtc = event.getStartDate().minusDays(daysBefore);
 
-            createReminderForUser(event, event.getCreatedBy(), methods, reminderTime);
+            createReminderForUser(event, event.getCreatedBy(), methods, reminderTimeUtc);
 
         } catch (IllegalArgumentException e) {
             log.error("Error parsing reminder config for event {}", event.getId(), e);
@@ -62,7 +62,12 @@ public class EventReminderService {
         }
     }
 
-    private void createReminderForUser(Event event, User user, List<String> methods, LocalDateTime reminderTime) {
+    private void createReminderForUser(Event event, User user, List<String> methods, OffsetDateTime reminderTime) {
+        if (user == null) {
+            log.warn("User is null when creating reminder for event {}", event.getId());
+            return;
+        }
+
         for (String method : methods) {
             try {
                 EventReminder reminder = EventReminder.builder()
@@ -84,7 +89,6 @@ public class EventReminderService {
 
     @Transactional
     public void updateRemindersForEvent(Event event) {
-        // Delete existing reminders and create new ones
         List<EventReminder> existingReminders = eventReminderRepository.findByEventId(event.getId());
         if (!existingReminders.isEmpty()) {
             eventReminderRepository.deleteAll(existingReminders);
@@ -96,7 +100,8 @@ public class EventReminderService {
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void processPendingReminders() {
-        List<EventReminder> pendingReminders = eventReminderRepository.findPendingReminders(LocalDateTime.now());
+        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        List<EventReminder> pendingReminders = eventReminderRepository.findPendingReminders(nowUtc);
 
         if (pendingReminders.isEmpty()) {
             return;
@@ -108,7 +113,7 @@ public class EventReminderService {
             try {
                 sendReminder(reminder);
                 reminder.setStatus(EventReminder.ReminderStatus.SENT);
-                reminder.setSentAt(LocalDateTime.now());
+                reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
                 eventReminderRepository.save(reminder);
                 log.info("Successfully sent reminder {}", reminder.getId());
             } catch (Exception e) {
@@ -128,6 +133,7 @@ public class EventReminderService {
             return;
         }
 
+        // Gửi notification trong hệ thống
         notificationService.sendEventReminderNotification(
                 user.getId(),
                 event.getTitle(),
@@ -135,12 +141,13 @@ public class EventReminderService {
                 event.getId()
         );
 
+        // Nếu chọn email hoặc both
         if (reminder.getSendMethod() == EventReminder.SendMethod.EMAIL ||
                 reminder.getSendMethod() == EventReminder.SendMethod.BOTH) {
 
-            String emailTitle = "Nhắc nhở sự kiện: " + event.getTitle();
-            String emailMessage = buildReminderMessage(event);
-            sendEmail(user.getEmail(), emailTitle, emailMessage);
+            String subject = "Nhắc nhở sự kiện: " + event.getTitle();
+            String message = buildReminderMessage(event);
+            sendEmail(user.getEmail(), subject, message);
         }
     }
 
@@ -170,8 +177,9 @@ public class EventReminderService {
         return message.toString();
     }
 
-    private String formatDateTime(LocalDateTime dateTime) {
-        return dateTime.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+    private String formatDateTime(OffsetDateTime dateTime) {
+        ZonedDateTime vietnamTime = dateTime.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"));
+        return vietnamTime.format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
     }
 
     @Transactional(readOnly = true)
@@ -218,36 +226,41 @@ public class EventReminderService {
     }
 
     private EventReminderResponse mapReminderToResponse(EventReminder reminder) {
-        EventReminderResponse response = new EventReminderResponse();
-        response.setId(reminder.getId());
-        response.setEventId(reminder.getEvent().getId());
-        response.setUserId(reminder.getUser().getId());
-        response.setSendMethod(reminder.getSendMethod());
-        response.setScheduledAt(reminder.getScheduledAt());
-        response.setSentAt(reminder.getSentAt());
-        response.setStatus(reminder.getStatus());
-        response.setCreatedAt(reminder.getCreatedAt());
-        return response;
+        return EventReminderResponse.builder()
+                .id(reminder.getId())
+                .eventId(reminder.getEvent().getId())
+                .userId(reminder.getUser().getId())
+                .sendMethod(reminder.getSendMethod())
+                .scheduledAt(reminder.getScheduledAt())
+                .sentAt(reminder.getSentAt())
+                .status(reminder.getStatus())
+                .createdAt(reminder.getCreatedAt())
+                .build();
     }
 
     // Helper method để kiểm tra và tạo lại reminders cho events sắp tới
     @Scheduled(cron = "0 0 6 * * ?")
     @Transactional
     public void checkAndCreateRecurringEventReminders() {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime nextWeek = now.plusWeeks(1);
+        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime nextWeekUtc = nowUtc.plusWeeks(1);
 
-        List<Event> recurringEvents = eventRepository.findRecurringEventsInRange(now, nextWeek);
+        List<Event> recurringEvents = eventRepository.findRecurringEventsInRange(nowUtc, nextWeekUtc);
 
         for (Event event : recurringEvents) {
             try {
-                List<EventReminder> existingReminders = eventReminderRepository.findByEventId(event.getId());
-                if (existingReminders.isEmpty()) {
+                // Kiểm tra xem đã có reminder cho event này trong 7 ngày tới chưa
+                List<EventReminder> existing = eventReminderRepository.findByEventId(event.getId())
+                        .stream()
+                        .filter(r -> r.getScheduledAt().isAfter(nowUtc.minusDays(1)))
+                        .toList();
+
+                if (existing.isEmpty()) {
                     createRemindersForEvent(event);
-                    log.info("Created reminders for recurring event {}", event.getId());
+                    log.info("Created reminder for recurring event {}", event.getId());
                 }
             } catch (Exception e) {
-                log.error("Error creating reminders for recurring event {}", event.getId(), e);
+                log.error("Error processing recurring event {}", event.getId(), e);
             }
         }
     }

@@ -237,7 +237,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                     setShowDropdown(false);
                                                     navigate('/events');
                                                 }}
-                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                                className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/5 transition flex items-center gap-2"
                                             >
                                                 <CalendarFold className="h-4 w-4" />
                                                 Sự kiện
@@ -248,7 +248,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                                     setShowDropdown(false);
                                                     navigate('/notifications');
                                                 }}
-                                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                                className="w-full px-4 py-2 text-left text-sm text-white hover:bg-white/5 transition flex items-center gap-2"
                                             >
                                                 <Bell className="h-4 w-4" />
                                                 Thông báo

@@ -1,93 +1,42 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, {useState, useMemo, useEffect} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Plus, ChevronLeft, ChevronRight, Clock, Grid, List } from 'lucide-react';
 import { useUpcomingEvents } from '@/hooks/useEvents';
 import { EventType } from '@/types/event';
 import lunisolar from 'lunisolar';
+import Navbar from "@/components/layout/Navbar.tsx";
+import { useEventContext } from '@/contexts/EventContext';
+import { format, parseISO, isSameDay, startOfDay, endOfDay } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
+import { eventsApi } from '@/api/eventApi';
+import { getVietnameseLunarDay, getVietnameseLunarMonth, getLunarInfo, getVietnameseStemBranch } from '@/utils/lunarUtils';
 
 type CalendarView = 'month' | 'week';
-
-const getVietnameseLunarDay = (day: number): string => {
-    if (day <= 10) {
-        return ['Mùng 1', 'Mùng 2', 'Mùng 3', 'Mùng 4', 'Mùng 5', 'Mùng 6', 'Mùng 7', 'Mùng 8', 'Mùng 9', 'Mùng 10'][day - 1];
-    }
-    return day.toString();
-};
-
-const getVietnameseLunarMonth = (month: number, isLeap: boolean = false): string => {
-    const months = ['Giêng', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy', 'Tám', 'Chín', 'Mười', 'Mười Một', 'Chạp'];
-    return `${isLeap ? 'Nhuận ' : ''}${months[month - 1]}`;
-};
-
-const getVietnameseStemBranch = (stemBranch: string): string => {
-    const stemMap: Record<string, string> = {
-        '甲': 'Giáp', '乙': 'Ất', '丙': 'Bính', '丁': 'Đinh', '戊': 'Mậu',
-        '己': 'Kỷ', '庚': 'Canh', '辛': 'Tân', '壬': 'Nhâm', '癸': 'Quý'
-    };
-    const branchMap: Record<string, string> = {
-        '子': 'Tý', '丑': 'Sửu', '寅': 'Dần', '卯': 'Mão', '辰': 'Thìn', '巳': 'Tỵ',
-        '午': 'Ngọ', '未': 'Mùi', '申': 'Thân', '酉': 'Dậu', '戌': 'Tuất', '亥': 'Hợi'
-    };
-    let stem = '';
-    let branch = '';
-    for (const char of stemBranch) {
-        if (stemMap[char]) stem = stemMap[char];
-        if (branchMap[char]) branch = branchMap[char];
-    }
-    return `${stem} ${branch}`.trim();
-};
-
-const getVietnameseZodiac = (zodiac: string): string => {
-    const map: Record<string, string> = {
-        '鼠': 'Tý', '牛': 'Sửu', '虎': 'Dần', '兔': 'Mão', '龙': 'Thìn', '蛇': 'Tỵ',
-        '马': 'Ngọ', '羊': 'Mùi', '猴': 'Thân', '鸡': 'Dậu', '狗': 'Tuất', '猪': 'Hợi'
-    };
-    return map[zodiac] || zodiac;
-};
-
-// Lấy dữ liệu âm lịch + can chi + giờ
-const getLunarInfo = (date: Date) => {
-    const lsr = lunisolar(date);
-    const isLeap = lsr.lunar.isLeap;
-    const hour = date.getHours();
-
-    const hourBranchIndex = Math.floor((hour +1) / 2) % 12;
-    const hourBranch = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'][hourBranchIndex];
-
-    // Can giờ (dựa trên can ngày + chi giờ)
-    const dayStem = lsr.format('cD')[0];
-    const dayStemIndex = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'].indexOf(getVietnameseStemBranch(dayStem));
-    const hourStemIndex = (dayStemIndex * 2 + hourBranchIndex) % 10;
-    const hourStem = ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'][hourStemIndex];
-
-    return {
-        day: lsr.lunar.day,
-        month: lsr.lunar.month,
-        year: lsr.lunar.year,
-        isLeap,
-        dayStr: getVietnameseLunarDay(lsr.lunar.day),
-        monthStr: getVietnameseLunarMonth(lsr.lunar.month, isLeap),
-        yearStemBranch: getVietnameseStemBranch(lsr.format('cY')),
-        dayStemBranch: getVietnameseStemBranch(lsr.format('cD')),
-        hourCanChi: `${hourStem} ${hourBranch}`,
-        zodiac: getVietnameseZodiac(lsr.format('cz'))
-    };
-};
 
 const EventsPage: React.FC = () => {
     const navigate = useNavigate();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [currentTime, setCurrentTime] = useState(new Date());
     const [calendarView, setCalendarView] = useState<CalendarView>('month');
-    const { events = [], loading, error } = useUpcomingEvents(50);
+    const { eventsUpdated } = useEventContext();
+    const userData = localStorage.getItem('user');
+    const familyTreeId = userData
+        ? JSON.parse(userData).familyTreeId
+        || JSON.parse(userData).family_tree_id
+        || JSON.parse(userData).familyTree?.id
+        : null;
+    const { events = [], loading, error, refetch: refetchEvents } = useUpcomingEvents(familyTreeId, 30);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
+    useEffect(() => {
+        if (eventsUpdated) refetchEvents();
+    }, [eventsUpdated]);
+
     const today = useMemo(() => currentTime, [currentTime]);
-    const todayStr = useMemo(() => today.toISOString().split('T')[0], [today]);
     const todayLunar = useMemo(() => getLunarInfo(today), [today]);
 
     const getDaysInMonth = (date: Date) => {
@@ -129,15 +78,7 @@ const EventsPage: React.FC = () => {
         }
     };
 
-    const getEventsForDate = (date: Date) => {
-        const dateStr = date.toISOString().split('T')[0];
-        return events.filter(e => e.startDate.startsWith(dateStr));
-    };
-
     const isToday = (date: Date) => date.toDateString() === today.toDateString();
-
-    const getTodayEvents = () => events.filter(e => e.startDate.startsWith(todayStr));
-    const getUpcomingEvents = () => events.filter(e => new Date(e.startDate) > today).slice(0, 5);
 
     const getEventTypeLabel = (type: EventType): string => {
         const labels: Record<EventType, string> = {
@@ -153,8 +94,56 @@ const EventsPage: React.FC = () => {
         return labels[type] || type;
     };
 
-    const formatTime = (dateTime: string) =>
-        new Date(dateTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const formatTime = (dateTime: string) => {
+        try {
+            return format(parseISO(dateTime), 'HH:mm');
+        } catch {
+            return '--:--';
+        }
+    };
+
+    const getEventsForDate = (date: Date) => {
+        return events.filter(e => {
+            try {
+                const eventDate = parseISO(e.startDate);
+                return isSameDay(eventDate, date);
+            } catch {
+                return false;
+            }
+        });
+    };
+
+    const getTodayEvents = () => {
+        const todayStart = startOfDay(today);
+        const todayEnd = endOfDay(today);
+        return events.filter(e => {
+            const eventDate = parseISO(e.startDate);
+            return eventDate >= todayStart && eventDate <= todayEnd;
+        });
+    };
+
+    const getUpcomingEvents = () => {
+        const now = new Date();
+        return events
+            .filter(e => parseISO(e.startDate) > now)
+            .sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime())
+            .slice(0, 5);
+    };
+
+    const handleDateClick = async (date: Date) => {
+        if (!familyTreeId) return;
+
+        const start = formatInTimeZone(date, 'Asia/Ho_Chi_Minh', "yyyy-MM-dd'T'00:00:00XXX");
+        const end = formatInTimeZone(date, 'Asia/Ho_Chi_Minh', "yyyy-MM-dd'T'23:59:59XXX");
+
+        try {
+            const dayEvents = await eventsApi.getEventsInDateRange(familyTreeId, start, end);
+            console.log('Sự kiện trong ngày:', dayEvents);
+            // Mở modal ở đây
+        } catch (err) {
+            console.error('Lỗi:', err);
+        }
+    };
 
     const getLunarDisplayForDate = (date: Date): string => {
         const lsr = lunisolar(date);
@@ -195,6 +184,7 @@ const EventsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-amber-50 to-blue-100">
+            <Navbar />
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-8 shadow-lg">
                 <div className="max-w-7xl mx-auto">
@@ -303,7 +293,7 @@ const EventsPage: React.FC = () => {
                                                         ? 'bg-blue-100 hover:bg-blue-200 border-blue-200'
                                                         : 'hover:bg-amber-50 border-transparent'
                                             }`}
-                                            onClick={() => console.log('Selected:', date)}
+                                            onClick={() => handleDateClick(date)}
                                         >
                                             <div className={`text-center font-medium ${isTodayDate ? 'text-white' : 'text-blue-900'}`}>
                                                 {day}
