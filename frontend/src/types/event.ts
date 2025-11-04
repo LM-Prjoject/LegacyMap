@@ -19,6 +19,7 @@ export interface Event {
     createdBy?: string;
     createdAt?: string;
     updatedAt?: string;
+    personalOwnerId?: string;
 }
 
 export interface EventCreateRequest {
@@ -36,6 +37,7 @@ export interface EventCreateRequest {
     locationCoordinates?: Record<string, any>;
     reminder?: ReminderConfig;
     isPublic?: boolean;
+    personalOwnerId?: string;
 }
 
 export interface EventUpdateRequest {
@@ -54,6 +56,7 @@ export interface EventUpdateRequest {
     reminder?: ReminderConfig;
     isPublic?: boolean;
     status?: EventStatus;
+    personalOwnerId?: string;
 }
 
 export interface RelatedPerson {

@@ -11,19 +11,21 @@ import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.EventRepository;
 import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.UserRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legacymap.backend.utils.LunarSolarConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -50,11 +52,14 @@ public class EventService {
     @Transactional
     public EventResponse create(UUID treeId, UUID userId, EventCreateRequest request) {
         User creator = loadUserOrThrow(userId);
-        FamilyTree tree = null;
+        FamilyTree tree = treeId != null ? findTreeWithAccessOrThrow(treeId, userId) : null;
 
-        if (treeId != null) {
-            tree = findTreeWithAccessOrThrow(treeId, userId);
-        }
+        OffsetDateTime startUtc = request.getStartDate() != null
+                ? request.getStartDate().withOffsetSameInstant(ZoneOffset.UTC)
+                : null;
+        OffsetDateTime endUtc = request.getEndDate() != null
+                ? request.getEndDate().withOffsetSameInstant(ZoneOffset.UTC)
+                : null;
 
         Event event = Event.builder()
                 .familyTree(tree)
@@ -63,15 +68,17 @@ public class EventService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .eventType(request.getEventType())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
+                .startDate(startUtc)
+                .endDate(endUtc)
                 .isFullDay(request.getIsFullDay() != null ? request.getIsFullDay() : false)
-                .calendarType(request.getCalendarType() != null ? request.getCalendarType() : Event.CalendarType.SOLAR)
+                .calendarType(request.getCalendarType() != null ? request.getCalendarType() : Event.CalendarType.solar)
                 .isRecurring(request.getIsRecurring() != null ? request.getIsRecurring() : false)
                 .recurrenceRule(request.getRecurrenceRule() != null ? request.getRecurrenceRule() : Event.RecurrenceRule.NONE)
                 .location(request.getLocation())
                 .isPublic(request.getIsPublic() != null ? request.getIsPublic() : true)
-                .status(Event.EventStatus.ACTIVE)
+                .status(Event.EventStatus.active)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         try {
@@ -91,7 +98,6 @@ public class EventService {
 
         Event savedEvent = eventRepository.save(event);
 
-        // Tạo reminders nếu có
         if (request.getReminder() != null) {
             eventReminderService.createRemindersForEvent(savedEvent);
         }
@@ -111,8 +117,10 @@ public class EventService {
         if (request.getTitle() != null) event.setTitle(request.getTitle());
         if (request.getDescription() != null) event.setDescription(request.getDescription());
         if (request.getEventType() != null) event.setEventType(request.getEventType());
-        if (request.getStartDate() != null) event.setStartDate(request.getStartDate());
-        if (request.getEndDate() != null) event.setEndDate(request.getEndDate());
+        if (request.getStartDate() != null)
+            event.setStartDate(request.getStartDate().withOffsetSameInstant(ZoneOffset.UTC));
+        if (request.getEndDate() != null)
+            event.setEndDate(request.getEndDate().withOffsetSameInstant(ZoneOffset.UTC));
         if (request.getIsFullDay() != null) event.setIsFullDay(request.getIsFullDay());
         if (request.getCalendarType() != null) event.setCalendarType(request.getCalendarType());
         if (request.getIsRecurring() != null) event.setIsRecurring(request.getIsRecurring());
@@ -137,8 +145,7 @@ public class EventService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
 
-        Event updatedEvent = eventRepository.save(event);
-        return mapToResponse(updatedEvent);
+        return mapToResponse(eventRepository.save(event));
     }
 
     @Transactional
@@ -168,9 +175,10 @@ public class EventService {
     @Transactional(readOnly = true)
     public List<EventResponse> getByFamilyTree(UUID treeId, UUID userId) {
         FamilyTree tree = findTreeWithAccessOrThrow(treeId, userId);
+        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime nextMonthUtc = nowUtc.plusMonths(1);
 
-        return eventRepository.findByFamilyTreeAndStartDateBetweenOrderByStartDateAsc(
-                        tree, LocalDateTime.now(), LocalDateTime.now().plusMonths(1))
+        return eventRepository.findByFamilyTreeAndStartDateBetweenOrderByStartDateAsc(tree, nowUtc, nextMonthUtc)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -178,8 +186,8 @@ public class EventService {
 
     @Transactional(readOnly = true)
     public List<EventResponse> getPersonalEvents(UUID userId) {
-        return eventRepository.findByCreatedByAndFamilyTreeIsNullOrderByStartDateAsc(
-                        loadUserOrThrow(userId))
+        User user = loadUserOrThrow(userId);
+        return eventRepository.findByCreatedByAndFamilyTreeIsNullOrderByStartDateAsc(user)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -188,40 +196,68 @@ public class EventService {
     @Transactional(readOnly = true)
     public List<EventResponse> getUpcomingEvents(UUID userId, int limit) {
         User user = loadUserOrThrow(userId);
+
+        ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        OffsetDateTime nowVietnam = OffsetDateTime.now(vietnamZone);
+        OffsetDateTime nowUtc = nowVietnam.withOffsetSameInstant(ZoneOffset.UTC);
+        OffsetDateTime next30Utc = nowVietnam.plusDays(30).withOffsetSameInstant(ZoneOffset.UTC);
+
+        // Event cá nhân
+        List<Event> personalEvents = eventRepository.findByPersonalOwnerAndFamilyTreeIsNullAndStatusAndStartDateBetweenOrderByStartDateAsc(
+                user, Event.EventStatus.active, nowUtc, next30Utc);
+
+        // Event family tree
         List<FamilyTree> userTrees = familyTreeRepository.findAllByCreatedBy(user);
+        List<UUID> treeIds = userTrees.stream().map(FamilyTree::getId).toList();
+        List<Event> treeEvents = treeIds.isEmpty() ? List.of() :
+                eventRepository.findByFamilyTreeIdInAndStatusAndStartDateBetweenOrderByStartDateAsc(
+                        treeIds, Event.EventStatus.active, nowUtc, next30Utc);
 
-        List<UUID> treeIds = userTrees.stream()
-                .map(FamilyTree::getId)
-                .collect(Collectors.toList());
+        return Stream.concat(personalEvents.stream(), treeEvents.stream())
+                .sorted(Comparator.comparing(Event::getStartDate))
+                .limit(limit)
+                .map(this::mapToResponse)
+                .toList();
+    }
 
-        return eventRepository.findUpcomingEvents(treeIds, LocalDateTime.now(),
-                        PageRequest.of(0, limit))
+    @Transactional(readOnly = true)
+    public List<EventResponse> getEventsInDateRange(UUID treeId, UUID userId, OffsetDateTime start, OffsetDateTime end) {
+        FamilyTree tree = findTreeWithAccessOrThrow(treeId, userId);
+        OffsetDateTime startUtc = start.withOffsetSameInstant(ZoneOffset.UTC);
+        OffsetDateTime endUtc = end.withOffsetSameInstant(ZoneOffset.UTC);
+
+        return eventRepository.findEventsInDateRange(tree, startUtc, endUtc)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<EventResponse> getEventsInDateRange(UUID treeId, UUID userId,
-                                                    LocalDateTime start, LocalDateTime end) {
-        FamilyTree tree = findTreeWithAccessOrThrow(treeId, userId);
+    private EventResponse mapToResponseWithLunarCheck(Event event) {
+        EventResponse response = mapToResponse(event);
 
-        return eventRepository.findEventsInDateRange(tree, start, end)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        if (event.getCalendarType() == Event.CalendarType.lunar) {
+            if (event.getStartDate() != null)
+                response.setStartDate(LunarSolarConverter.toSolar(event.getStartDate()));
+
+            if (event.getEndDate() != null)
+                response.setEndDate(LunarSolarConverter.toSolar(event.getEndDate()));
+        }
+
+        return response;
     }
 
     private EventResponse mapToResponse(Event event) {
         EventResponse response = new EventResponse();
+        ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
+
         response.setId(event.getId());
         response.setFamilyTreeId(event.getFamilyTree() != null ? event.getFamilyTree().getId() : null);
         response.setCreatedBy(event.getCreatedBy().getId());
         response.setTitle(event.getTitle());
         response.setDescription(event.getDescription());
         response.setEventType(event.getEventType());
-        response.setStartDate(event.getStartDate());
-        response.setEndDate(event.getEndDate());
+        response.setStartDate(event.getStartDate() != null ? event.getStartDate().atZoneSameInstant(vietnamZone).toOffsetDateTime() : null);
+        response.setEndDate(event.getEndDate() != null ? event.getEndDate().atZoneSameInstant(vietnamZone).toOffsetDateTime() : null);
         response.setIsFullDay(event.getIsFullDay());
         response.setCalendarType(event.getCalendarType());
         response.setIsRecurring(event.getIsRecurring());
@@ -229,8 +265,8 @@ public class EventService {
         response.setLocation(event.getLocation());
         response.setIsPublic(event.getIsPublic());
         response.setStatus(event.getStatus());
-        response.setCreatedAt(event.getCreatedAt());
-        response.setUpdatedAt(event.getUpdatedAt());
+        response.setCreatedAt(event.getCreatedAt() != null ? event.getCreatedAt().atZoneSameInstant(vietnamZone).toOffsetDateTime() : null);
+        response.setUpdatedAt(event.getUpdatedAt() != null ? event.getUpdatedAt().atZoneSameInstant(vietnamZone).toOffsetDateTime() : null);
 
         try {
             if (event.getRelatedPersons() != null) {
@@ -246,10 +282,7 @@ public class EventService {
                 ));
             }
             if (event.getReminder() != null) {
-                response.setReminder(objectMapper.convertValue(
-                        event.getReminder(),
-                        EventResponse.ReminderConfig.class
-                ));
+                response.setReminder(objectMapper.convertValue(event.getReminder(), EventResponse.ReminderConfig.class));
             }
         } catch (IllegalArgumentException e) {
             log.error("Error parsing JSON from database for event {}", event.getId(), e);
@@ -257,4 +290,5 @@ public class EventService {
 
         return response;
     }
+
 }

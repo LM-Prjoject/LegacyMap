@@ -16,7 +16,7 @@ import EventsPage from '@/pages/event/EventsPage'
 import EventFormPage from "@/pages/event/EventFormPage.tsx";
 import EventDetailPage from '@/pages/event/EventDetailPage'
 import SettingsPage from '@/pages/admin/SettingsPage';
-
+import { EventProvider } from '@/contexts/EventContext';
 
 export const router = createBrowserRouter([
     {
@@ -74,11 +74,23 @@ export const router = createBrowserRouter([
 
     {
         path: '/events',
-        element: <ProtectedRoute><EventsPage /></ProtectedRoute>
+        element: (
+            <ProtectedRoute>
+                <EventProvider>
+                    <EventsPage />
+                </EventProvider>
+            </ProtectedRoute>
+        ),
     },
     {
         path: '/events/create',
-        element: <ProtectedRoute><EventFormPage /></ProtectedRoute>
+        element: (
+            <ProtectedRoute>
+                <EventProvider>
+                    <EventFormPage />
+                </EventProvider>
+            </ProtectedRoute>
+        ),
     },
     {
         path: '/events/:id',

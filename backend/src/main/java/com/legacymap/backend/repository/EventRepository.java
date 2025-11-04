@@ -7,17 +7,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface EventRepository extends JpaRepository<Event, UUID> {
 
-    List<Event> findByPersonalOwnerOrderByStartDateAsc(User personalOwner);
-
-    List<Event> findByFamilyTreeAndStartDateBetweenOrderByStartDateAsc(FamilyTree familyTree, LocalDateTime start, LocalDateTime end);
+    List<Event> findByFamilyTreeAndStartDateBetweenOrderByStartDateAsc(
+            FamilyTree familyTree, OffsetDateTime start, OffsetDateTime end);
 
     @Query("SELECT e FROM Event e WHERE e.familyTree = :familyTree " +
             "AND (e.startDate BETWEEN :startDate AND :endDate " +
@@ -26,19 +24,27 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
             "ORDER BY e.startDate ASC")
     List<Event> findEventsInDateRange(
             @Param("familyTree") FamilyTree familyTree,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate);
-
-    @Query("SELECT e FROM Event e WHERE e.familyTree.id IN :familyTreeIds " +
-            "AND e.status = 'ACTIVE' " +
-            "AND e.startDate >= :startDate " +
-            "ORDER BY e.startDate ASC")
-    List<Event> findUpcomingEvents(@Param("familyTreeIds") List<UUID> familyTreeIds,
-                                   @Param("startDate") LocalDateTime startDate,
-                                   org.springframework.data.domain.Pageable pageable);
+            @Param("startDate") OffsetDateTime startDate,
+            @Param("endDate") OffsetDateTime endDate);
 
     @Query("SELECT e FROM Event e WHERE e.isRecurring = true AND e.startDate BETWEEN :start AND :end")
-    List<Event> findRecurringEventsInRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    List<Event> findRecurringEventsInRange(@Param("start") OffsetDateTime start, @Param("end") OffsetDateTime end);
 
     List<Event> findByCreatedByAndFamilyTreeIsNullOrderByStartDateAsc(User createdBy);
+
+    // Event cá nhân
+    List<Event> findByPersonalOwnerAndFamilyTreeIsNullAndStatusAndStartDateBetweenOrderByStartDateAsc(
+            User personalOwner,
+            Event.EventStatus status,
+            OffsetDateTime start,
+            OffsetDateTime end
+    );
+
+    // Event theo family tree
+    List<Event> findByFamilyTreeIdInAndStatusAndStartDateBetweenOrderByStartDateAsc(
+            List<UUID> familyTreeIds,
+            Event.EventStatus status,
+            OffsetDateTime start,
+            OffsetDateTime end
+    );
 }

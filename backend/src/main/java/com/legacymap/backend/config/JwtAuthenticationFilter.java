@@ -42,6 +42,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         log.debug("JwtFilter: {} {}", method, path);
 
+        log.info("All request headers:");
+        request.getHeaderNames().asIterator().forEachRemaining(
+                h -> log.info("{}: {}", h, request.getHeader(h))
+        );
+
         // Skip JWT filter for public endpoints
         if (isPublicEndpoint(path, method)) {
             log.debug("Public endpoint, skipping JWT filter: {}", path);

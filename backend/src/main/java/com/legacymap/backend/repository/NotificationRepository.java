@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,10 +33,12 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.user = :user AND n.createdAt < :beforeDate")
-    int deleteOldNotifications(@Param("user") User user, @Param("beforeDate") LocalDateTime beforeDate);
+    int deleteOldNotifications(@Param("user") User user, @Param("beforeDate") OffsetDateTime beforeDate);
 
-    List<Notification> findByUserAndCreatedAtAfterOrderByCreatedAtDesc(User user, LocalDateTime after);
+    List<Notification> findByUserAndCreatedAtAfterOrderByCreatedAtDesc(User user, OffsetDateTime after);
 
     @Query("SELECT n FROM Notification n WHERE n.user = :user AND n.type = :type ORDER BY n.createdAt DESC")
-    List<Notification> findByUserAndTypeOrderByCreatedAtDesc(@Param("user") User user, @Param("type") Notification.NotificationType type);
+    List<Notification> findByUserAndTypeOrderByCreatedAtDesc(
+            @Param("user") User user,
+            @Param("type") Notification.NotificationType type);
 }
