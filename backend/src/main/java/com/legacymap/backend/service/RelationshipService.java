@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -63,12 +64,16 @@ public class RelationshipService {
 
     @Transactional
     public Relationship create(UUID treeId, UUID userId, RelationshipCreateRequest req) {
-        RelationshipType typeEnum = parseType(req.getRelationshipType());
+        RelationshipType typeEnum = req.getRelationshipType();
+
         if (req.getPerson1Id().equals(req.getPerson2Id())) {
             throw new AppException(ErrorCode.RELATIONSHIP_SELF_LINK);
         }
 
-        FamilyTree tree = loadOwnedTree(treeId, userId);
+        User user = loadUser(userId);
+        FamilyTree tree = familyTreeRepository.findByIdAndCreatedBy(treeId, user)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
         Person p1 = loadPerson(req.getPerson1Id());
         Person p2 = loadPerson(req.getPerson2Id());
 
@@ -76,10 +81,24 @@ public class RelationshipService {
             throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
         }
 
+        if (typeEnum == RelationshipType.CHILD) {
+            typeEnum = RelationshipType.PARENT;
+            Person tmp = p1; p1 = p2; p2 = tmp;
+        }
+
         String type = toDb(typeEnum);
-        // prevent duplicates
-        if (relationshipRepository.existsByFamilyTree_IdAndPerson1_IdAndPerson2_IdAndRelationshipType(treeId, p1.getId(), p2.getId(), type)) {
-            throw new AppException(ErrorCode.RELATIONSHIP_ALREADY_EXISTS);
+
+        if (typeEnum == RelationshipType.SPOUSE || typeEnum == RelationshipType.SIBLING) {
+            boolean dup = relationshipRepository
+                    .existsByFamilyTree_IdAndPerson1_IdAndPerson2_IdAndRelationshipType(treeId, p1.getId(), p2.getId(), type)
+                    || relationshipRepository
+                    .existsByFamilyTree_IdAndPerson1_IdAndPerson2_IdAndRelationshipType(treeId, p2.getId(), p1.getId(), type);
+            if (dup) throw new AppException(ErrorCode.RELATIONSHIP_ALREADY_EXISTS);
+        } else {
+            if (relationshipRepository
+                    .existsByFamilyTree_IdAndPerson1_IdAndPerson2_IdAndRelationshipType(treeId, p1.getId(), p2.getId(), type)) {
+                throw new AppException(ErrorCode.RELATIONSHIP_ALREADY_EXISTS);
+            }
         }
 
         Relationship main = Relationship.builder()
@@ -88,27 +107,27 @@ public class RelationshipService {
                 .person2(p2)
                 .relationshipType(type)
                 .notes(req.getNotes())
-                .createdBy(loadUser(userId))
+                .createdBy(user)
                 .build();
         main = relationshipRepository.save(main);
 
-        // reciprocal
         RelationshipType reciprocalEnum = switch (typeEnum) {
             case PARENT -> RelationshipType.CHILD;
-            case CHILD -> RelationshipType.PARENT;
+            case CHILD  -> RelationshipType.PARENT;
             case SPOUSE -> RelationshipType.SPOUSE;
-            case SIBLING -> RelationshipType.SIBLING;
+            case SIBLING-> RelationshipType.SIBLING;
         };
         String reciprocalType = toDb(reciprocalEnum);
 
-        if (!relationshipRepository.existsByFamilyTree_IdAndPerson1_IdAndPerson2_IdAndRelationshipType(treeId, p2.getId(), p1.getId(), reciprocalType)) {
+        if (!relationshipRepository
+                .existsByFamilyTree_IdAndPerson1_IdAndPerson2_IdAndRelationshipType(treeId, p2.getId(), p1.getId(), reciprocalType)) {
             Relationship reciprocal = Relationship.builder()
                     .familyTree(tree)
                     .person1(p2)
                     .person2(p1)
                     .relationshipType(reciprocalType)
                     .notes(req.getNotes())
-                    .createdBy(loadUser(userId))
+                    .createdBy(user)
                     .build();
             relationshipRepository.save(reciprocal);
         }
@@ -136,5 +155,9 @@ public class RelationshipService {
         ).ifPresent(relationshipRepository::delete);
 
         relationshipRepository.delete(rel);
+    }
+
+    public List<Relationship> listByTree(UUID treeId, UUID userId) {
+        return relationshipRepository.findByFamilyTreeId(treeId);
     }
 }

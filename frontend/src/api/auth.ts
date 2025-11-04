@@ -62,24 +62,24 @@ export interface User {
 }
 
 export const authApi = {
-    // ⛳ Trả về data (ApiResponse<LoginResponse>), KHÔNG trả AxiosResponse
+    // Trả về data (ApiResponse<LoginResponse>), KHÔNG trả AxiosResponse
     async login(payload: LoginRequest): Promise<ApiResponse<LoginResponse>> {
         try {
-            console.log('🔐 Đang đăng nhập...', {
+            console.log('Đang đăng nhập...', {
                 identifier: payload.identifier,
                 password_length: payload.password.length // Thêm để debug
             });
 
             // 🔍 THÊM: Log full URL
             const fullUrl = http.defaults.baseURL + '/auth/login';
-            console.log('📡 URL:', fullUrl);
+            console.log('URL:', fullUrl);
 
             const response = await http.post<ApiResponse<LoginResponse>>('/auth/login', payload);
 
-            console.log('✅ Đăng nhập thành công:', response.data);
+            console.log('Đăng nhập thành công:', response.data);
             return response.data;
         } catch (error: any) {
-            console.error('❌ Lỗi đăng nhập chi tiết:', {
+            console.error('Lỗi đăng nhập chi tiết:', {
                 message: error.message,
                 status: error.response?.status,
                 data: error.response?.data, // Chi tiết lỗi từ backend
@@ -93,19 +93,19 @@ export const authApi = {
         }
     },
 
-    // ⛳ Cũng trả về data đã bóc
+    // Cũng trả về data đã bóc
     async register(payload: UserCreateRequest): Promise<ApiResponse<any>> {
         try {
-            console.log('📝 Đang gửi request đăng ký...', {
+            console.log('Đang gửi request đăng ký...', {
                 username: payload.username,
                 email: payload.email,
                 fullName: payload.fullName,
             })
             const { data } = await http.post<ApiResponse<any>>('/users/register', payload)
-            console.log('✅ Response từ server:', data)
+            console.log('Response từ server:', data)
             return data
         } catch (error: any) {
-            console.error('❌ Lỗi đăng ký:', {
+            console.error('Lỗi đăng ký:', {
                 message: error.message,
                 response: error.response?.data,
                 status: error.response?.status,
@@ -114,15 +114,15 @@ export const authApi = {
         }
     },
 
-    // 🔥 Cập nhật để trả về thông tin đăng nhập tự động
+    // Cập nhật để trả về thông tin đăng nhập tự động
     async verifyEmail(token: string): Promise<ApiResponse<VerifyEmailResult>> {
-        console.log('🔍 Đang xác minh email với token:', token.substring(0, 10) + '...');
+        console.log('Đang xác minh email với token:', token.substring(0, 10) + '...');
         const { data } = await http.get<ApiResponse<VerifyEmailResult>>(`/auth/verify?token=${encodeURIComponent(token)}`);
-        console.log('✅ Xác minh thành công:', data);
+        console.log('Xác minh thành công:', data);
         return data;
     },
 
-    // 🔑 Thống nhất key token với chỗ bạn set trong SignIn.tsx là 'authToken'
+    // Thống nhất key token với chỗ bạn set trong SignIn.tsx là 'authToken'
     logout() {
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
@@ -132,7 +132,7 @@ export const authApi = {
     saveAuthData(token: string, user: any) {
         localStorage.setItem('authToken', token);
         localStorage.setItem('user', JSON.stringify(user));
-        console.log('💾 Đã lưu thông tin đăng nhập vào localStorage');
+        console.log('Đã lưu thông tin đăng nhập vào localStorage');
     },
     async getMe(): Promise<User> {
         const { data } = await http.get<User>('/auth/me'); // interceptor đã gắn Bearer token

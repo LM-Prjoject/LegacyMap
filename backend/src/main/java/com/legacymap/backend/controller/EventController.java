@@ -3,88 +3,103 @@ package com.legacymap.backend.controller;
 import com.legacymap.backend.dto.request.EventCreateRequest;
 import com.legacymap.backend.dto.request.EventUpdateRequest;
 import com.legacymap.backend.dto.response.EventResponse;
+import com.legacymap.backend.entity.Event;
+import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.EventService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
+import lombok.extern.slf4j.Slf4j;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
+@Slf4j
 public class EventController {
 
     private final EventService eventService;
+    private final UserRepository userRepository;
+
+    private UUID getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new RuntimeException("User is not authenticated");
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof String str) {
+            try {
+                return UUID.fromString(str);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .map(u -> u.getId())
+                .orElseThrow(() -> new RuntimeException("User not found for email: " + email));
+    }
 
     @PostMapping("/family-tree/{familyTreeId}")
     public ResponseEntity<EventResponse> createEvent(
             @PathVariable UUID familyTreeId,
-            @RequestHeader("X-User-Id") UUID userId,
             @Valid @RequestBody EventCreateRequest request) {
+        return ResponseEntity.ok(eventService.create(familyTreeId, getCurrentUserId(), request));
+    }
 
-        EventResponse response = eventService.create(familyTreeId, userId, request);
-        return ResponseEntity.ok(response);
+    @PostMapping("/personal")
+    public ResponseEntity<EventResponse> createPersonalEvent(
+            @Valid @RequestBody EventCreateRequest request) {
+        return ResponseEntity.ok(eventService.create(null, getCurrentUserId(), request));
     }
 
     @PutMapping("/{eventId}")
     public ResponseEntity<EventResponse> updateEvent(
             @PathVariable UUID eventId,
-            @RequestHeader("X-User-Id") UUID userId,
             @Valid @RequestBody EventUpdateRequest request) {
-
-        EventResponse response = eventService.update(eventId, userId, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(eventService.update(eventId, getCurrentUserId(), request));
     }
 
     @DeleteMapping("/{eventId}")
-    public ResponseEntity<Void> deleteEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-User-Id") UUID userId) {
-
-        eventService.delete(eventId, userId);
+    public ResponseEntity<Void> deleteEvent(@PathVariable UUID eventId) {
+        eventService.delete(eventId, getCurrentUserId());
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{eventId}")
-    public ResponseEntity<EventResponse> getEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-User-Id") UUID userId) {
-
-        EventResponse response = eventService.getById(eventId, userId);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<EventResponse> getEvent(@PathVariable UUID eventId) {
+        return ResponseEntity.ok(eventService.getById(eventId, getCurrentUserId()));
     }
 
     @GetMapping("/family-tree/{familyTreeId}")
-    public ResponseEntity<List<EventResponse>> getFamilyTreeEvents(
-            @PathVariable UUID familyTreeId,
-            @RequestHeader("X-User-Id") UUID userId) {
+    public ResponseEntity<List<EventResponse>> getFamilyTreeEvents(@PathVariable UUID familyTreeId) {
+        return ResponseEntity.ok(eventService.getByFamilyTree(familyTreeId, getCurrentUserId()));
+    }
 
-        List<EventResponse> responses = eventService.getByFamilyTree(familyTreeId, userId);
-        return ResponseEntity.ok(responses);
+    @GetMapping("/personal")
+    public ResponseEntity<List<EventResponse>> getPersonalEvents() {
+        return ResponseEntity.ok(eventService.getPersonalEvents(getCurrentUserId()));
     }
 
     @GetMapping("/upcoming")
     public ResponseEntity<List<EventResponse>> getUpcomingEvents(
-            @RequestHeader("X-User-Id") UUID userId,
             @RequestParam(defaultValue = "10") int limit) {
-
-        List<EventResponse> responses = eventService.getUpcomingEvents(userId, limit);
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok(eventService.getUpcomingEvents(getCurrentUserId(), limit));
     }
 
     @GetMapping("/family-tree/{familyTreeId}/range")
     public ResponseEntity<List<EventResponse>> getEventsInDateRange(
             @PathVariable UUID familyTreeId,
-            @RequestHeader("X-User-Id") UUID userId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
-
-        List<EventResponse> responses = eventService.getEventsInDateRange(familyTreeId, userId, start, end);
-        return ResponseEntity.ok(responses);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime end) {
+        return ResponseEntity.ok(eventService.getEventsInDateRange(familyTreeId, getCurrentUserId(), start, end));
     }
 }

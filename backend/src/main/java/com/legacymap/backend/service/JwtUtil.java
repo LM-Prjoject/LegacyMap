@@ -29,7 +29,7 @@ public class JwtUtil {
      */
     private Key getSigningKey() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        log.debug("🔑 JWT Secret length: {} bytes", keyBytes.length);
+        log.debug("JWT Secret length: {} bytes", keyBytes.length);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -46,29 +46,29 @@ public class JwtUtil {
 
             // Check expiration
             if (claims.getExpiration().before(new Date())) {
-                log.warn("❌ Token expired at: {}", claims.getExpiration());
+                log.warn("Token expired at: {}", claims.getExpiration());
                 return null;
             }
 
             // Get userId from 'sub' claim
             String subject = claims.getSubject();
             if (subject == null || subject.isEmpty()) {
-                log.warn("❌ Token has no subject");
+                log.warn("Token has no subject");
                 return null;
             }
 
             UUID userId = UUID.fromString(subject);
-            log.info("✅ JWT valid for userId: {}", userId);
+            log.info("JWT valid for userId: {}", userId);
             return userId;
 
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            log.error("❌ JWT expired: {}", e.getMessage());
+            log.error("JWT expired: {}", e.getMessage());
             return null;
         } catch (io.jsonwebtoken.SignatureException e) {
-            log.error("❌ Invalid JWT signature: {}", e.getMessage());
+            log.error("Invalid JWT signature: {}", e.getMessage());
             return null;
         } catch (Exception e) {
-            log.error("❌ JWT validation failed: {}", e.getMessage());
+            log.error("JWT validation failed: {}", e.getMessage());
             return null;
         }
     }
@@ -91,24 +91,24 @@ public class JwtUtil {
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
 
-        log.info("✅ Generated JWT for userId: {}, role: {}, expires: {}", userId, role, expiryDate);
+        log.info("Generated JWT for userId: {}, role: {}, expires: {}", userId, role, expiryDate);
         return token;
     }
     /**
-     * 🔥 THÊM MỚI: Extract claim từ token
+     * THÊM MỚI: Extract claim từ token
      */
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         try {
             final Claims claims = extractAllClaims(token);
             return claimsResolver.apply(claims);
         } catch (Exception e) {
-            log.error("❌ Error extracting claim from token: {}", e.getMessage());
+            log.error("Error extracting claim from token: {}", e.getMessage());
             return null;
         }
     }
 
     /**
-     * 🔥 THÊM MỚI: Extract tất cả claims
+     * THÊM MỚI: Extract tất cả claims
      */
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
@@ -119,7 +119,7 @@ public class JwtUtil {
     }
 
     /**
-     * 🔥 THÊM MỚI: Extract role từ token
+     * THÊM MỚI: Extract role từ token
      */
     public String extractRole(String token) {
         return extractClaim(token, claims -> {
@@ -127,7 +127,7 @@ public class JwtUtil {
             Object roleObj = claims.get("role");
             if (roleObj != null) {
                 String role = roleObj.toString();
-                log.debug("🔍 Extracted role from token: {}", role);
+                log.debug("Extracted role from token: {}", role);
                 return role;
             }
 
@@ -135,17 +135,17 @@ public class JwtUtil {
             Object roleNameObj = claims.get("role_name");
             if (roleNameObj != null) {
                 String role = roleNameObj.toString();
-                log.debug("🔍 Extracted role_name from token: {}", role);
+                log.debug("Extracted role_name from token: {}", role);
                 return role;
             }
 
-            log.debug("🔍 No role claim found in token, using default USER");
+            log.debug("No role claim found in token, using default USER");
             return "USER"; // Default role
         });
     }
 
     /**
-     * 🔥 THÊM MỚI: Extract email từ token
+     * THÊM MỚI: Extract email từ token
      */
     public String extractEmail(String token) {
         return extractClaim(token, claims -> {
@@ -155,7 +155,7 @@ public class JwtUtil {
     }
 
     /**
-     * 🔥 THÊM MỚI: Kiểm tra nếu user có role ADMIN
+     * THÊM MỚI: Kiểm tra nếu user có role ADMIN
      */
     public boolean isAdmin(String token) {
         String role = extractRole(token);
@@ -163,24 +163,24 @@ public class JwtUtil {
     }
 
     /**
-     * 🔥 THÊM MỚI: Debug token claims
+     * THÊM MỚI: Debug token claims
      */
     public void debugToken(String token) {
         try {
             Claims claims = extractAllClaims(token);
-            log.info("🔍 Token Debug - Subject: {}", claims.getSubject());
-            log.info("🔍 Token Debug - Role: {}", claims.get("role"));
-            log.info("🔍 Token Debug - Role Name: {}", claims.get("role_name"));
-            log.info("🔍 Token Debug - Email: {}", claims.get("email"));
-            log.info("🔍 Token Debug - Expiration: {}", claims.getExpiration());
-            log.info("🔍 Token Debug - All Claims: {}", claims);
+            log.info("Token Debug - Subject: {}", claims.getSubject());
+            log.info("Token Debug - Role: {}", claims.get("role"));
+            log.info("Token Debug - Role Name: {}", claims.get("role_name"));
+            log.info("Token Debug - Email: {}", claims.get("email"));
+            log.info("Token Debug - Expiration: {}", claims.getExpiration());
+            log.info("Token Debug - All Claims: {}", claims);
         } catch (Exception e) {
-            log.error("❌ Token debug failed: {}", e.getMessage());
+            log.error("Token debug failed: {}", e.getMessage());
         }
     }
 
     /**
-     * 🔥 THÊM MỚI: Validate token for admin access
+     * THÊM MỚI: Validate token for admin access
      */
     public boolean validateAdminToken(String token) {
         try {
@@ -190,15 +190,15 @@ public class JwtUtil {
             }
 
             boolean isAdmin = isAdmin(token);
-            log.info("🔍 Admin validation for user {}: {}", userId, isAdmin);
+            log.info("Admin validation for user {}: {}", userId, isAdmin);
 
             if (!isAdmin) {
-                log.warn("🚫 User {} does not have ADMIN role", userId);
+                log.warn("User {} does not have ADMIN role", userId);
             }
 
             return isAdmin;
         } catch (Exception e) {
-            log.error("❌ Admin token validation failed: {}", e.getMessage());
+            log.error("Admin token validation failed: {}", e.getMessage());
             return false;
         }
     }
@@ -211,7 +211,7 @@ public class JwtUtil {
             if (v instanceof Number n) return n.intValue();
             return null;
         } catch (Exception e) {
-            log.error("❌ Error extracting pwdv: {}", e.getMessage());
+            log.error("Error extracting pwdv: {}", e.getMessage());
             return null;
         }
     }

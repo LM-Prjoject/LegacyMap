@@ -1,45 +1,45 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import FamilyTreeModal from '@/components/familyTreeModal/FamilyTreeModal.tsx';
-import { uploadCoverToSupabase } from '@/lib/upload';
-import api, { FamilyTree } from '@/api/trees';
-import { Loader, Pencil, Trash2, Eye } from 'lucide-react';
-import bg from '@/assets/bg.jpg';
+import { useEffect, useState, useCallback, useMemo } from "react";
+import Navbar from "@/components/layout/Navbar";
+import FamilyTreeModal from "@/components/familyTree/familyTreeModal/FamilyTreeModal";
+import { uploadCoverToSupabase } from "@/lib/upload";
+import api, { FamilyTree } from "@/api/trees";
+import { Loader, Pencil, Trash2, Eye } from "lucide-react";
+import bg from "@/assets/bg.jpg";
 import PopupModal from "@/components/popupModal/PopupModal";
-import { showToast } from '@/lib/toast'
+import { useNavigate } from "react-router-dom";
 
 export default function TreesList() {
     const [showModal, setShowModal] = useState(false);
     const [trees, setTrees] = useState<FamilyTree[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
+    const [error, setError] = useState("");
     const [editingTree, setEditingTree] = useState<FamilyTree | null>(null);
-
     const [deleteTarget, setDeleteTarget] = useState<FamilyTree | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    // const navigate = useNavigate();
-    const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+    const navigate = useNavigate();
+    const user = useMemo(() => JSON.parse(localStorage.getItem("user") || "{}"), []);
     const userId: string | undefined = user?.id;
 
     const load = useCallback(async () => {
         if (!userId) return;
         setLoading(true);
-        setError('');
+        setError("");
         try {
             const data = await api.listTrees(userId);
             setTrees(data);
         } catch (e: any) {
-            setError(e?.message || 'Không tải được danh sách');
+            setError(e?.message || "Không tải được danh sách");
         } finally {
             setLoading(false);
         }
     }, [userId]);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        load();
+    }, [load]);
 
-    // const goToDetail = (id: string) => navigate(`/trees/${id}`);
+    const goToDetail = (id: string) => navigate(`/trees/${id}`);
 
     const startEdit = (tree: FamilyTree) => setEditingTree(tree);
 
@@ -52,7 +52,7 @@ export default function TreesList() {
             await api.deleteTree(userId, deleteTarget.id);
         } catch (e: any) {
             setTrees(prev);
-            setError(e?.message || 'Xóa thất bại');
+            setError(e?.message || "Xóa thất bại");
         } finally {
             setDeleting(false);
             setDeleteTarget(null);
@@ -61,18 +61,9 @@ export default function TreesList() {
 
     return (
         <div className="relative min-h-screen flex flex-col overflow-hidden">
-            {/*<video autoPlay loop playsInline className="absolute top-0 left-0 w-full h-full object-cover -z-10">*/}
-            {/*    <source src={bgVideo} type="video/mp4" />*/}
-            {/*</video>*/}
-            <img
-                src={bg}
-                alt="Background"
-                className="absolute top-0 left-0 w-full h-full object-cover -z-10"
-            />
+            <img src={bg} alt="Background" className="absolute top-0 left-0 w-full h-full object-cover -z-10" />
             <div className="absolute inset-0 bg-slate-900/30 -z-10" />
-
             <Navbar />
-
             <main className="flex-1 w-full px-8 lg:px-20 py-6">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-ivory text-xl font-semibold">Cây của tôi</h2>
@@ -83,7 +74,6 @@ export default function TreesList() {
                         Tạo gia phả
                     </button>
                 </div>
-
                 <div className="rounded-xl p-2 sm:p-4">
                     {loading ? (
                         <div className="flex items-center gap-2 text-slate-600">
@@ -98,12 +88,9 @@ export default function TreesList() {
                             {trees.map(t => (
                                 <li
                                     key={t.id}
-                                    className="rounded-xl p-4 shadow-sm border border-white/10 bg-white/10 backdrop-blur-sm
-                             hover:bg-white/50 hover:backdrop-blur-lg hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]
-                             hover:border-white/40 hover:scale-[1.02]"
+                                    className="rounded-xl p-4 shadow-sm border border-white/10 bg-white/10 backdrop-blur-sm hover:bg-white/50 hover:backdrop-blur-lg hover:shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:border-white/40 hover:scale-[1.02]"
                                 >
-                                    {/*<button className="block w-full text-left" onClick={() => goToDetail(t.id)} title="Xem chi tiết">*/}
-                                    <button className="block w-full text-left" onClick={() => showToast.info('Tính năng đang phát triển')}>
+                                    <button className="block w-full text-left" onClick={() => goToDetail(t.id)}>
                                         {t.coverImageUrl ? (
                                             <img src={t.coverImageUrl} alt={t.name} className="w-full h-32 object-cover rounded-lg mb-3 border" />
                                         ) : (
@@ -112,26 +99,20 @@ export default function TreesList() {
                                             </div>
                                         )}
                                     </button>
-
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <h4 className="font-semibold text-slate-50 drop-shadow-sm">{t.name}</h4>
-                                            <p className="text-sm text-slate-100/80 line-clamp-2">{t.description || '—'}</p>
-                                            <p className="mt-1 text-xs text-slate-200/70">{t.isPublic ? 'Công khai' : 'Riêng tư'}</p>
+                                            <p className="text-sm text-slate-100/80 line-clamp-2">{t.description || "—"}</p>
+                                            <p className="mt-1 text-xs text-slate-200/70">{t.isPublic ? "Công khai" : "Riêng tư"}</p>
                                         </div>
-
                                         <div className="flex items-center gap-1 sm:gap-2">
-                                            <button className="p-2 rounded-lg hover:bg-slate-100" title="Xem chi tiết" onClick={()=> showToast.info('Tính năng đang phát triển')}>
+                                            <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => goToDetail(t.id)}>
                                                 <Eye size={16} />
                                             </button>
-                                            <button className="p-2 rounded-lg hover:bg-slate-100" title="Sửa" onClick={() => startEdit(t)}>
+                                            <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => startEdit(t)}>
                                                 <Pencil size={16} />
                                             </button>
-                                            <button
-                                                className="p-2 rounded-lg hover:bg-red-50 text-red-500"
-                                                title="Xóa"
-                                                onClick={() => setDeleteTarget(t)}
-                                            >
+                                            <button className="p-2 rounded-lg hover:bg-red-50 text-red-500" onClick={() => setDeleteTarget(t)}>
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>
@@ -141,44 +122,37 @@ export default function TreesList() {
                         </ul>
                     )}
                 </div>
-
                 {showModal && (
                     <FamilyTreeModal
                         userId={userId!}
                         onClose={() => setShowModal(false)}
                         uploadImage={uploadCoverToSupabase}
-                        onCreated={(tree) => {
+                        onCreated={tree => {
                             if (tree?.id) setTrees(prev => [tree, ...prev]);
                             else load();
                             setShowModal(false);
                         }}
                     />
                 )}
-
                 {editingTree && (
                     <FamilyTreeModal
                         userId={userId!}
                         isEdit
                         initialData={editingTree}
                         uploadImage={uploadCoverToSupabase}
-                        onUpdated={(updated) => {
+                        onUpdated={updated => {
                             setTrees(prev => prev.map(t => (t.id === updated.id ? updated : t)));
                             setEditingTree(null);
                         }}
                         onClose={() => setEditingTree(null)}
                     />
                 )}
-
                 <PopupModal
                     show={!!deleteTarget}
                     onClose={() => (!deleting ? setDeleteTarget(null) : undefined)}
                     onConfirm={!deleting ? confirmDelete : undefined}
                     title="Xóa gia phả?"
-                    body={
-                        <>
-                            Bạn có chắc muốn xóa <strong>{deleteTarget?.name}</strong>?
-                        </>
-                    }
+                    body={<>Bạn có chắc muốn xóa <strong>{deleteTarget?.name}</strong>?</>}
                     confirmText="Xóa"
                     cancelText="Hủy"
                     variant="danger"

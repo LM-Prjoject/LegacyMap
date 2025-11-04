@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, UseUsersReturn } from '../types/ts_user';
 
-// ✅ Base URL tự động chọn giữa local và Render
+// Base URL tự động chọn giữa local và Render
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV
@@ -39,7 +39,7 @@ export const useUsers = (): UseUsersReturn => {
       // --- Error handling ---
       if (response.status === 403) {
         const html = await response.text();
-        console.warn('⚠️ 403 Forbidden (HTML returned):', html.slice(0, 100));
+        console.warn('403 Forbidden (HTML returned):', html.slice(0, 100));
         throw new Error('Access denied: Admin role required.');
       }
       if (response.status === 401) {
@@ -47,17 +47,17 @@ export const useUsers = (): UseUsersReturn => {
       }
       if (!response.ok) {
         const text = await response.text();
-        console.warn('⚠️ Unexpected response:', text.slice(0, 100));
+        console.warn('Unexpected response:', text.slice(0, 100));
         throw new Error(`Failed to fetch users: ${response.status}`);
       }
 
-      // ✅ Parse JSON safely
+      // Parse JSON safely
       const data = await response.json();
-      console.log('✅ Users data received:', data);
+      console.log('Users data received:', data);
       setUsers(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An error occurred';
-      console.error('❌ Error fetching users:', err);
+      console.error('Error fetching users:', err);
       setError(message);
     } finally {
       setLoading(false);
@@ -79,7 +79,7 @@ export const useUsers = (): UseUsersReturn => {
       if (!res.ok) throw new Error('Failed to ban user');
       setUsers(prev => prev.map(u => (u.id === userId ? { ...u, isBanned: true } : u)));
     } catch (err) {
-      console.error('❌ Error banning user:', err);
+      console.error('Error banning user:', err);
       throw err;
     }
   }, []);
@@ -99,7 +99,7 @@ export const useUsers = (): UseUsersReturn => {
       if (!res.ok) throw new Error('Failed to unban user');
       setUsers(prev => prev.map(u => (u.id === userId ? { ...u, isBanned: false } : u)));
     } catch (err) {
-      console.error('❌ Error unbanning user:', err);
+      console.error('Error unbanning user:', err);
       throw err;
     }
   }, []);

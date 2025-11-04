@@ -1,4 +1,3 @@
-// src/main/java/com/legacymap/backend/controller/DebugController.java
 package com.legacymap.backend.controller;
 
 import com.legacymap.backend.dto.response.FamilyTreeResponse;
@@ -48,7 +47,7 @@ public class DebugController {
         stats.put("totalFamilyTrees", allTrees.size());
         stats.put("familyTrees", treeDTOs); // 🔥 SỬA: Dùng DTO thay vì Entity
 
-        log.info("🔍 Debug Stats: {}", stats);
+        log.info("Debug Stats: {}", stats);
         return ResponseEntity.ok(stats);
     }
 
@@ -56,7 +55,7 @@ public class DebugController {
     public ResponseEntity<?> testFamilyTrees() {
         try {
             List<FamilyTree> allTrees = familyTreeRepository.findAll();
-            log.info("🔍 Found {} family trees", allTrees.size());
+            log.info("Found {} family trees", allTrees.size());
 
             // Test conversion to DTO
             List<FamilyTreeResponse> dtos = allTrees.stream()
@@ -71,7 +70,7 @@ public class DebugController {
                     }
             );
         } catch (Exception e) {
-            log.error("❌ Debug Family Trees Error: {}", e.getMessage(), e);
+            log.error("Debug Family Trees Error: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body(
                     new Object() {
                         public String error = e.getMessage();

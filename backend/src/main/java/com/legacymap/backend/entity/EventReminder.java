@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -34,10 +35,10 @@ public class EventReminder {
     private SendMethod sendMethod;
 
     @Column(name = "scheduled_at", nullable = false)
-    private LocalDateTime scheduledAt;
+    private OffsetDateTime scheduledAt;
 
     @Column(name = "sent_at")
-    private LocalDateTime sentAt;
+    private OffsetDateTime sentAt;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
@@ -45,7 +46,7 @@ public class EventReminder {
 
     @CreationTimestamp
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     public enum SendMethod {
         NOTIFICATION, EMAIL, BOTH

@@ -1,74 +1,88 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import SignIn from '@/pages/auth/SignIn';
-import SignUp from '@/pages/auth/SignUp';
-import PasswordReset from '@/pages/auth/password-reset';
-import TreesList from '@/pages/dashboard/TreesList';
-import HomePage from '@/pages/HomePage';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx";
-import ProfilePage from "@/pages/auth/ProfilePage.tsx";
-import AdminDashboard from '@/pages/admin/AdminDashboard';
-import UserManagement from '@/pages/admin/UserManagement';
-import UserDetail from '@/pages/admin/UserDetail';
-import AdminLayout from '@/components/admin/AdminLayout';
-import FamilyTreesPage from '@/pages/admin/FamilyTreesPage';
-import SettingsPage from '@/pages/admin/SettingsPage'; // ✅ Thêm import mới
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import SignIn from '@/pages/auth/SignIn'
+import SignUp from '@/pages/auth/SignUp'
+import PasswordReset from '@/pages/auth/password-reset'
+import TreesList from '@/pages/dashboard/TreesList'
+import HomePage from '@/pages/HomePage'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import GoogleSuccess from "@/pages/auth/GoogleSuccess.tsx"
+import ProfilePage from "@/pages/auth/ProfilePage.tsx"
+import AdminDashboard from '@/pages/admin/AdminDashboard'
+import UserManagement from '@/pages/admin/UserManagement'
+import UserDetail from '@/pages/admin/UserDetail'
+import AdminLayout from '@/components/admin/AdminLayout'
+import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
+import EventsPage from '@/pages/event/EventsPage'
+import EventFormPage from "@/pages/event/EventFormPage.tsx";
+import EventDetailPage from '@/pages/event/EventDetailPage'
+import { EventProvider } from '@/contexts/EventContext';
+import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx';
 
 export const router = createBrowserRouter([
     {
         path: '/',
-        element: <HomePage />,
+        element: <HomePage />
     },
     {
         path: '/homepage',
-        element: (
-            <ProtectedRoute>
-                <HomePage />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><HomePage /></ProtectedRoute>
     },
     {
         path: '/signin',
-        element: (
-            <SignIn
-                onClose={() => window.history.back()}
-                onShowPasswordReset={() => (window.location.href = '/password-reset')}
-                onShowSignUp={() => (window.location.href = '/signup')}
-            />
-        ),
+        element: <SignIn
+            onClose={() => window.history.back()}
+            onShowPasswordReset={() => window.location.href = '/password-reset'}
+            onShowSignUp={() => window.location.href = '/signup'}
+        />
     },
     {
         path: '/signup',
-        element: (
-            <SignUp
-                onClose={() => window.history.back()}
-                onShowSignIn={() => (window.location.href = '/signin')}
-            />
-        ),
+        element: <SignUp
+            onClose={() => window.history.back()}
+            onShowSignIn={() => window.location.href = '/signin'}
+        />
     },
     {
         path: '/auth/google-success',
-        element: <GoogleSuccess />,
+        element: <GoogleSuccess />
     },
     {
         path: '/password-reset',
-        element: (
-            <PasswordReset
-                onClose={() => window.history.back()}
-                onShowSignIn={() => (window.location.href = '/signin')}
-            />
-        ),
+        element: <PasswordReset
+            onClose={() => window.history.back()}
+            onShowSignIn={() => window.location.href = '/signin'}
+        />
     },
     {
         path: '/dashboard',
+        element: <ProtectedRoute><TreesList /></ProtectedRoute>
+    },
+    {
+        path: '/events',
         element: (
             <ProtectedRoute>
-                <TreesList />
+                <EventProvider>
+                    <EventsPage />
+                </EventProvider>
             </ProtectedRoute>
         ),
     },
+    {
+        path: '/events/create',
+        element: (
+            <ProtectedRoute>
+                <EventProvider>
+                    <EventFormPage />
+                </EventProvider>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: '/events/:id',
+        element: <ProtectedRoute><EventDetailPage /></ProtectedRoute>
+    },
 
-    // ✅ Khu vực quản trị
+    // Admin routes với đầy đủ children
     {
         path: '/admin',
         element: (
@@ -81,57 +95,56 @@ export const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <AdminDashboard />,
+                element: <AdminDashboard />
             },
             {
-                path: 'dashboard',
-                element: <AdminDashboard />,
+                path: 'dashboard', // ← THÊM
+                element: <AdminDashboard />
             },
             {
                 path: 'users',
-                element: <UserManagement />,
+                element: <UserManagement />
             },
             {
                 path: 'users/:userId',
-                element: <UserDetail />,
+                element: <UserDetail />
             },
             {
                 path: 'trees',
-                element: <FamilyTreesPage />,
+                element: <FamilyTreesPage />
             },
             {
-                path: 'settings', // ✅ Cập nhật: dùng trang thật thay vì “Coming soon...”
-                element: <SettingsPage />,
-            },
-        ],
+                path: 'settings',
+                element: <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">⚙️ Settings</h2>
+                    <p className="text-gray-600">Coming soon...</p>
+                </div>
+            }
+        ]
     },
 
     {
         path: '/app',
-        element: <Navigate to="/dashboard" replace />,
-    },
-    {
-        path: '/app/trees/:treeId',
-        element: <Navigate to="/tree/:treeId" replace />,
+        element: <Navigate to="/dashboard" replace />
     },
     {
         path: '/forgot-password',
-        element: <Navigate to="/password-reset" replace />,
+        element: <Navigate to="/password-reset" replace />
     },
     {
         path: '/reset-password',
-        element: <Navigate to="/password-reset" replace />,
+        element: <Navigate to="/password-reset" replace />
     },
     {
         path: '/forgot',
-        element: <Navigate to="/password-reset" replace />,
+        element: <Navigate to="/password-reset" replace />
     },
     {
         path: '/profile',
-        element: (
-            <ProtectedRoute>
-                <ProfilePage />
-            </ProtectedRoute>
-        ),
+        element: <ProtectedRoute><ProfilePage /></ProtectedRoute>
     },
-]);
+    {
+        path: '/trees/:treeId',
+        element: <ProtectedRoute><TreeDetails /></ProtectedRoute>
+    }
+])

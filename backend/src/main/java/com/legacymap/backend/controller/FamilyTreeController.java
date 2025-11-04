@@ -76,6 +76,7 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+//======================================================================================================================
     @PostMapping("/{treeId}/members")
     public ResponseEntity<ApiResponse<Person>> addMember(
             @PathVariable("treeId") UUID treeId,
@@ -110,6 +111,16 @@ public class FamilyTreeController {
             @RequestParam("userId") String userId) {
         familyTreeService.deleteMember(treeId, parseUserId(userId), personId);
         return ResponseEntity.ok(ApiResponse.success());
+    }
+    //==================================================================================================================
+
+    @GetMapping("/{treeId}/relationships")
+    public ResponseEntity<ApiResponse<List<Relationship>>> listRelationships(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("userId") String userId
+    ) {
+        List<Relationship> rels = relationshipService.listByTree(treeId, parseUserId(userId));
+        return ResponseEntity.ok(ApiResponse.success(rels));
     }
 
     @PostMapping("/{treeId}/relationships")

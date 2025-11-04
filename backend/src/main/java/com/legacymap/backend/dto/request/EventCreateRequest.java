@@ -2,8 +2,7 @@ package com.legacymap.backend.dto.request;
 
 import com.legacymap.backend.entity.Event;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,10 +12,10 @@ public class EventCreateRequest {
     private String title;
     private String description;
     private Event.EventType eventType;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
     private Boolean isFullDay = false;
-    private Event.CalendarType calendarType = Event.CalendarType.SOLAR;
+    private Event.CalendarType calendarType = Event.CalendarType.solar;
     private Boolean isRecurring = false;
     private Event.RecurrenceRule recurrenceRule = Event.RecurrenceRule.NONE;
     private List<RelatedPerson> relatedPersons;
@@ -24,6 +23,7 @@ public class EventCreateRequest {
     private Map<String, Object> locationCoordinates;
     private ReminderConfig reminder;
     private Boolean isPublic = true;
+    private UUID personalOwnerId;
 
     @Data
     public static class RelatedPerson {
