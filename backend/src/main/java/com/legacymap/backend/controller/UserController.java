@@ -1,6 +1,5 @@
 package com.legacymap.backend.controller;
 
-import com.legacymap.backend.dto.request.ChangePasswordRequest;
 import com.legacymap.backend.dto.request.UserCreateRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
 import com.legacymap.backend.entity.User;
@@ -95,10 +94,5 @@ public class UserController {
 
         log.debug("Access granted for user: {}", authenticatedUserId);
     }
-//
-//    @PutMapping("/password")
-//    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
-//        return userService.changePassword(request);
-//    }
 
 }

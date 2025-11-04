@@ -1,4 +1,3 @@
-// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
@@ -16,12 +15,11 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
+      '/legacy/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
-        // ✅ FIX: Configure rewrite cho context path /legacy
-        rewrite: (path) => path.replace(/^\/api/, '/legacy/api'),
+        rewrite: (p) => p.replace(/^\/legacy\/api/, '/api'),
       },
     },
   },
