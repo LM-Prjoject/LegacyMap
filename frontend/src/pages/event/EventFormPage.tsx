@@ -384,4 +384,4 @@ const EventFormPage: React.FC = () => {
     );
 };
 
-export default EventFormPage;
+    export default EventFormPage;
