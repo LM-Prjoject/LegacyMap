@@ -67,11 +67,18 @@ public class EventReminderService {
 
         for (String method : methods) {
             try {
+                EventReminder.SendMethod sendMethod = switch (method.toLowerCase()) {
+                    case "email" -> EventReminder.SendMethod.email;
+                    case "notification" -> EventReminder.SendMethod.notification;
+                    case "both" -> EventReminder.SendMethod.both;
+                    default -> throw new IllegalArgumentException("Invalid method: " + method);
+                };
+
                 EventReminder reminder = EventReminder.builder()
                         .event(event)
                         .user(user)
                         .scheduledAt(reminderTime)
-                        .sendMethod(EventReminder.SendMethod.valueOf(method))
+                        .sendMethod(sendMethod)
                         .status(EventReminder.ReminderStatus.pending)
                         .build();
 
@@ -130,21 +137,33 @@ public class EventReminderService {
             return;
         }
 
-        // Gửi notification trong hệ thống
-        notificationService.sendEventReminderNotification(
-                user.getId(),
-                event.getTitle(),
-                event.getStartDate(),
-                event.getId()
-        );
+        EventReminder.SendMethod method = reminder.getSendMethod();
 
-        // Nếu chọn email hoặc both
-        if (reminder.getSendMethod() == EventReminder.SendMethod.email ||
-                reminder.getSendMethod() == EventReminder.SendMethod.both) {
+        // Gửi NOTIFICATION
+        if (method == EventReminder.SendMethod.notification || method == EventReminder.SendMethod.both) {
+            try {
+                notificationService.sendEventReminderNotification(
+                        user.getId(),
+                        event.getTitle(),
+                        event.getStartDate(),
+                        event.getId()
+                );
+                log.info("Sent web notification for reminder {}", reminder.getId());
+            } catch (Exception e) {
+                log.error("Failed to send web notification for reminder {}", reminder.getId(), e);
+            }
+        }
 
-            String subject = "Nhắc nhở sự kiện: " + event.getTitle();
-            String message = buildReminderMessage(event);
-            sendEmail(user.getEmail(), subject, message);
+        // Gửi EMAIL
+        if (method == EventReminder.SendMethod.email || method == EventReminder.SendMethod.both) {
+            try {
+                String subject = "Nhắc nhở sự kiện: " + event.getTitle();
+                String message = buildReminderMessage(event);
+                sendEmail(user.getEmail(), subject, message);
+                log.info("Sent email for reminder {}", reminder.getId());
+            } catch (Exception e) {
+                log.error("Failed to send email for reminder {}", reminder.getId(), e);
+            }
         }
     }
 
