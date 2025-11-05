@@ -132,37 +132,40 @@ const data = useMemo<CustomNodeDatum[]>(() => {
                 ])
             ).map(buildNode);
 
-            return {
-                name: `${husband.fullName} & ${wife.fullName}`,
-                attributes: {
-                    id: husband.id,
-                    couple: true,
-                    husbandId: husband.id,
-                    wifeId: wife.id,
-                    avatars: [
-                        (husband as any).avatarUrl || avtFallback,
-                        (wife as any).avatarUrl || avtFallback,
-                    ] as string[],
-                    names: [husband.fullName, wife.fullName] as string[],
-                    lifes: [lifeText(husband), lifeText(wife)] as string[],
-                } as CustomNodeAttributes,
-                children: coupleChildren,
-            };
+        // Chỗ tạo node couple
+return {
+  name: `${husband.fullName} & ${wife.fullName}`,
+  attributes: {
+    id: husband.id,
+    couple: true,
+    husbandId: husband.id,
+    wifeId: wife.id,
+    avatars: [
+      (husband as any).avatarUrl || avtFallback,
+      (wife as any).avatarUrl || avtFallback,
+    ],
+    names: [husband.fullName, wife.fullName],
+    lifes: [lifeText(husband), lifeText(wife)],
+  } satisfies CustomNodeAttributes, // ✅ thêm dòng này
+  children: coupleChildren,
+};
+
         }
 
         const childIds = Array.from(children.get(id) || []);
-        return {
-            name: p.fullName,
-            attributes: {
-                id: p.id,
-                couple: false,
-                avatar: (p as any).avatarUrl || avtFallback,
-                life: lifeText(p),
-                names: [p.fullName] as string[],
-                lifes: [lifeText(p)] as string[],
-            } as CustomNodeAttributes,
-            children: childIds.map(buildNode),
-        };
+// Chỗ node đơn
+return {
+  name: p.fullName,
+  attributes: {
+    id: p.id,
+    couple: false,
+    avatar: (p as any).avatarUrl || avtFallback,
+    life: lifeText(p),
+    names: [p.fullName],
+    lifes: [lifeText(p)],
+  } satisfies CustomNodeAttributes, // ✅ thêm dòng này
+  children: childIds.map(buildNode),
+};
     };
 
     return roots.map((r) => buildNode(r.id));

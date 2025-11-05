@@ -81,15 +81,15 @@ const EventFormPage: React.FC = () => {
         }));
     };
 
-    const handleReminderChange = (field: keyof typeof formData.reminder, value: any) => {
-        setFormData(prev => ({
-            ...prev,
-            reminder: {
-                ...prev.reminder!,
-                [field]: value
-            }
-        }));
-    };
+   const handleReminderChange = <K extends keyof NonNullable<EventCreateRequest['reminder']>>(field: K, value: NonNullable<EventCreateRequest['reminder']>[K]) => {
+  setFormData(prev => ({
+    ...prev,
+    reminder: {
+      ...prev.reminder!,
+      [field]: value,
+    },
+  }));
+};
 
     const reminderOptions = [
         { value: 0, label: 'Đúng giờ' },
