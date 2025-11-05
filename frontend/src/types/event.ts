@@ -70,19 +70,19 @@ export interface ReminderConfig {
 }
 
 export enum EventType {
-    DEATH_ANNIVERSARY = 'DEATH_ANNIVERSARY',
-    WEDDING_ANNIVERSARY = 'WEDDING_ANNIVERSARY',
-    BIRTHDAY = 'BIRTHDAY',
-    FUNERAL = 'FUNERAL',
-    WEDDING = 'WEDDING',
-    FAMILY_REUNION = 'FAMILY_REUNION',
-    CEREMONY = 'CEREMONY',
-    OTHER = 'OTHER'
+    DEATH_ANNIVERSARY = 'death_anniversary',
+    WEDDING_ANNIVERSARY = 'wedding_anniversary',
+    BIRTHDAY = 'birthday',
+    FUNERAL = 'funeral',
+    WEDDING = 'wedding',
+    FAMILY_REUNION = 'family_reunion',
+    CEREMONY = 'ceremony',
+    OTHER = 'other'
 }
 
 export enum CalendarType {
-    SOLAR = 'SOLAR',
-    LUNAR = 'LUNAR'
+    SOLAR = 'solar',
+    LUNAR = 'lunar'
 }
 
 export enum RecurrenceRule {
@@ -92,7 +92,7 @@ export enum RecurrenceRule {
 }
 
 export enum EventStatus {
-    ACTIVE = 'ACTIVE',
-    CANCELLED = 'CANCELLED',
-    COMPLETED = 'COMPLETED'
+    ACTIVE = 'active',
+    CANCELLED = 'cancelled',
+    COMPLETED = 'completed'
 }

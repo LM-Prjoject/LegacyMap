@@ -7,7 +7,7 @@ const uniqueClipId = (base?: string) =>
 
 
 export const MemberCard = (
-    onClick?: (id: string) => void, 
+    onClick?: (id: string) => void,
     isSelected: boolean = false
 ): RenderCustomNodeElementFn => {
     return (rd3tNode: CustomNodeElementProps) => {

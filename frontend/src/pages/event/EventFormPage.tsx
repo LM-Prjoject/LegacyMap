@@ -81,23 +81,21 @@ const EventFormPage: React.FC = () => {
         }));
     };
 
-   const handleReminderChange = <K extends keyof NonNullable<EventCreateRequest['reminder']>>(field: K, value: NonNullable<EventCreateRequest['reminder']>[K]) => {
-  setFormData(prev => ({
-    ...prev,
-    reminder: {
-      ...prev.reminder!,
-      [field]: value,
-    },
-  }));
-};
+    const handleReminderChange = (field: keyof typeof formData.reminder, value: any) => {
+        setFormData(prev => ({
+            ...prev,
+            reminder: {
+                ...prev.reminder!,
+                [field]: value
+            }
+        }));
+    };
 
     const reminderOptions = [
         { value: 0, label: 'Đúng giờ' },
         { value: 1, label: '1 ngày trước' },
         { value: 3, label: '3 ngày trước' },
-        { value: 7, label: '1 tuần trước' },
-        { value: 14, label: '2 tuần trước' },
-        { value: 30, label: '1 tháng trước' }
+        { value: 7, label: '1 tuần trước' }
     ];
 
     const methodOptions = [
@@ -144,10 +142,10 @@ const EventFormPage: React.FC = () => {
             {/* Main form */}
             <div className="max-w-3xl mx-auto px-6 py-8">
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Event Type Selector */}
+                    {/* Event Scope Selector */}
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         <label className="block text-sm font-semibold text-blue-900 mb-3">
-                            Loại sự kiện
+                            Phạm vi sự kiện
                         </label>
                         <div className="flex gap-4">
                             <label className="flex items-center gap-2 cursor-pointer">
@@ -194,24 +192,27 @@ const EventFormPage: React.FC = () => {
                         <label className="block text-sm font-semibold text-blue-900 mb-2">
                             Loại sự kiện
                         </label>
-                        <select
-                            value={formData.eventType}
-                            onChange={(e) => handleInputChange('eventType', e.target.value as EventType)}
-                            className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
-                        >
-                            {Object.values(EventType).map(type => (
-                                <option key={type} value={type}>
-                                    {type === EventType.BIRTHDAY && 'Sinh nhật'}
-                                    {type === EventType.DEATH_ANNIVERSARY && 'Ngày giỗ'}
-                                    {type === EventType.WEDDING_ANNIVERSARY && 'Ngày cưới'}
-                                    {type === EventType.WEDDING && 'Đám cưới'}
-                                    {type === EventType.FUNERAL && 'Tang lễ'}
-                                    {type === EventType.FAMILY_REUNION && 'Họp mặt gia đình'}
-                                    {type === EventType.CEREMONY && 'Nghi lễ'}
-                                    {type === EventType.OTHER && 'Khác'}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={formData.eventType}
+                                onChange={(e) => handleInputChange('eventType', e.target.value as EventType)}
+                                className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
+                            >
+                                {Object.values(EventType).map(type => (
+                                    <option key={type} value={type}>
+                                        {type === EventType.BIRTHDAY && 'Sinh nhật'}
+                                        {type === EventType.DEATH_ANNIVERSARY && 'Ngày giỗ'}
+                                        {type === EventType.WEDDING_ANNIVERSARY && 'Ngày cưới'}
+                                        {type === EventType.WEDDING && 'Đám cưới'}
+                                        {type === EventType.FUNERAL && 'Tang lễ'}
+                                        {type === EventType.FAMILY_REUNION && 'Họp mặt gia đình'}
+                                        {type === EventType.CEREMONY && 'Nghi lễ'}
+                                        {type === EventType.OTHER && 'Khác'}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400 pointer-events-none" />
+                        </div>
                     </div>
 
                     {/* Time Section */}
@@ -303,12 +304,12 @@ const EventFormPage: React.FC = () => {
                                 <label className="block text-sm font-medium text-blue-700 mb-2">Thời gian nhắc nhở</label>
                                 <div className="relative">
                                     <select
-                                        value={formData.reminder?.daysBefore || 3}
-                                        onChange={(e) => handleReminderChange('daysBefore', parseInt(e.target.value))}
+                                        value={String(formData.reminder?.daysBefore ?? 3)}
+                                        onChange={(e) => handleReminderChange('daysBefore', Number(e.target.value))}
                                         className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
                                     >
                                         {reminderOptions.map(option => (
-                                            <option key={option.value} value={option.value}>
+                                            <option key={option.value} value={String(option.value)}>
                                                 {option.label}
                                             </option>
                                         ))}
@@ -365,14 +366,17 @@ const EventFormPage: React.FC = () => {
                     {/* Privacy */}
                     <div className="bg-white rounded-2xl shadow-lg p-6">
                         <label className="block text-sm font-semibold text-blue-900 mb-2">Quyền riêng tư</label>
-                        <select
-                            value={formData.isPublic ? 'public' : 'private'}
-                            onChange={(e) => handleInputChange('isPublic', e.target.value === 'public')}
-                            className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
-                        >
-                            <option value="public">Công khai</option>
-                            <option value="private">Riêng tư</option>
-                        </select>
+                        <div className="relative">
+                            <select
+                                value={formData.isPublic ? 'public' : 'private'}
+                                onChange={(e) => handleInputChange('isPublic', e.target.value === 'public')}
+                                className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
+                            >
+                                <option value="public">Công khai</option>
+                                <option value="private">Riêng tư</option>
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400 pointer-events-none" />
+                        </div>
                     </div>
                 </form>
             </div>
@@ -380,4 +384,4 @@ const EventFormPage: React.FC = () => {
     );
 };
 
-export default EventFormPage;
+    export default EventFormPage;

@@ -168,7 +168,7 @@ public class RelationshipSuggestionService {
         return new RelationshipSuggestion(outType, clamp(score), reasons);
     }
 
-private RelationshipSuggestion scoreSibling(
+    private RelationshipSuggestion scoreSibling(
             UUID p1,
             UUID p2,
             Map<UUID, Set<UUID>> parentsOf,
@@ -177,20 +177,20 @@ private RelationshipSuggestion scoreSibling(
     ) {
         double score = 0.0;
         List<String> reasons = new ArrayList<>();
-        
+
         // Get person details
         Person person1 = personRepository.findById(p1).orElse(null);
         Person person2 = personRepository.findById(p2).orElse(null);
-        
+
         if (person1 == null || person2 == null) {
             return new RelationshipSuggestion("sibling", 0.0, Collections.singletonList("Person not found"));
         }
-        
+
         // 1. Check if same person
         if (p1.equals(p2)) {
             return new RelationshipSuggestion("sibling", 0.0, Collections.singletonList("Same person"));
         }
-        
+
         // 2. Check last name (siblings typically have the same last name in Vietnam)
         boolean sameLastName = hasSameLastName(person1.getFullName(), person2.getFullName());
         if (sameLastName) {
@@ -200,13 +200,13 @@ private RelationshipSuggestion scoreSibling(
             score -= 0.3;
             reasons.add("Different last names");
         }
-        
+
         // 3. Check if they share parents
         if (sharesParent(p1, p2, parentsOf)) {
             score += 0.6;
             reasons.add("Share at least one parent");
         }
-        
+
         // 4. Age gap check (siblings typically have smaller age gaps)
         Double ageGap = computeAgeGapYears(person1.getBirthDate(), person2.getBirthDate());
         if (ageGap != null) {
@@ -218,7 +218,7 @@ private RelationshipSuggestion scoreSibling(
                 reasons.add("Large age gap for siblings: " + ageGap.intValue() + " years");
             }
         }
-        
+
         // 5. Check for existing relationships that would conflict
         if (existing.contains("parent") || existingReverse.contains("parent") ||
                 existing.contains("child") || existingReverse.contains("child") ||
@@ -226,7 +226,7 @@ private RelationshipSuggestion scoreSibling(
             score -= 0.7;
             reasons.add("Conflicting relationship exists");
         }
-        
+
         // 6. If they are already marked as siblings
         if (existing.contains("sibling") || existingReverse.contains("sibling")) {
             score = 0.0;  // No need to suggest if already siblings
@@ -243,18 +243,18 @@ private RelationshipSuggestion scoreSibling(
         // Lấy từ đầu tiên làm họ (theo quy ước tên người Việt)
         String[] parts1 = name1.trim().split("\\s+");
         String[] parts2 = name2.trim().split("\\s+");
-        
+
         if (parts1.length == 0 || parts2.length == 0) {
             return false;
         }
-        
+
         // Lấy từ đầu tiên làm họ
         String lastName1 = parts1[0];
         String lastName2 = parts2[0];
-        
+
         return lastName1.equalsIgnoreCase(lastName2);
     }
-    
+
     private RelationshipSuggestion scoreSpouse(
             Double ageGap,
             UUID p1,
@@ -265,20 +265,20 @@ private RelationshipSuggestion scoreSibling(
             Set<String> existingReverse) {
         double score = 0.0;
         List<String> reasons = new ArrayList<>();
-        
+
         // Get person details
         Person person1 = personRepository.findById(p1).orElse(null);
         Person person2 = personRepository.findById(p2).orElse(null);
-        
+
         if (person1 == null || person2 == null) {
             return new RelationshipSuggestion("spouse", 0.0, Collections.singletonList("Person not found"));
         }
-        
+
         // Check if same person
         if (p1.equals(p2)) {
             return new RelationshipSuggestion("spouse", 0.0, Collections.singletonList("Same person"));
         }
-        
+
         // 1. Check gender (only suggest spouse for opposite gender in Vietnamese culture)
         if (person1.getGender() != null && person2.getGender() != null) {
             if (!person1.getGender().equals(person2.getGender())) {
@@ -333,7 +333,7 @@ private RelationshipSuggestion scoreSibling(
             score -= 1.0;
             reasons.add("Existing family relationship");
         }
-        
+
         // 6. Check if already spouses
         if (existing.contains("spouse") || existingReverse.contains("spouse")) {
             score = 0.0;
@@ -342,7 +342,7 @@ private RelationshipSuggestion scoreSibling(
 
         return new RelationshipSuggestion("spouse", clamp(score), reasons);
     }
-    
+
     private boolean sharesParent(UUID a, UUID b, Map<UUID, Set<UUID>> parentsOf) {
         Set<UUID> pa = parentsOf.getOrDefault(a, Collections.emptySet());
         Set<UUID> pb = parentsOf.getOrDefault(b, Collections.emptySet());

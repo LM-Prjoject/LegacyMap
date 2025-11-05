@@ -81,26 +81,22 @@ public class EventService {
                 .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
-        try {
-            if (request.getRelatedPersons() != null) {
-                event.setRelatedPersons(objectMapper.valueToTree(request.getRelatedPersons()));
-            }
-            if (request.getLocationCoordinates() != null) {
-                event.setLocationCoordinates(objectMapper.valueToTree(request.getLocationCoordinates()));
-            }
-            if (request.getReminder() != null) {
-                event.setReminder(objectMapper.valueToTree(request.getReminder()));
-            }
-        } catch (IllegalArgumentException e) {
-            log.error("Error parsing JSON data", e);
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        EventCreateRequest.ReminderConfig reminderConfig = request.getReminder();
+        if (reminderConfig == null) {
+            reminderConfig = new EventCreateRequest.ReminderConfig();
+        }
+        event.setReminder(objectMapper.valueToTree(reminderConfig));
+
+        if (request.getRelatedPersons() != null) {
+            event.setRelatedPersons(objectMapper.valueToTree(request.getRelatedPersons()));
+        }
+        if (request.getLocationCoordinates() != null) {
+            event.setLocationCoordinates(objectMapper.valueToTree(request.getLocationCoordinates()));
         }
 
         Event savedEvent = eventRepository.save(event);
 
-        if (request.getReminder() != null) {
-            eventReminderService.createRemindersForEvent(savedEvent);
-        }
+        eventReminderService.createRemindersForEvent(savedEvent);
 
         return mapToResponse(savedEvent);
     }
@@ -138,7 +134,10 @@ public class EventService {
             }
             if (request.getReminder() != null) {
                 event.setReminder(objectMapper.valueToTree(request.getReminder()));
+                eventRepository.save(event);
                 eventReminderService.updateRemindersForEvent(event);
+            } else if (event.getReminder() == null) {
+                event.setReminder(objectMapper.valueToTree(new EventCreateRequest.ReminderConfig()));
             }
         } catch (IllegalArgumentException e) {
             log.error("Error parsing JSON data", e);

@@ -165,15 +165,15 @@ public class RelationshipService {
             if (!familyTreeRepository.existsById(treeId)) {
                 throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
             }
-            
+
             List<Relationship> relationships = relationshipRepository.findByFamilyTreeId(treeId);
             System.out.println("Found " + relationships.size() + " relationships for tree: " + treeId);
-            
+
             // Chuyển đổi từ Entity sang DTO
             return relationships.stream()
                     .map(RelationshipDTO::fromEntity)
                     .collect(Collectors.toList());
-                    
+
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
@@ -187,21 +187,21 @@ public class RelationshipService {
         try {
             // Check if tree exists and user has access
             FamilyTree tree = loadOwnedTree(treeId, userId);
-            
+
             // Check if person exists and belongs to the tree
             Person person = loadPerson(personId);
             if (!person.getFamilyTree().getId().equals(treeId)) {
                 throw new AppException(ErrorCode.PERSON_NOT_FOUND);
             }
-            
+
             // Get all relationships where the person is either person1 or person2
             List<Relationship> relationships = relationshipRepository.findByPerson1IdOrPerson2Id(personId, personId);
-            
+
             // Convert to DTOs
             return relationships.stream()
                     .map(RelationshipDTO::fromEntity)
                     .collect(Collectors.toList());
-                    
+
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {

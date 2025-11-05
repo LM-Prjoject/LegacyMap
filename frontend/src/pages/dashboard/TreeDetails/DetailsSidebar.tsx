@@ -27,13 +27,13 @@ const formatDate = (dateString?: string | null, emptyText: string = 'Chưa cập
 };
 
 export default function DetailsSidebar({
-    tree,
-    selectedPerson,
-    memberCount,
-    generationCount,
-    onEditClick = () => {},
-    onAddClick,
-}: Props) {
+                                           tree,
+                                           selectedPerson,
+                                           memberCount,
+                                           generationCount,
+                                           onEditClick = () => {},
+                                           onAddClick,
+                                       }: Props) {
     return (
         <aside className="col-span-12 md:col-span-3 bg-white rounded-xl shadow overflow-hidden flex flex-col max-h-[calc(100vh-160px)]">
             <div className="relative h-[220px] w-full bg-slate-200 shrink-0">

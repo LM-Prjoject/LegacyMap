@@ -1,11 +1,14 @@
 package com.legacymap.backend.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -34,8 +37,9 @@ public class Notification {
     @Column(length = 50)
     private NotificationType type;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "related_entity", columnDefinition = "jsonb")
-    private String relatedEntity;
+    private JsonNode relatedEntity;
 
     @Column(name = "is_read")
     private Boolean isRead = false;
@@ -45,6 +49,6 @@ public class Notification {
     private OffsetDateTime createdAt;
 
     public enum NotificationType {
-        SYSTEM, UPDATE, INVITE, ALERT, EVENT_REMINDER
+        system, update, invite, alert, event_reminder
     }
 }

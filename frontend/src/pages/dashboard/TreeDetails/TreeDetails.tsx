@@ -110,16 +110,16 @@ export default function TreeDetails() {
             // Update the persons list with the new member
             const updatedPersons = [...persons, created];
             setPersons(updatedPersons);
-            
+
             // Set the newly created person as the source for relationship suggestions
             setSource(created);
-            
+
             // Show the relationship modal
             setModalOpen(true);
-            
+
             // Close the member modal
             setMemberOpen(false);
-            
+
             // Show success message
             showToast.success("Thêm thành viên thành công. Đang tìm kiếm mối quan hệ...");
         } catch (e: any) {
@@ -240,10 +240,10 @@ export default function TreeDetails() {
         if (relation === "PARENT" || relation === "CHILD") {
             const parentId = relation === "PARENT" ? person1Id : person2Id;
             const childId = relation === "PARENT" ? person2Id : person1Id;
-            
+
             // Find spouse relationships for the parent
-            const spouseRels = rels.filter(rel => 
-                rel.type === "SPOUSE" && 
+            const spouseRels = rels.filter(rel =>
+                rel.type === "SPOUSE" &&
                 (rel.fromPersonId === parentId || rel.toPersonId === parentId)
             );
 
@@ -251,7 +251,7 @@ export default function TreeDetails() {
             for (const rel of spouseRels) {
                 const spouseId = rel.fromPersonId === parentId ? rel.toPersonId : rel.fromPersonId;
                 const spouseKey = `PARENT:${spouseId}->${childId}`;
-                
+
                 if (!existingKeys.has(spouseKey)) {
                     try {
                         const spouseRel = await api.createRelationship(userId, treeId, {
@@ -259,12 +259,12 @@ export default function TreeDetails() {
                             person2Id: childId,
                             relationshipType: "PARENT",
                         });
-                        
-                        newRels.push({ 
-                            id: spouseRel?.id ?? crypto.randomUUID?.(), 
-                            fromPersonId: spouseId, 
-                            toPersonId: childId, 
-                            type: "PARENT" 
+
+                        newRels.push({
+                            id: spouseRel?.id ?? crypto.randomUUID?.(),
+                            fromPersonId: spouseId,
+                            toPersonId: childId,
+                            type: "PARENT"
                         });
                         showToast.success(`Đã thêm quan hệ với ${persons.find(p => p.id === spouseId)?.fullName || 'đối tác'}`);
                     } catch (error) {
@@ -294,10 +294,10 @@ export default function TreeDetails() {
                     confidence: number;
                     reasons: string[];
                 }> = [];
-                
+
                 // Only check against other persons (not self)
                 const otherPersons = persons.filter(p => p.id !== personId);
-                
+
                 // Process suggestions in batches to avoid too many API calls
                 const BATCH_SIZE = 5;
                 for (let i = 0; i < otherPersons.length; i += BATCH_SIZE) {
@@ -305,17 +305,17 @@ export default function TreeDetails() {
                     const batchPromises = batch.map(async (person) => {
                         try {
                             const suggestions = await api.suggestRelationship(
-                                userId, 
-                                treeId, 
-                                personId, 
+                                userId,
+                                treeId,
+                                personId,
                                 person.id
                             );
-                            
+
                             // Get the best suggestion for this pair
                             const bestSuggestion = suggestions.sort(
                                 (a, b) => (b.confidence || 0) - (a.confidence || 0)
                             )[0];
-                            
+
                             if (bestSuggestion && bestSuggestion.confidence && bestSuggestion.confidence > 0.3) {
                                 return {
                                     candidateId: person.id,
@@ -330,20 +330,20 @@ export default function TreeDetails() {
                             return null;
                         }
                     });
-                    
+
                     const batchResults = (await Promise.all(batchPromises)).filter(Boolean) as Array<{
                         candidateId: string;
                         relation: 'PARENT' | 'CHILD' | 'SPOUSE' | 'SIBLING';
                         confidence: number;
                         reasons: string[];
                     }>;
-                    
+
                     results.push(...batchResults);
                 }
-                
+
                 // Sort by confidence (highest first)
                 return results.sort((a, b) => b.confidence - a.confidence);
-                
+
             } catch (error) {
                 console.error('Error fetching suggestions:', error);
                 showToast.error('Có lỗi khi tải gợi ý mối quan hệ');
