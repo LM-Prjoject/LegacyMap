@@ -181,7 +181,7 @@ const FamilyTreeModal: FC<Props> = ({
     const canSubmit = !loading && !imgUploading;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-8">
             <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={onClose} />
             <div className="relative w-full max-w-lg rounded-2xl bg-white/10 text-slate-50 ring-1 ring-white/15 shadow-2xl shadow-black/40 backdrop-blur-xl animate-[modalIn_.2s_ease-out]">
                 <div className="flex items-center justify-between px-6 pt-5 pb-2">

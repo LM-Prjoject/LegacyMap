@@ -147,7 +147,7 @@ const EventsPage: React.FC = () => {
 
     const getLunarDisplayForDate = (date: Date): string => {
         const lsr = lunisolar(date);
-        const isLeap = lsr.lunar.isLeap;
+        const isLeap = (lsr.lunar as any).isLeap || false;
         const dayStr = getVietnameseLunarDay(lsr.lunar.day);
         const monthStr = getVietnameseLunarMonth(lsr.lunar.month, isLeap);
         return `${dayStr} ${monthStr}`;

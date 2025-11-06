@@ -69,7 +69,7 @@ export default function TreesList() {
                     <h2 className="text-ivory text-xl font-semibold">Cây của tôi</h2>
                     <button
                         onClick={() => setShowModal(true)}
-                        className="px-4 py-2 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-700 transition-colors"
+                        className="px-4 py-2 rounded-lg font-semibold text-[#20283d] bg-gradient-to-br from-[#b49e7b] to-[#d1b98a] shadow-[0_6px_20px_rgba(209,185,138,0.35)] hover:brightness-110 transition-all h-11 px-5 text-[15px]"
                     >
                         Tạo gia phả
                     </button>
@@ -89,6 +89,7 @@ export default function TreesList() {
                                 <li
                                     key={t.id}
                                     className="rounded-xl p-4 shadow-sm border border-white/10 bg-white/10 backdrop-blur-sm hover:bg-white/50 hover:backdrop-blur-lg hover:shadow-[0_0_20px_rgba(255,255,255,0.4)] hover:border-white/40 hover:scale-[1.02]"
+                                    style={{ position: 'relative', zIndex: 1 }}
                                 >
                                     <button className="block w-full text-left" onClick={() => goToDetail(t.id)}>
                                         {t.coverImageUrl ? (

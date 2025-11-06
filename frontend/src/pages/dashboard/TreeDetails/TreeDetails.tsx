@@ -9,7 +9,7 @@ import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
 
 import bg from "@/assets/bg.jpg";
-// import Navbar from "@/components/layout/Navbar";
+import Navbar from "@/components/layout/Navbar";
 import { ArrowLeft, LucideUserPlus } from "lucide-react";
 
 export default function TreeDetails() {
@@ -214,27 +214,35 @@ export default function TreeDetails() {
         <div className="relative min-h-screen">
             <img src={bg} className="absolute inset-0 w-full h-full object-cover -z-10" />
             <div className="absolute inset-0 bg-slate-900/40 -z-10" />
-            {/*<Navbar />*/}
 
-            <div className="px-4 md:px-6 mt-2">
-                <div className="w-full rounded-xl bg-gradient-to-r text-white">
+            {/* Navbar */}
+            <Navbar />
+
+            {/* Content with padding for fixed navbar */}
+            <div className="pt-24 px-4 md:px-6">
+                <div className="w-full rounded-xl text-white">
                     <div className="flex items-center justify-between px-4 py-2">
-                        <button onClick={() => navigate("/dashboard")} className="inline-flex items-center gap-2" title="Quay lại">
+                        <button
+                            onClick={() => navigate("/dashboard")}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm"
+                            title="Quay lại"
+                        >
                             <ArrowLeft className="w-4 h-4" />
                             <span>Quay lại</span>
                         </button>
                         <button
                             onClick={handleAddClick}
-                            className="inline-flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2 text-white shadow-sm hover:shadow transition"
+                            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-4 py-2 text-white shadow-lg hover:shadow-xl transition-all"
                             title="Thêm thành viên"
                         >
                             <LucideUserPlus className="w-5 h-5" />
+                            <span>Thêm thành viên</span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-12 gap-4 p-4">
+            <div className="grid grid-cols-12 gap-4 px-4 pb-4">
                 <DetailsSidebar
                     coverImageUrl={tree?.coverImageUrl}
                     name={tree?.name}

@@ -24,7 +24,7 @@ const EventFormPage: React.FC = () => {
         locationCoordinates: {},
         reminder: {
             daysBefore: 3,
-            methods: ['notification']
+            methods: ['notification'] as ('notification' | 'email')[]
         },
         isPublic: true
     });
@@ -81,12 +81,12 @@ const EventFormPage: React.FC = () => {
         }));
     };
 
-    const handleReminderChange = (field: keyof typeof formData.reminder, value: any) => {
+    const handleReminderChange = (field: 'daysBefore' | 'methods', value: number | string[]) => {
         setFormData(prev => ({
             ...prev,
             reminder: {
                 ...prev.reminder!,
-                [field]: value
+                [field]: field === 'daysBefore' ? value : value as ('notification' | 'email')[]
             }
         }));
     };
