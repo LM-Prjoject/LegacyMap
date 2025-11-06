@@ -10,10 +10,12 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "family_trees")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = "createdBy") // ✅ Tránh infinite loop khi log
 public class FamilyTree {
 
     @Id
@@ -26,8 +28,9 @@ public class FamilyTree {
     @Column(columnDefinition = "text")
     private String description;
 
+    // ✅ CRITICAL: Đảm bảo relationship đúng
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by", nullable = false, referencedColumnName = "id")
     private User createdBy;
 
     @Column(name = "is_public")
@@ -51,6 +54,9 @@ public class FamilyTree {
     void prePersist() {
         if (shareToken == null) {
             shareToken = UUID.randomUUID();
+        }
+        if (isPublic == null) {
+            isPublic = false;
         }
     }
 }

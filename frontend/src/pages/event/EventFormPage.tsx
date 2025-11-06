@@ -25,7 +25,7 @@ const EventFormPage: React.FC = () => {
         locationCoordinates: {},
         reminder: {
             daysBefore: 3,
-            methods: ['notification']
+            methods: ['notification'] as ('notification' | 'email')[]
         },
         isPublic: true
     });

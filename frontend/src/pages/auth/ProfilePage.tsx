@@ -191,19 +191,19 @@ export default function ProfilePage() {
 
     const isLocal = me?.provider?.toLowerCase?.() === "local";
     return (
-        <div className={`min-h-screen overflow-x-hidden relative ${editing ? "overflow-hidden" : ""}`}>
+        <div className={`min-h-screen relative ${editing ? "overflow-hidden" : ""}`}>
             {/* Enhanced Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0f1419] via-[#1e2a3a] to-[#0f1419]"></div>
+            <div className="fixed inset-0 bg-gradient-to-br from-[#0f1419] via-[#1e2a3a] to-[#0f1419] -z-10"></div>
 
             {/* Ambient glows - reduced intensity */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[700px] bg-gradient-radial from-[#ffd89b]/5 via-[#d4af7a]/2 to-transparent blur-[140px] rounded-full pointer-events-none animate-pulse-slow" />
-            <div className="absolute bottom-0 right-0 w-[900px] h-[550px] bg-gradient-radial from-[#ffd89b]/6 via-[#d4af7a]/2 to-transparent blur-[130px] rounded-full pointer-events-none animate-pulse-slow" />
+            <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[700px] bg-gradient-radial from-[#ffd89b]/5 via-[#d4af7a]/2 to-transparent blur-[140px] rounded-full pointer-events-none animate-pulse-slow -z-10" />
+            <div className="fixed bottom-0 right-0 w-[900px] h-[550px] bg-gradient-radial from-[#ffd89b]/6 via-[#d4af7a]/2 to-transparent blur-[130px] rounded-full pointer-events-none animate-pulse-slow -z-10" />
 
             {/* Noise texture */}
-            <div className="absolute inset-0 opacity-[0.025] pointer-events-none mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNhKSIvPjwvc3ZnPg==')]" />
+            <div className="fixed inset-0 opacity-[0.025] pointer-events-none mix-blend-overlay bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNhKSIvPjwvc3ZnPg==')] -z-10" />
 
             {/* Decorative Images */}
-            <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+            <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden -z-10">
                 <img
                     src={PicChim}
                     alt=""
@@ -370,41 +370,6 @@ export default function ProfilePage() {
 
             {/* Animations */}
             <style>{`
-                /* Prevent scrollbar jump - simple and effective solution */
-                html, body {
-                    overflow-x: hidden;
-                    margin: 0;
-                    padding: 0;
-                }
-                
-                body {
-                    min-height: 100vh;
-                }
-                
-                /* Custom scrollbar for better aesthetics */
-                ::-webkit-scrollbar {
-                    width: 10px;
-                }
-                
-                ::-webkit-scrollbar-track {
-                    background: #1e2a3a;
-                }
-                
-                ::-webkit-scrollbar-thumb {
-                    background: #ffd89b;
-                    border-radius: 5px;
-                }
-                
-                ::-webkit-scrollbar-thumb:hover {
-                    background: #d4af7a;
-                }
-                
-                /* Firefox scrollbar */
-                * {
-                    scrollbar-width: thin;
-                    scrollbar-color: #ffd89b #1e2a3a;
-                }
-                
                 @keyframes fade-in {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }
