@@ -6,6 +6,7 @@ import { EventType } from '@/types/event';
 import lunisolar from 'lunisolar';
 import Navbar from "@/components/layout/Navbar.tsx";
 import { useEventContext } from '@/contexts/EventContext';
+import EventDetailModal from "@/components/eventModal/EventDetailModal.tsx";
 import { format, parseISO, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { eventsApi } from '@/api/eventApi';
@@ -18,6 +19,8 @@ const EventsPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [currentTime, setCurrentTime] = useState(new Date());
     const [calendarView, setCalendarView] = useState<CalendarView>('month');
+    const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { eventsUpdated } = useEventContext();
     const userData = localStorage.getItem('user');
     const familyTreeId = userData
@@ -138,10 +141,19 @@ const EventsPage: React.FC = () => {
 
         try {
             const dayEvents = await eventsApi.getEventsInDateRange(familyTreeId, start, end);
-            console.log('Sự kiện trong ngày:', dayEvents);
-            // Mở modal ở đây
+            if (dayEvents.length === 1) {
+                // Nếu chỉ có 1 sự kiện → mở luôn modal chi tiết
+                setSelectedEventId(dayEvents[0].id);
+                setIsDetailModalOpen(true);
+            } else if (dayEvents.length > 1) {
+                // Nếu có nhiều → có thể mở danh sách nhỏ (tùy chọn)
+                // Hoặc chọn 1 cái đầu tiên
+                setSelectedEventId(dayEvents[0].id);
+                setIsDetailModalOpen(true);
+            }
+            // Nếu không có → không làm gì
         } catch (err) {
-            console.error('Lỗi:', err);
+            console.error('Lỗi lấy sự kiện theo ngày:', err);
         }
     };
 
@@ -439,7 +451,10 @@ const EventsPage: React.FC = () => {
                                 {getTodayEvents().map(event => (
                                     <div
                                         key={event.id}
-                                        onClick={() => navigate(`/events/${event.id}`)}
+                                        onClick={() => {
+                                            setSelectedEventId(event.id);
+                                            setIsDetailModalOpen(true);
+                                        }}
                                         className="p-4 rounded-xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl"
                                         style={{
                                             background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.1) 0%, rgba(42, 53, 72, 0.05) 100%)',
@@ -480,7 +495,10 @@ const EventsPage: React.FC = () => {
                                 {getUpcomingEvents().map(event => (
                                     <div
                                         key={event.id}
-                                        onClick={() => navigate(`/events/${event.id}`)}
+                                        onClick={() => {
+                                            setSelectedEventId(event.id);
+                                            setIsDetailModalOpen(true);
+                                        }}
                                         className="p-4 rounded-xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl"
                                         style={{backgroundColor: 'rgba(255, 216, 155, 0.15)', border: '1px solid rgba(255, 216, 155, 0.3)'}}
                                     >
@@ -504,6 +522,25 @@ const EventsPage: React.FC = () => {
                         )}
                     </div>
                 </div>
+                {/* Event Detail Modal */}
+                {isDetailModalOpen && selectedEventId && (
+                    <EventDetailModal
+                        eventId={selectedEventId}
+                        isOpen={isDetailModalOpen}
+                        onClose={() => {
+                            setIsDetailModalOpen(false);
+                            setSelectedEventId(null);
+                        }}
+                        onDelete={() => {
+                            refetchEvents();
+                            setIsDetailModalOpen(false);
+                            setSelectedEventId(null);
+                        }}
+                        onUpdate={() => {
+                            refetchEvents();
+                        }}
+                    />
+                )}
             </div>
         </div>
     );

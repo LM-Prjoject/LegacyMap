@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, ChevronDown, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, Users, FileText, Lock, MapPin, Calendar, Bell } from 'lucide-react';
 import { eventsApi } from '@/api/eventApi';
 import { EventCreateRequest, EventType, CalendarType, RecurrenceRule } from '@/types/event';
 import { useEventContext } from '@/contexts/EventContext';
 import { formatInTimeZone } from 'date-fns-tz';
+import Navbar from "@/components/layout/Navbar.tsx";
 
 const EventFormPage: React.FC = () => {
     const navigate = useNavigate();
@@ -81,14 +82,21 @@ const EventFormPage: React.FC = () => {
         }));
     };
 
-    const handleReminderChange = (field: keyof typeof formData.reminder, value: any) => {
-        setFormData(prev => ({
-            ...prev,
-            reminder: {
-                ...prev.reminder!,
-                [field]: value
-            }
-        }));
+    const handleReminderChange = <K extends keyof NonNullable<EventCreateRequest["reminder"]>>(
+        field: K,
+        value: NonNullable<EventCreateRequest["reminder"]>[K]
+    ) => {
+        setFormData(prev => {
+            const reminder = {
+                ...(prev.reminder ?? {}),
+                [field]: value,
+            } as NonNullable<EventCreateRequest["reminder"]>;
+
+            return {
+                ...prev,
+                reminder,
+            };
+        });
     };
 
     const reminderOptions = [
@@ -105,101 +113,132 @@ const EventFormPage: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-blue-50 to-amber-100">
+        <div className="min-h-screen" style={{
+            background: 'linear-gradient(135deg, #1a1f2e 0%, #2a3548 50%, #1f2937 100%)',
+        }}>
+            <Navbar />
+            <div className="h-16"></div>
             {/* Header */}
-            <div className="bg-white border-b border-blue-100 sticky top-0 z-10 shadow-sm">
-                <div className="max-w-3xl mx-auto px-6 py-4">
-                    <div className="flex justify-between items-center">
-                        <button
-                            type="button"
-                            onClick={() => navigate('/events')}
-                            className="p-2 hover:bg-blue-50 rounded-full transition-colors"
-                        >
-                            <ArrowLeft className="w-6 h-6 text-blue-900" />
-                        </button>
-                        <h1 className="text-xl font-bold text-blue-900">Tạo sự kiện mới</h1>
-                        <button
-                            type="submit"
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-2 rounded-full flex items-center gap-2 hover:shadow-lg transition-all duration-300 disabled:opacity-50"
-                        >
-                            <Save className="w-4 h-4" />
-                            {loading ? 'Đang tạo...' : 'Lưu'}
-                        </button>
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 relative z-10">
+                <div className="flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/events')}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5"
+                        style={{ color: 'rgb(255, 216, 155)' }}
+                    >
+                        <ArrowLeft className="w-5 h-5 text-[rgb(255,216,155)] group-hover:-translate-x-1 transition-transform" />
+                        <span className="hidden sm:inline font-medium">Quay lại</span>
+                    </button>
+                    <div className="text-center flex-1">
+                        <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[rgb(255,216,155)] via-white to-[rgb(255,216,155)] bg-clip-text text-transparent">
+                            Tạo Sự Kiện Mới
+                        </h1>
                     </div>
+                    <div className="w-20 sm:w-24"></div>
                 </div>
             </div>
 
             {error && (
-                <div className="max-w-3xl mx-auto px-6 py-4">
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                        {error}
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-6">
+                    <div className="p-4 rounded-2xl border animate-pulse" style={{
+                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%)',
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                    }}>
+                        <p className="text-red-300 text-center font-medium">{error}</p>
                     </div>
                 </div>
             )}
 
             {/* Main form */}
-            <div className="max-w-3xl mx-auto px-6 py-8">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-20">
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Event Scope Selector */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-3">
-                            Phạm vi sự kiện
-                        </label>
+                    <div className="group relative rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style={{
+                        background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.1) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 4px 32px rgba(255, 216, 155, 0.1)'
+                    }}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <Users className="w-5 h-5 text-[rgb(255,216,155)]" />
+                            <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                Phạm vi sự kiện
+                            </label>
+                        </div>
                         <div className="flex gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <label className="flex items-center gap-2 cursor-pointer group">
                                 <input
                                     type="radio"
                                     name="eventScope"
                                     value="family"
                                     checked={!isPersonalEvent}
                                     onChange={() => setIsPersonalEvent(false)}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="w-4 h-4"
+                                    style={{ accentColor: 'rgb(255, 216, 155)' }}
                                 />
-                                <span className="text-blue-900">Sự kiện của cây gia phả</span>
+                                <span className="text-white/90 group-hover:text-white transition-colors">Sự kiện gia đình</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <label className="flex items-center gap-2 cursor-pointer group">
                                 <input
                                     type="radio"
                                     name="eventScope"
                                     value="personal"
                                     checked={isPersonalEvent}
                                     onChange={() => setIsPersonalEvent(true)}
-                                    className="text-blue-600 focus:ring-blue-500"
+                                    className="w-4 h-4"
+                                    style={{ accentColor: 'rgb(255, 216, 155)' }}
                                 />
-                                <span className="text-blue-900">Sự kiện cá nhân</span>
+                                <span className="text-white/90 group-hover:text-white transition-colors">Sự kiện cá nhân</span>
                             </label>
                         </div>
                     </div>
+
                     {/* Event Name */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-2">
-                            Tên sự kiện<span className="text-red-500">*</span>
+                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
+                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <label className="block text-lg font-bold text-[rgb(255,216,155)] mb-3">
+                            Tên sự kiện <span className="text-red-400">*</span>
                         </label>
                         <input
                             type="text"
                             value={formData.title}
                             onChange={(e) => handleInputChange('title', e.target.value)}
                             placeholder="Nhập tên sự kiện"
-                            className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-blue-50/50"
+                            className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 216, 155, 0.2)',
+                                color: 'white'
+                            }}
                             required
                         />
                     </div>
 
                     {/* Event Type */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-2">
+                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
+                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <label className="block text-lg font-bold text-[rgb(255,216,155)] mb-3">
                             Loại sự kiện
                         </label>
                         <div className="relative">
                             <select
                                 value={formData.eventType}
                                 onChange={(e) => handleInputChange('eventType', e.target.value as EventType)}
-                                className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
+                                className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 216, 155, 0.2)',
+                                    color: 'white'
+                                }}
                             >
                                 {Object.values(EventType).map(type => (
-                                    <option key={type} value={type}>
+                                    <option key={type} value={type} className="bg-[#2a3548]">
                                         {type === EventType.BIRTHDAY && 'Sinh nhật'}
                                         {type === EventType.DEATH_ANNIVERSARY && 'Ngày giỗ'}
                                         {type === EventType.WEDDING_ANNIVERSARY && 'Ngày cưới'}
@@ -211,172 +250,264 @@ const EventFormPage: React.FC = () => {
                                     </option>
                                 ))}
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400 pointer-events-none" />
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[rgb(255,216,155)] pointer-events-none" />
                         </div>
                     </div>
 
+
+                    {/* Location */}
+                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
+                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <MapPin className="w-5 h-5 text-[rgb(255,216,155)]" />
+                            <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                Địa điểm
+                            </label>
+                        </div>
+                        <input
+                            type="text"
+                            value={formData.location || ''}
+                            onChange={(e) => handleInputChange('location', e.target.value)}
+                            placeholder="Nhập địa điểm sự kiện"
+                            className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 216, 155, 0.2)',
+                                color: 'white'
+                            }}
+                        />
+                    </div>
+
                     {/* Time Section */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-3">Thời gian</label>
-                        <div className="grid grid-cols-2 gap-4">
+                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
+                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <Calendar className="w-5 h-5 text-[rgb(255,216,155)]" />
+                            <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                Thời gian
+                            </label>
+                        </div>
+                        <div className="space-y-4">
                             {/* Start Date & Time */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-blue-700">Thời gian bắt đầu</label>
-                                <div className="relative">
-                                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400" />
-                                    <input
-                                        type="datetime-local"
-                                        value={formData.startDate}
-                                        onChange={(e) => handleInputChange('startDate', e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
-                                        required
-                                    />
-                                </div>
+                            <div>
+                                <label className="block text-s font-medium text-white/70 mb-2">Thời gian bắt đầu</label>
+                                <input
+                                    type="datetime-local"
+                                    value={formData.startDate}
+                                    onChange={(e) => handleInputChange('startDate', e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
+                                    style={{
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 216, 155, 0.3)',
+                                        color: 'white'
+                                    }}
+                                    required
+                                />
                             </div>
 
                             {/* End Date & Time */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-medium text-blue-700">Thời gian kết thúc (tùy chọn)</label>
-                                <div className="relative">
-                                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400" />
+                            <div>
+                                <label className="block text-s font-medium text-white/70 mb-2">Thời gian kết thúc (tùy chọn)</label>
+                                <input
+                                    type="datetime-local"
+                                    value={formData.endDate}
+                                    onChange={(e) => handleInputChange('endDate', e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
+                                    style={{
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 216, 155, 0.3)',
+                                        color: 'white'
+                                    }}
+                                />
+                            </div>
+                            {/* Full Day Option */}
+                            <div className="mt-4">
+                                <label className="flex items-center gap-2 mt-4 cursor-pointer group">
                                     <input
-                                        type="datetime-local"
-                                        value={formData.endDate}
-                                        onChange={(e) => handleInputChange('endDate', e.target.value)}
-                                        className="w-full pl-10 pr-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
+                                        type="checkbox"
+                                        checked={formData.isFullDay || false}
+                                        onChange={(e) => handleInputChange('isFullDay', e.target.checked)}
+                                        className="w-4 h-4 rounded"
+                                        style={{ accentColor: 'rgb(255, 216, 155)' }}
                                     />
-                                </div>
+                                    <span className="text-white/90 group-hover:text-white transition-colors">Sự kiện cả ngày</span>
+                                </label>
                             </div>
                         </div>
 
                         {/* Calendar Type */}
                         <div className="mt-4">
-                            <label className="block text-sm font-medium text-blue-700 mb-2">Loại lịch</label>
+                            <label className="block text-m font-semibold mb-3" style={{ color: 'rgb(255, 216, 155)' }}>Loại lịch</label>
                             <div className="flex gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
+                                <label className="flex items-center gap-2 cursor-pointer group">
                                     <input
                                         type="radio"
                                         name="calendarType"
                                         value={CalendarType.SOLAR}
                                         checked={formData.calendarType === CalendarType.SOLAR}
                                         onChange={(e) => handleInputChange('calendarType', e.target.value as CalendarType)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="w-4 h-4"
+                                        style={{ accentColor: 'rgb(255, 216, 155)' }}
                                     />
-                                    <span className="text-blue-900">Dương lịch</span>
+                                    <span className="text-white/90 group-hover:text-white transition-colors">Dương lịch</span>
                                 </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
+                                <label className="flex items-center gap-2 cursor-pointer group">
                                     <input
                                         type="radio"
                                         name="calendarType"
                                         value={CalendarType.LUNAR}
                                         checked={formData.calendarType === CalendarType.LUNAR}
                                         onChange={(e) => handleInputChange('calendarType', e.target.value as CalendarType)}
-                                        className="text-blue-600 focus:ring-blue-500"
+                                        className="w-4 h-4"
+                                        style={{ accentColor: 'rgb(255, 216, 155)' }}
                                     />
-                                    <span className="text-blue-900">Âm lịch</span>
+                                    <span className="text-white/90 group-hover:text-white transition-colors">Âm lịch</span>
                                 </label>
                             </div>
-                        </div>
-
-                        {/* Full Day Option */}
-                        <div className="mt-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.isFullDay || false}
-                                    onChange={(e) => handleInputChange('isFullDay', e.target.checked)}
-                                    className="rounded text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="text-blue-900">Sự kiện cả ngày</span>
-                            </label>
                         </div>
                     </div>
 
                     {/* Reminder Section */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-3">
-                            Gửi thông báo nhắc nhở
-                        </label>
+                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
+                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <Bell className="w-5 h-5 text-[rgb(255,216,155)]" />
+                            <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                Thông báo nhắc nhở
+                            </label>
+                        </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4">
                             {/* Reminder Time */}
                             <div>
-                                <label className="block text-sm font-medium text-blue-700 mb-2">Thời gian nhắc nhở</label>
+                                <label className="block text-s font-medium text-white/70 mb-2">Thời gian nhắc nhở</label>
                                 <div className="relative">
                                     <select
                                         value={String(formData.reminder?.daysBefore ?? 3)}
                                         onChange={(e) => handleReminderChange('daysBefore', Number(e.target.value))}
-                                        className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
+                                        className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            border: '1px solid rgba(255, 216, 155, 0.3)',
+                                            color: 'white'
+                                        }}
                                     >
                                         {reminderOptions.map(option => (
-                                            <option key={option.value} value={String(option.value)}>
+                                            <option key={option.value} value={String(option.value)} className="bg-[#2a3548]">
                                                 {option.label}
                                             </option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400 pointer-events-none" />
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(255,216,155)] pointer-events-none" />
                                 </div>
                             </div>
 
                             {/* Reminder Method */}
                             <div>
-                                <label className="block text-sm font-medium text-blue-700 mb-2">Phương thức</label>
+                                <label className="block text-s font-medium text-white/70 mb-2">Phương thức</label>
                                 <div className="relative">
                                     <select
                                         value={formData.reminder?.methods?.[0] || 'notification'}
                                         onChange={(e) => handleReminderChange('methods', [e.target.value])}
-                                        className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
+                                        className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            border: '1px solid rgba(255, 216, 155, 0.3)',
+                                            color: 'white'
+                                        }}
                                     >
                                         {methodOptions.map(option => (
-                                            <option key={option.value} value={option.value}>
+                                            <option key={option.value} value={option.value} className="bg-[#2a3548]">
                                                 {option.label}
                                             </option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400 pointer-events-none" />
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(255,216,155)] pointer-events-none" />
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Description */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-2">Mô tả</label>
+                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.01]" style={{
+                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <FileText className="w-5 h-5 text-[rgb(255,216,155)]" />
+                            <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                Mô tả
+                            </label>
+                        </div>
                         <textarea
                             value={formData.description}
                             onChange={(e) => handleInputChange('description', e.target.value)}
-                            placeholder="Nhập mô tả sự kiện"
+                            placeholder="Nhập mô tả chi tiết về sự kiện..."
                             rows={4}
-                            className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-blue-50/50 resize-none"
-                        />
-                    </div>
-
-                    {/* Location */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-2">Địa điểm</label>
-                        <input
-                            type="text"
-                            value={formData.location || ''}
-                            onChange={(e) => handleInputChange('location', e.target.value)}
-                            placeholder="Nhập địa điểm sự kiện"
-                            className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-blue-50/50"
+                            className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] resize-none transition-all"
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 216, 155, 0.2)',
+                                color: 'white'
+                            }}
                         />
                     </div>
 
                     {/* Privacy */}
-                    <div className="bg-white rounded-2xl shadow-lg p-6">
-                        <label className="block text-sm font-semibold text-blue-900 mb-2">Quyền riêng tư</label>
+                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.01]" style={{
+                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <Lock className="w-5 h-5 text-[rgb(255,216,155)]" />
+                            <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                Quyền riêng tư
+                            </label>
+                        </div>
                         <div className="relative">
                             <select
                                 value={formData.isPublic ? 'public' : 'private'}
                                 onChange={(e) => handleInputChange('isPublic', e.target.value === 'public')}
-                                className="w-full px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50 appearance-none cursor-pointer"
+                                className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 216, 155, 0.2)',
+                                    color: 'white'
+                                }}
                             >
-                                <option value="public">Công khai</option>
-                                <option value="private">Riêng tư</option>
+                                <option value="public" className="bg-[#2a3548]">Công khai</option>
+                                <option value="private" className="bg-[#2a3548]">Riêng tư</option>
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-400 pointer-events-none" />
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[rgb(255,216,155)] pointer-events-none" />
                         </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group"
+                            style={{
+                                background: 'linear-gradient(135deg, rgb(255, 216, 155) 0%, rgb(255, 196, 115) 100%)',
+                                color: '#1a1f2e',
+                                boxShadow: '0 4px 12px rgba(255, 216, 155, 0.3)',
+                            }}
+                        >
+                            <Save className="w-4 h-4" />
+                            <span>{loading ? 'Đang tạo...' : 'Lưu'}</span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -384,4 +515,4 @@ const EventFormPage: React.FC = () => {
     );
 };
 
-    export default EventFormPage;
+export default EventFormPage;
