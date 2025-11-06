@@ -6,6 +6,7 @@ import com.legacymap.backend.dto.request.PersonCreateRequest;
 import com.legacymap.backend.dto.request.PersonUpdateRequest;
 import com.legacymap.backend.dto.request.RelationshipCreateRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
+import com.legacymap.backend.dto.response.RelationshipDTO;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.entity.Relationship;
@@ -76,7 +77,7 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-//======================================================================================================================
+    //======================================================================================================================
     @PostMapping("/{treeId}/members")
     public ResponseEntity<ApiResponse<Person>> addMember(
             @PathVariable("treeId") UUID treeId,
@@ -115,11 +116,21 @@ public class FamilyTreeController {
     //==================================================================================================================
 
     @GetMapping("/{treeId}/relationships")
-    public ResponseEntity<ApiResponse<List<Relationship>>> listRelationships(
+    public ResponseEntity<ApiResponse<List<RelationshipDTO>>> listRelationships(
             @PathVariable("treeId") UUID treeId,
             @RequestParam("userId") String userId
     ) {
-        List<Relationship> rels = relationshipService.listByTree(treeId, parseUserId(userId));
+        List<RelationshipDTO> rels = relationshipService.listByTree(treeId, parseUserId(userId));
+        return ResponseEntity.ok(ApiResponse.success(rels));
+    }
+
+    @GetMapping("/{treeId}/persons/{personId}/relationships")
+    public ResponseEntity<ApiResponse<List<RelationshipDTO>>> listPersonRelationships(
+            @PathVariable("treeId") UUID treeId,
+            @PathVariable("personId") UUID personId,
+            @RequestParam("userId") String userId
+    ) {
+        List<RelationshipDTO> rels = relationshipService.listByPerson(treeId, parseUserId(userId), personId);
         return ResponseEntity.ok(ApiResponse.success(rels));
     }
 

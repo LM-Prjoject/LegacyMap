@@ -14,9 +14,9 @@ import AdminLayout from '@/components/admin/AdminLayout'
 import FamilyTreesPage from '@/pages/admin/FamilyTreesPage'
 import EventsPage from '@/pages/event/EventsPage'
 import EventFormPage from "@/pages/event/EventFormPage.tsx";
-import EventDetailPage from '@/pages/event/EventDetailPage'
 import { EventProvider } from '@/contexts/EventContext';
 import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx';
+import NotificationsPage from "@/pages/auth/NotificationsPage.tsx";
 
 export const router = createBrowserRouter([
     {
@@ -77,9 +77,10 @@ export const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+
     {
-        path: '/events/:id',
-        element: <ProtectedRoute><EventDetailPage /></ProtectedRoute>
+        path: '/notifications',
+        element: <ProtectedRoute><NotificationsPage /></ProtectedRoute>
     },
 
     // Admin routes với đầy đủ children
@@ -98,7 +99,7 @@ export const router = createBrowserRouter([
                 element: <AdminDashboard />
             },
             {
-                path: 'dashboard', // ← THÊM
+                path: 'dashboard',
                 element: <AdminDashboard />
             },
             {

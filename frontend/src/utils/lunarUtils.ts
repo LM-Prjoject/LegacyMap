@@ -41,8 +41,7 @@ export const getVietnameseZodiac = (zodiac: string): string => {
 // Lấy dữ liệu âm lịch + can chi + giờ
 export const getLunarInfo = (date: Date) => {
     const lsr = lunisolar(date);
-    // Fix: Kiểm tra isLeap an toàn
-    const isLeap = (lsr.lunar as any).isLeap || false;
+    const isLeap = lsr.lunar.isLeapMonth;
     const hour = date.getHours();
 
     const hourBranchIndex = Math.floor((hour + 1) / 2) % 12;
