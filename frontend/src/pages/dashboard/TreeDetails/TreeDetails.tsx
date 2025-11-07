@@ -584,7 +584,7 @@ export default function TreeDetails() {
                 <Navbar />
             </div>
 
-            <div className="relative z-10 mt-16 px-4 md:px-6">
+            <div className="relative z-10 px-4 md:px-6">
                 <div className="w-full rounded-xl text-white">
                     <div className="flex items-center justify-between px-4 py-3">
                         <button
