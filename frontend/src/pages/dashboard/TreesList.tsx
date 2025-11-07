@@ -133,6 +133,7 @@ export default function TreesList() {
                             else load();
                             setShowModal(false);
                         }}
+
                     />
                 )}
                 {editingTree && (
