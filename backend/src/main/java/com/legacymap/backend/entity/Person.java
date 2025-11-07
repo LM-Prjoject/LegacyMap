@@ -57,9 +57,6 @@ public class Person {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    @Column(name = "generation")
-    private Integer generation;
-
     @PrePersist
     void prePersist() {
         createdAt = OffsetDateTime.now();

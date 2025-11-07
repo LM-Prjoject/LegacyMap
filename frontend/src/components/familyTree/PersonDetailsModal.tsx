@@ -21,75 +21,63 @@ const formatDate = (dateString?: string | null) => {
 
 const getRelationshipText = (rel: Relationship, currentPersonId: string, persons: any[]) => {
     try {
-        // Debug log
-        console.log('Processing relationship:', rel);
-
         const otherPersonId = rel.fromPersonId === currentPersonId ? rel.toPersonId : rel.fromPersonId;
         const otherPerson = persons.find(p => p.id === otherPersonId);
-
-        if (!otherPerson) {
-            console.warn(`Could not find person with ID: ${otherPersonId}`);
-            return null;
-        }
+        if (!otherPerson) return null;
 
         const otherPersonName = otherPerson.fullName || 'Không rõ';
         const isFromPerson = rel.fromPersonId === currentPersonId;
-
-        // Determine relationship type in Vietnamese
-        let relationshipText = '';
-        // Get current person's gender
         const currentPerson = persons.find(p => p.id === currentPersonId);
-        console.log('Current person data:', {
-            id: currentPersonId,
-            gender: currentPerson?.gender,
-            name: currentPerson?.fullName,
-            allPersons: persons.map(p => ({ id: p.id, name: p.fullName, gender: p.gender }))
-        });
-        
-        const isCurrentPersonFemale = currentPerson?.gender?.toUpperCase() === 'FEMALE' || currentPerson?.gender === 'Nữ';
-        console.log('isCurrentPersonFemale:', isCurrentPersonFemale);
-        
+
+        const parse = (d?: string) => {
+            const t = d ? new Date(d) : null;
+            return t && !isNaN(t.getTime()) ? t : null;
+        };
+
+        const genderOf = (p: any) => String(p?.gender ?? "").toUpperCase();
+
+        let relationshipText = "";
+
         switch (rel.type) {
             case 'SPOUSE':
-                // If current person is female, show "Chồng:" (husband), otherwise show "Vợ:" (wife)
-                relationshipText = isCurrentPersonFemale 
-                    ? `Chồng: ${otherPersonName}`
-                    : `Vợ: ${otherPersonName}`;
-                console.log('Setting spouse text:', { relationshipText, isCurrentPersonFemale });
+                relationshipText = genderOf(currentPerson) === 'FEMALE' ? `Chồng: ${otherPersonName}` : `Vợ: ${otherPersonName}`;
                 break;
             case 'PARENT':
-                if (isFromPerson) {
-                    relationshipText = `Con: ${otherPersonName}`;
-                } else {
-                    const otherPerson = persons.find(p => p.id === otherPersonId);
-                    const isOtherPersonFemale = otherPerson?.gender?.toUpperCase() === 'FEMALE' || otherPerson?.gender === 'Nữ';
-                    relationshipText = isOtherPersonFemale ? `Mẹ: ${otherPersonName}` : `Bố: ${otherPersonName}`;
-                }
+                if (isFromPerson) relationshipText = `Con: ${otherPersonName}`;
+                else relationshipText = genderOf(otherPerson) === 'FEMALE' ? `Mẹ: ${otherPersonName}` : `Bố: ${otherPersonName}`;
                 break;
-            case 'CHILD':
+            case 'CHILD': {
                 if (isFromPerson) {
-                    const otherPerson = persons.find(p => p.id === otherPersonId);
-                    const isOtherPersonFemale = otherPerson?.gender?.toUpperCase() === 'FEMALE' || otherPerson?.gender === 'Nữ';
-                    relationshipText = isOtherPersonFemale ? `Mẹ: ${otherPersonName}` : `Bố: ${otherPersonName}`;
+                    relationshipText = genderOf(otherPerson) === 'FEMALE'
+                        ? `Mẹ: ${otherPersonName}`
+                        : `Bố: ${otherPersonName}`;
                 } else {
                     relationshipText = `Con: ${otherPersonName}`;
                 }
                 break;
-            case 'SIBLING':
-                relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
+            }
+            case 'SIBLING': {
+                const curDOB = parse(currentPerson?.birthDate);
+                const othDOB = parse(otherPerson?.birthDate);
+                if (curDOB && othDOB) {
+                    if (othDOB < curDOB) {
+                        relationshipText = genderOf(otherPerson) === 'FEMALE' ? `Chị: ${otherPersonName}` : `Anh: ${otherPersonName}`;
+                    } else if (othDOB > curDOB) {
+                        relationshipText = `Em: ${otherPersonName}`;
+                    } else {
+                        relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
+                    }
+                } else {
+                    relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
+                }
                 break;
+            }
             default:
                 relationshipText = `Quan hệ: ${otherPersonName} (${rel.type})`;
         }
 
-        return {
-            text: relationshipText,
-            person: otherPerson,
-            type: rel.type,
-            relationshipId: rel.id
-        };
-    } catch (error) {
-        console.error('Error in getRelationshipText:', error);
+        return { text: relationshipText, person: otherPerson, type: rel.type, relationshipId: rel.id };
+    } catch {
         return null;
     }
 };
@@ -111,7 +99,6 @@ export default function PersonDetailsModal({
 
     useEffect(() => {
         if (!person?.id || !relationships?.length || !persons?.length) {
-            console.log('Missing required data, clearing relationships');
             setFilteredRelationships([]);
             return;
         }
@@ -325,15 +312,6 @@ export default function PersonDetailsModal({
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="sticky bottom-0 bg-white px-6 py-4 border-t flex justify-end space-x-3">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                        >
-                            Đóng
-                        </button>
                     </div>
                 </div>
             </div>

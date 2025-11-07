@@ -39,7 +39,6 @@ export default function ProfilePage() {
         fetchProvinces().then(setProvinces).catch(() => setProvinces([]));
     }, []);
 
-    /** Load user info */
     useEffect(() => {
         (async () => {
             const u = await authApi.getMe();
