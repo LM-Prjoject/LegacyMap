@@ -1,6 +1,7 @@
 package com.legacymap.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legacymap.backend.dto.request.EventCreateRequest;
 import com.legacymap.backend.dto.response.EventReminderResponse;
 import com.legacymap.backend.entity.Event;
 import com.legacymap.backend.entity.EventReminder;
@@ -15,11 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,14 +37,12 @@ public class EventReminderService {
     @Transactional
     public void createRemindersForEvent(Event event) {
         try {
-            Map<String, Object> reminderConfig = objectMapper.convertValue(
-                    event.getReminder(),
-                    objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class)
+            EventCreateRequest.ReminderConfig reminderCfg = objectMapper.convertValue(
+                    event.getReminder(), EventCreateRequest.ReminderConfig.class
             );
 
-            Integer daysBefore = (Integer) reminderConfig.get("days_before");
-            @SuppressWarnings("unchecked")
-            List<String> methods = (List<String>) reminderConfig.get("methods");
+            Integer daysBefore = reminderCfg.getDaysBefore();
+            List<String> methods = reminderCfg.getMethods();
 
             if (daysBefore == null || methods == null || methods.isEmpty()) {
                 log.warn("Invalid reminder config for event {}", event.getId());
@@ -70,12 +67,19 @@ public class EventReminderService {
 
         for (String method : methods) {
             try {
+                EventReminder.SendMethod sendMethod = switch (method.toLowerCase()) {
+                    case "email" -> EventReminder.SendMethod.email;
+                    case "notification" -> EventReminder.SendMethod.notification;
+                    case "both" -> EventReminder.SendMethod.both;
+                    default -> throw new IllegalArgumentException("Invalid method: " + method);
+                };
+
                 EventReminder reminder = EventReminder.builder()
                         .event(event)
                         .user(user)
                         .scheduledAt(reminderTime)
-                        .sendMethod(EventReminder.SendMethod.valueOf(method.toUpperCase()))
-                        .status(EventReminder.ReminderStatus.PENDING)
+                        .sendMethod(sendMethod)
+                        .status(EventReminder.ReminderStatus.pending)
                         .build();
 
                 eventReminderRepository.save(reminder);
@@ -112,13 +116,13 @@ public class EventReminderService {
         for (EventReminder reminder : pendingReminders) {
             try {
                 sendReminder(reminder);
-                reminder.setStatus(EventReminder.ReminderStatus.SENT);
+                reminder.setStatus(EventReminder.ReminderStatus.sent);
                 reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
                 eventReminderRepository.save(reminder);
                 log.info("Successfully sent reminder {}", reminder.getId());
             } catch (Exception e) {
                 log.error("Failed to send reminder {}", reminder.getId(), e);
-                reminder.setStatus(EventReminder.ReminderStatus.FAILED);
+                reminder.setStatus(EventReminder.ReminderStatus.failed);
                 eventReminderRepository.save(reminder);
             }
         }
@@ -133,21 +137,33 @@ public class EventReminderService {
             return;
         }
 
-        // Gửi notification trong hệ thống
-        notificationService.sendEventReminderNotification(
-                user.getId(),
-                event.getTitle(),
-                event.getStartDate(),
-                event.getId()
-        );
+        EventReminder.SendMethod method = reminder.getSendMethod();
 
-        // Nếu chọn email hoặc both
-        if (reminder.getSendMethod() == EventReminder.SendMethod.EMAIL ||
-                reminder.getSendMethod() == EventReminder.SendMethod.BOTH) {
+        // Gửi NOTIFICATION
+        if (method == EventReminder.SendMethod.notification || method == EventReminder.SendMethod.both) {
+            try {
+                notificationService.sendEventReminderNotification(
+                        user.getId(),
+                        event.getTitle(),
+                        event.getStartDate(),
+                        event.getId()
+                );
+                log.info("Sent web notification for reminder {}", reminder.getId());
+            } catch (Exception e) {
+                log.error("Failed to send web notification for reminder {}", reminder.getId(), e);
+            }
+        }
 
-            String subject = "Nhắc nhở sự kiện: " + event.getTitle();
-            String message = buildReminderMessage(event);
-            sendEmail(user.getEmail(), subject, message);
+        // Gửi EMAIL
+        if (method == EventReminder.SendMethod.email || method == EventReminder.SendMethod.both) {
+            try {
+                String subject = "Nhắc nhở sự kiện: " + event.getTitle();
+                String message = buildReminderMessage(event);
+                sendEmail(user.getEmail(), subject, message);
+                log.info("Sent email for reminder {}", reminder.getId());
+            } catch (Exception e) {
+                log.error("Failed to send email for reminder {}", reminder.getId(), e);
+            }
         }
     }
 
@@ -188,7 +204,7 @@ public class EventReminderService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         return eventReminderRepository.findByUserAndStatusOrderByScheduledAtAsc(
-                        user, EventReminder.ReminderStatus.PENDING)
+                        user, EventReminder.ReminderStatus.pending)
                 .stream()
                 .map(this::mapReminderToResponse)
                 .collect(Collectors.toList());
@@ -252,7 +268,7 @@ public class EventReminderService {
                 // Kiểm tra xem đã có reminder cho event này trong 7 ngày tới chưa
                 List<EventReminder> existing = eventReminderRepository.findByEventId(event.getId())
                         .stream()
-                        .filter(r -> r.getScheduledAt().isAfter(nowUtc.minusDays(1)))
+                        .filter(r -> r.getScheduledAt().isAfter(nowUtc.minusDays(1)) && r.getScheduledAt().isBefore(nextWeekUtc))
                         .toList();
 
                 if (existing.isEmpty()) {

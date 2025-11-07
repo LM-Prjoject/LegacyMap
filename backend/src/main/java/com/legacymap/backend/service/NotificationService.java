@@ -49,17 +49,12 @@ public class NotificationService {
                 .user(user)
                 .title(request.getTitle())
                 .message(request.getMessage())
-                .type(request.getType() != null ? request.getType() : Notification.NotificationType.SYSTEM)
+                .type(request.getType() != null ? request.getType() : Notification.NotificationType.system)
                 .isRead(false)
                 .build();
 
-        try {
-            if (request.getRelatedEntity() != null) {
-                notification.setRelatedEntity(objectMapper.writeValueAsString(request.getRelatedEntity()));
-            }
-        } catch (JsonProcessingException e) {
-            log.error("Error parsing related entity JSON", e);
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        if (request.getRelatedEntity() != null) {
+            notification.setRelatedEntity(objectMapper.valueToTree(request.getRelatedEntity()));
         }
 
         Notification savedNotification = notificationRepository.save(notification);
@@ -169,7 +164,7 @@ public class NotificationService {
         NotificationCreateRequest request = new NotificationCreateRequest();
         request.setTitle("Nhắc nhở sự kiện");
         request.setMessage(String.format("Sự kiện \"%s\" sẽ diễn ra vào %s", eventTitle, formattedTime));
-        request.setType(Notification.NotificationType.EVENT_REMINDER);
+        request.setType(Notification.NotificationType.event_reminder);
         request.setRelatedEntity(Map.of(
                 "type", "event",
                 "id", eventId.toString()
@@ -182,7 +177,7 @@ public class NotificationService {
         NotificationCreateRequest request = new NotificationCreateRequest();
         request.setTitle("Lời mời tham gia cây gia phả");
         request.setMessage(String.format("Bạn được mời tham gia cây gia phả \"%s\"", treeName));
-        request.setType(Notification.NotificationType.INVITE);
+        request.setType(Notification.NotificationType.invite);
         request.setRelatedEntity(Map.of(
                 "type", "family_tree",
                 "id", treeId.toString(),
@@ -196,7 +191,7 @@ public class NotificationService {
         NotificationCreateRequest request = new NotificationCreateRequest();
         request.setTitle(title);
         request.setMessage(message);
-        request.setType(Notification.NotificationType.SYSTEM);
+        request.setType(Notification.NotificationType.system);
 
         createNotification(userId, request);
     }
@@ -209,18 +204,15 @@ public class NotificationService {
         response.setMessage(notification.getMessage());
         response.setType(notification.getType());
         response.setIsRead(notification.getIsRead());
+
         ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
         response.setCreatedAt(notification.getCreatedAt().atZoneSameInstant(vnZone).toOffsetDateTime());
 
-        try {
-            if (notification.getRelatedEntity() != null) {
-                response.setRelatedEntity(objectMapper.readValue(
-                        notification.getRelatedEntity(),
-                        objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class)
-                ));
-            }
-        } catch (JsonProcessingException e) {
-            log.error("Error parsing related entity JSON for notification {}", notification.getId(), e);
+        if (notification.getRelatedEntity() != null) {
+            response.setRelatedEntity(objectMapper.convertValue(
+                    notification.getRelatedEntity(),
+                    objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class)
+            ));
         }
 
         return response;

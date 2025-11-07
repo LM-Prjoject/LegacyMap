@@ -6,8 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -42,17 +40,17 @@ public class EventReminder {
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private ReminderStatus status = ReminderStatus.PENDING;
+    private ReminderStatus status = ReminderStatus.pending;
 
     @CreationTimestamp
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
 
     public enum SendMethod {
-        NOTIFICATION, EMAIL, BOTH
+        notification, email, both
     }
 
     public enum ReminderStatus {
-        PENDING, SENT, FAILED
+        pending, sent, failed
     }
 }

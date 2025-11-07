@@ -101,7 +101,9 @@
   }
 }
 
-/* ---- Components / utilities tùy biến dùng trong UI ---- */
+/* ===================================== */
+/* Components / utilities */
+/* ===================================== */
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center px-5 py-2.5 rounded-lg font-semibold
@@ -154,7 +156,10 @@
   scrollbar-color: #ffd89b #1e2a3a;
 }
 
-/* Prevent scrollbar layout shift */
+/* ===================================== */
+/* Base Layout */
+/* ===================================== */
+
 html, body {
   overflow-x: hidden;
   margin: 0;
@@ -164,3 +169,85 @@ html, body {
 body {
   min-height: 100vh;
 }
+
+/* ===================================== */
+/* NAVBAR & ADMIN LAYOUT - FIXED */
+/* ===================================== */
+
+/* Pages with navbar need padding-top */
+body:not(.admin-page) {
+  padding-top: 80px;
+}
+
+/* Admin pages don't need body padding and navbar is hidden */
+body.admin-page {
+  padding-top: 0;
+  overflow: hidden;
+}
+
+/* Prevent backdrop elements from going above navbar */
+.backdrop-blur,
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-lg,
+.backdrop-blur-xl {
+  position: relative;
+}
+
+/* Cards should not compete with navbar */
+.rounded-xl:not(nav *),
+.shadow:not(nav *) {
+  position: relative;
+  z-index: auto;
+}
+/* ===================================== */
+/* Prevent Scrollbar Layout Shift */
+/* ===================================== */
+html {
+  overflow-y: scroll; /* Always show scrollbar */
+}
+
+body {
+  width: 100%;
+}
+/* ===================================== */
+/* Custom Scrollbar - Gold Theme */
+/* ===================================== */
+
+/* Chrome, Safari, Edge, Opera */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e2a3a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ffd89b 0%, #d4af7a 100%);
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  border: 2px solid #1e2a3a;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #f5e6d3 0%, #ffd89b 100%);
+  box-shadow: 0 0 10px rgba(255, 216, 155, 0.5);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ffd89b #1e2a3a;
+}
+
+/* Force scrollbar to always show */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+/* ===== REMOVED CONFLICTING ADMIN CSS ===== */
+/* The old .admin-layout and .admin-sidebar rules were causing position conflicts */
+/* Now AdminLayout.tsx handles all positioning with inline Tailwind classes */

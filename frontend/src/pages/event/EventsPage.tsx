@@ -6,6 +6,7 @@ import { EventType } from '@/types/event';
 import lunisolar from 'lunisolar';
 import Navbar from "@/components/layout/Navbar.tsx";
 import { useEventContext } from '@/contexts/EventContext';
+import EventDetailModal from "@/components/eventModal/EventDetailModal.tsx";
 import { format, parseISO, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { eventsApi } from '@/api/eventApi';
@@ -18,6 +19,8 @@ const EventsPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [currentTime, setCurrentTime] = useState(new Date());
     const [calendarView, setCalendarView] = useState<CalendarView>('month');
+    const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const { eventsUpdated } = useEventContext();
     const userData = localStorage.getItem('user');
     const familyTreeId = userData
@@ -138,16 +141,25 @@ const EventsPage: React.FC = () => {
 
         try {
             const dayEvents = await eventsApi.getEventsInDateRange(familyTreeId, start, end);
-            console.log('Sự kiện trong ngày:', dayEvents);
-            // Mở modal ở đây
+            if (dayEvents.length === 1) {
+                // Nếu chỉ có 1 sự kiện → mở luôn modal chi tiết
+                setSelectedEventId(dayEvents[0].id);
+                setIsDetailModalOpen(true);
+            } else if (dayEvents.length > 1) {
+                // Nếu có nhiều → có thể mở danh sách nhỏ (tùy chọn)
+                // Hoặc chọn 1 cái đầu tiên
+                setSelectedEventId(dayEvents[0].id);
+                setIsDetailModalOpen(true);
+            }
+            // Nếu không có → không làm gì
         } catch (err) {
-            console.error('Lỗi:', err);
+            console.error('Lỗi lấy sự kiện theo ngày:', err);
         }
     };
 
     const getLunarDisplayForDate = (date: Date): string => {
         const lsr = lunisolar(date);
-        const isLeap = lsr.lunar.isLeap;
+        const isLeap = lsr.lunar.isLeapMonth;
         const dayStr = getVietnameseLunarDay(lsr.lunar.day);
         const monthStr = getVietnameseLunarMonth(lsr.lunar.month, isLeap);
         return `${dayStr} ${monthStr}`;
@@ -160,10 +172,10 @@ const EventsPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-amber-50 to-blue-100 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-blue-900">Đang tải sự kiện...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
+                    <p style={{color: 'rgb(255, 216, 155)'}}>Đang tải sự kiện...</p>
                 </div>
             </div>
         );
@@ -171,10 +183,10 @@ const EventsPage: React.FC = () => {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-amber-50 to-blue-100 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
                 <div className="text-center">
                     <p className="text-red-600">Lỗi: {error}</p>
-                    <button onClick={() => window.location.reload()} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 rounded-lg transition-colors" style={{backgroundColor: 'rgb(255, 216, 155)', color: '#2a3548'}}>
                         Thử lại
                     </button>
                 </div>
@@ -183,16 +195,28 @@ const EventsPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-amber-50 to-blue-100">
+        <div className="min-h-screen" style={{background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 25%, #4a5970 50%, #3d4a5f 75%, #2a3548 100%)'}}>
             <Navbar />
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-8 shadow-lg">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-3xl font-bold">Sự kiện</h1>
+
+            <div className="px-6 py-6 pt-24 shadow-2xl relative overflow-hidden" style={{
+                background: 'linear-gradient(135deg, #2a3548 0%, #1f2937 50%, #2a3548 100%)',
+                borderBottom: '3px solid rgba(255, 216, 155, 0.3)'
+            }}>
+
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <div className="flex justify-between items-center mb-8">
+                        <h1 className="text-4xl font-black tracking-tight" style={{
+                            color: 'rgb(255, 216, 155)',
+                            textShadow: '0 4px 20px rgba(255, 216, 155, 0.6), 0 0 40px rgba(255, 216, 155, 0.4), 0 0 60px rgba(255, 216, 155, 0.2)'
+                        }}>
+                            LỊCH SỰ KIỆN
+                        </h1>
                         <button
                             onClick={() => navigate('/events/create')}
-                            className="bg-white/20 hover:bg-white/30 backdrop-blur px-6 py-3 rounded-full flex items-center gap-2 transition-all duration-300 shadow-lg"
+                            className="px-6 py-3 rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold"
+                            style={{background: 'linear-gradient(135deg, rgb(255, 216, 155) 0%, rgb(255, 230, 190) 100%)',
+                                color: '#2a3548'}}
                         >
                             <Plus className="w-5 h-5" />
                             <span className="font-medium">Tạo sự kiện</span>
@@ -200,29 +224,32 @@ const EventsPage: React.FC = () => {
                     </div>
 
                     {/* CURRENT DATE INFO */}
-                    <div className="bg-amber-50 text-blue-900 rounded-2xl p-6 shadow-md">
-                        <div className="grid grid-cols-4 gap-4 text-center space-y-1">
+                    <div className="rounded-3xl p-8 shadow-2xl backdrop-blur" style={{
+                        background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.25) 0%, rgba(255, 230, 190, 0.15) 50%, rgba(255, 216, 155, 0.25) 100%)',
+                        border: '2px solid rgba(255, 216, 155, 0.5)'}}
+                    >
+                        <div className="grid grid-cols-4 gap-8 text-center space-y-1">
                             <div>
-                                <div className="text-sm font-medium text-blue-600">Giờ</div>
-                                <div className="text-2xl font-bold text-blue-800">
+                                <div className="text-sm font-medium mb-2" style={{color: 'rgb(255, 216, 155)'}}>Giờ</div>
+                                <div className="text-2xl font-bold text-white mb-1">
                                     {today.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                                 </div>
-                                <div className="text-xs text-blue-600 mt-1">{todayLunar.hourCanChi}</div>
+                                <div className="text-xs" style={{color: 'rgba(255, 216, 155, 0.6)'}}>{todayLunar.hourCanChi}</div>
                             </div>
                             <div>
-                                <div className="text-sm font-medium text-blue-600">Ngày</div>
-                                <div className="text-2xl font-bold text-blue-800">{todayLunar.dayStr}</div>
-                                <div className="text-xs text-blue-600 mt-1">{todayLunar.dayStemBranch}</div>
+                                <div className="text-sm font-medium mb-2" style={{color: 'rgb(255, 216, 155)'}}>Ngày</div>
+                                <div className="text-2xl font-bold text-white mb-1">{todayLunar.dayStr}</div>
+                                <div className="text-xs" style={{color: 'rgba(255, 216, 155, 0.6)'}}>{todayLunar.dayStemBranch}</div>
                             </div>
                             <div>
-                                <div className="text-sm font-medium text-blue-600">Tháng</div>
-                                <div className="text-2xl font-bold text-blue-800">{todayLunar.month}</div>
-                                <div className="text-xs text-blue-600 mt-1">{getVietnameseStemBranch(lunisolar(today).format('cM'))}</div>
+                                <div className="text-sm font-medium mb-2" style={{color: 'rgb(255, 216, 155)'}}>Tháng</div>
+                                <div className="text-2xl font-bold text-white mb-1">{todayLunar.month}</div>
+                                <div className="text-xs" style={{color: 'rgba(255, 216, 155, 0.6)'}}>{getVietnameseStemBranch(lunisolar(today).format('cM'))}</div>
                             </div>
                             <div>
-                                <div className="text-sm font-medium text-blue-600">Năm</div>
-                                <div className="text-2xl font-bold text-blue-800">{todayLunar.year}</div>
-                                <div className="text-xs text-blue-600 mt-1">{todayLunar.yearStemBranch}</div>
+                                <div className="text-sm font-medium mb-2" style={{color: 'rgb(255, 216, 155)'}}>Năm</div>
+                                <div className="text-2xl font-bold text-white mb-1">{todayLunar.year}</div>
+                                <div className="text-xs" style={{color: 'rgba(255, 216, 155, 0.6)'}}>{todayLunar.yearStemBranch}</div>
                             </div>
                         </div>
                     </div>
@@ -230,52 +257,80 @@ const EventsPage: React.FC = () => {
             </div>
 
             {/* Calendar */}
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
-                    <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-4">
-                            <button onClick={previousPeriod} className="p-2 hover:bg-blue-50 rounded-full">
-                                <ChevronLeft className="w-6 h-6 text-blue-600" />
+            <div className="max-w-7xl mx-auto px-6 py-10">
+                <div className="rounded-3xl shadow-2xl p-10 mb-10" style={{
+                    background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
+                    border: '3px solid rgba(255, 216, 155, 0.6)',
+                    boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3), inset 0 0 100px rgba(255, 255, 255, 0.5)'
+                }}>
+                    <div className="flex justify-between items-center mb-10">
+                        <div className="flex items-center gap-5">
+                            <button onClick={previousPeriod}
+                                    className="p-3 rounded-xl transition-all hover:scale-110 shadow-lg"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                        border: '2px solid rgba(255, 216, 155, 0.5)'
+                                    }}
+                            >
+                                <ChevronLeft className="w-6 h-6" style={{color: 'rgb(255, 216, 155)'}} />
                             </button>
-                            <h2 className="text-xl font-bold text-blue-900">
+                            <h2 className="text-3xl font-black min-w-[320px] text-center tracking-wide" style={{
+                                color: '#2a3548',
+                                textShadow: '0 3px 15px rgba(42, 53, 72, 0.3)'
+                            }}>
                                 {calendarView === 'month'
                                     ? `${monthNames[currentDate.getMonth()]} / ${currentDate.getFullYear()}`
                                     : `Tuần ${Math.ceil(currentDate.getDate() / 7)} / ${currentDate.getFullYear()}`
                                 }
                             </h2>
-                            <button onClick={nextPeriod} className="p-2 hover:bg-blue-50 rounded-full">
-                                <ChevronRight className="w-6 h-6 text-blue-600" />
+                            <button
+                                onClick={nextPeriod}
+                                    className="p-3 rounded-xl transition-all hover:scale-110 shadow-lg"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                        border: '2px solid rgba(255, 216, 155, 0.5)'
+                                    }}
+                            >
+                                <ChevronRight className="w-6 h-6" style={{color: 'rgb(255, 216, 155)'}} />
                             </button>
                         </div>
-                        <div className="flex gap-2 bg-blue-50 rounded-lg p-1">
+                        <div className="flex gap-2 p-1 rounded-xl" style={{background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.1) 0%, rgba(42, 53, 72, 0.05) 100%)'}}>
                             <button
                                 onClick={() => setCalendarView('month')}
-                                className={`px-4 py-2 rounded-md flex items-center gap-2 transition-all ${
-                                    calendarView === 'month' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-600 hover:bg-blue-100'
-                                }`}
+                                className={`px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all font-medium ${calendarView === 'month' ? 'shadow-lg' : ''}`}
+                                style={calendarView === 'month'
+                                    ? {background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)', color: 'rgb(255, 216, 155)', boxShadow: '0 5px 20px rgba(42, 53, 72, 0.4)'}
+                                    : {color: '#2a3548'}}
                             >
                                 <Grid className="w-4 h-4" /> Tháng
                             </button>
                             <button
                                 onClick={() => setCalendarView('week')}
-                                className={`px-4 py-2 rounded-md flex items-center gap-2 transition-all ${
-                                    calendarView === 'week' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-600 hover:bg-blue-100'
-                                }`}
+                                className={`px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all font-medium ${calendarView === 'week' ? 'shadow-lg' : ''}`}
+                                style={calendarView === 'week'
+                                    ? {background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)', color: 'rgb(255, 216, 155)', boxShadow: '0 5px 20px rgba(42, 53, 72, 0.4)'}
+                                    : {color: '#2a3548'}}
                             >
                                 <List className="w-4 h-4" /> Tuần
                             </button>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-2">
+                    <div className="grid grid-cols-7 gap-3">
                         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (
-                            <div key={day} className="text-center font-semibold text-blue-600 py-2">{day}</div>
+                            <div key={day} className="text-center font-bold py-3 text-sm" style={{
+                                color: '#2a3548',
+                                background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.08) 0%, rgba(42, 53, 72, 0.03) 100%)',
+                                textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}>
+                                {day}
+                            </div>
                         ))}
 
                         {calendarView === 'month' ? (
                             <>
                                 {Array.from({ length: startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1 }).map((_, i) => (
-                                    <div key={`empty-${i}`} className="aspect-square p-2" />
+                                    <div key={`empty-${i}`} className="aspect-square" />
                                 ))}
                                 {Array.from({ length: daysInMonth }).map((_, i) => {
                                     const day = i + 1;
@@ -286,24 +341,41 @@ const EventsPage: React.FC = () => {
                                     return (
                                         <div
                                             key={day}
-                                            className={`aspect-square p-2 rounded-xl cursor-pointer transition-all border ${
-                                                isTodayDate
-                                                    ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-lg scale-105 border-amber-300'
+                                            className="aspect-square p-3 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-105"
+                                            style={{
+                                                background: isTodayDate
+                                                    ? 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 50%, #2a3548 100%)'
                                                     : eventsHere.length > 0
-                                                        ? 'bg-blue-100 hover:bg-blue-200 border-blue-200'
-                                                        : 'hover:bg-amber-50 border-transparent'
-                                            }`}
+                                                        ? 'linear-gradient(135deg, rgba(42, 53, 72, 0.15) 0%, rgba(42, 53, 72, 0.08) 50%, rgba(42, 53, 72, 0.15) 100%)'
+                                                        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%)',
+                                                border: `3px solid ${isTodayDate ? 'rgb(255, 216, 155)' : eventsHere.length > 0 ? 'rgba(42, 53, 72, 0.4)' : 'transparent'}`,
+                                                boxShadow: isTodayDate ? '0 10px 30px rgba(255, 216, 155, 0.6), 0 0 60px rgba(255, 216, 155, 0.3)' : eventsHere.length > 0 ? '0 5px 20px rgba(42, 53, 72, 0.2)' : '0 2px 10px rgba(0,0,0,0.05)'
+                                            }}
                                             onClick={() => handleDateClick(date)}
                                         >
-                                            <div className={`text-center font-medium ${isTodayDate ? 'text-white' : 'text-blue-900'}`}>
+                                            <div className={`text-center font-bold text-lg mb-1`} style={{
+                                                color: isTodayDate ? 'rgb(255, 216, 155)' : '#2a3548',
+                                                textShadow: isTodayDate ? '0 2px 10px rgba(255, 216, 155, 0.5)' : '0 1px 3px rgba(0,0,0,0.1)'
+                                            }}>
                                                 {day}
                                             </div>
-                                            <div className="text-xs text-amber-600 text-center mt-1">
+                                            <div className="text-xs text-center mb-2" style={{
+                                                color: isTodayDate ? 'rgba(255, 216, 155, 0.8)' : 'rgba(42, 53, 72, 0.7)'
+                                            }}>
                                                 {getLunarDisplayForDate(date)}
                                             </div>
                                             {eventsHere.length > 0 && (
-                                                <div className="flex justify-center mt-1">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${isTodayDate ? 'bg-white' : 'bg-blue-600'}`} />
+                                                <div className="flex justify-center gap-1">
+                                                    {eventsHere.slice(0, 3).map((_, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className="w-1.5 h-1.5 rounded-full"
+                                                            style={{
+                                                                background: isTodayDate ? 'rgb(255, 216, 155)' : 'linear-gradient(135deg, #2a3548 0%, #4a5970 100%)',
+                                                                boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                                                            }}
+                                                        />
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
@@ -317,23 +389,40 @@ const EventsPage: React.FC = () => {
                                 return (
                                     <div
                                         key={i}
-                                        className={`aspect-square p-2 rounded-xl cursor-pointer transition-all border ${
-                                            isTodayDate
-                                                ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-lg scale-105 border-amber-300'
+                                        className="aspect-square p-3 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-105"
+                                        style={{
+                                            background: isTodayDate
+                                                ? 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 50%, #2a3548 100%)'
                                                 : eventsHere.length > 0
-                                                    ? 'bg-blue-100 hover:bg-blue-200 border-blue-200'
-                                                    : 'hover:bg-amber-50 border-transparent'
-                                        }`}
+                                                    ? 'linear-gradient(135deg, rgba(42, 53, 72, 0.15) 0%, rgba(42, 53, 72, 0.08) 50%, rgba(42, 53, 72, 0.15) 100%)'
+                                                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 100%)',
+                                            border: `3px solid ${isTodayDate ? 'rgb(255, 216, 155)' : eventsHere.length > 0 ? 'rgba(42, 53, 72, 0.4)' : 'transparent'}`,
+                                            boxShadow: isTodayDate ? '0 10px 30px rgba(255, 216, 155, 0.6), 0 0 60px rgba(255, 216, 155, 0.3)' : eventsHere.length > 0 ? '0 5px 20px rgba(42, 53, 72, 0.2)' : '0 2px 10px rgba(0,0,0,0.05)'
+                                        }}
                                     >
-                                        <div className={`text-center font-medium ${isTodayDate ? 'text-white' : 'text-blue-900'}`}>
+                                        <div className={`text-center font-bold text-lg mb-1`} style={{
+                                            color: isTodayDate ? 'rgb(255, 216, 155)' : '#2a3548',
+                                            textShadow: isTodayDate ? '0 2px 10px rgba(255, 216, 155, 0.5)' : '0 1px 3px rgba(0,0,0,0.1)'
+                                        }}>
                                             {date.getDate()}
                                         </div>
-                                        <div className="text-xs text-amber-600 text-center mt-1">
+                                        <div className="text-xs text-center mb-2" style={{
+                                            color: isTodayDate ? 'rgba(255, 216, 155, 0.8)' : 'rgba(42, 53, 72, 0.7)'
+                                        }}>
                                             {getLunarDisplayForDate(date)}
                                         </div>
                                         {eventsHere.length > 0 && (
-                                            <div className="flex justify-center mt-1">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${isTodayDate ? 'bg-white' : 'bg-blue-600'}`} />
+                                            <div className="flex justify-center gap-1">
+                                                {eventsHere.slice(0, 3).map((_, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="w-1.5 h-1.5 rounded-full"
+                                                        style={{
+                                                            background: isTodayDate ? 'rgb(255, 216, 155)' : 'linear-gradient(135deg, #2a3548 0%, #4a5970 100%)',
+                                                            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                                                        }}
+                                                    />
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -341,69 +430,117 @@ const EventsPage: React.FC = () => {
                             })
                         )}
                     </div>
-
-                    {events.length > 0 && (
-                        <div className="mt-4 text-center">
-              <span className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
-                <Calendar className="w-4 h-4" />
-                  {events.length} sự kiện
-              </span>
-                        </div>
-                    )}
                 </div>
 
                 {/* Events Today & Upcoming */}
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div className="bg-white rounded-2xl shadow-xl p-6">
-                        <h3 className="text-xl font-bold text-blue-900 mb-4">Sự kiện hôm nay</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div className="rounded-3xl shadow-2xl p-6"
+                         style={{
+                             background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 50%, rgba(255, 245, 220, 0.95) 100%)',
+                             border: '3px solid rgba(255, 216, 155, 0.6)',
+                             boxShadow: '0 15px 50px rgba(42, 53, 72, 0.25)'
+                         }}>
+                        <h3 className="text-xl font-bold mb-5 flex items-center gap-2" style={{
+                            color: '#2a3548',
+                            textShadow: '0 2px 10px rgba(42, 53, 72, 0.2)'
+                        }}>
+                            Sự kiện hôm nay
+                        </h3>
                         {getTodayEvents().length > 0 ? (
                             <div className="space-y-3">
                                 {getTodayEvents().map(event => (
                                     <div
                                         key={event.id}
-                                        onClick={() => navigate(`/events/${event.id}`)}
-                                        className="bg-gradient-to-r from-blue-50 to-amber-50 p-4 rounded-xl cursor-pointer hover:shadow-md transition-shadow border border-blue-100"
+                                        onClick={() => {
+                                            setSelectedEventId(event.id);
+                                            setIsDetailModalOpen(true);
+                                        }}
+                                        className="p-4 rounded-xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.1) 0%, rgba(42, 53, 72, 0.05) 100%)',
+                                            border: '2px solid rgba(42, 53, 72, 0.2)',
+                                            boxShadow: '0 5px 20px rgba(42, 53, 72, 0.15)'
+                                        }}
                                     >
-                                        <h4 className="font-semibold text-blue-900 mb-1">{event.title}</h4>
-                                        <div className="flex items-center gap-2 text-sm text-blue-600">
+                                        <h4 className="font-black text-xl mb-3" style={{
+                                            color: '#2a3548',
+                                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                        }}>{event.title}</h4>
+                                        <div className="flex items-center gap-2 text-sm mb-1" style={{color: 'rgba(42, 53, 72, 0.8)'}}>
                                             <Clock className="w-4 h-4" />
-                                            <span>{formatTime(event.startDate)}</span>
+                                            <span className="font-medium">{formatTime(event.startDate)}</span>
                                         </div>
-                                        <p className="text-xs text-amber-600 mt-1">{getEventTypeLabel(event.eventType)}</p>
+                                        <p className="text-xs px-2.5 py-1 rounded-full inline-block" style={{
+                                            background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.4) 0%, rgba(255, 216, 155, 0.2) 100%)',
+                                            color: '#2a3548',
+                                            border: '1px solid rgba(255, 216, 155, 0.5)'
+                                        }}>
+                                            {getEventTypeLabel(event.eventType)}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-blue-400 text-center py-8">Không có sự kiện nào hôm nay</p>
+                            <p className="text-center py-16 text-base font-semibold" style={{color: 'rgba(42, 53, 72, 0.5)'}}>
+                                Không có sự kiện nào hôm nay
+                            </p>
                         )}
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-xl p-6">
-                        <h3 className="text-xl font-bold text-blue-900 mb-4">Sự kiện sắp tới</h3>
+                    <div className="rounded-3xl shadow-2xl p-6"
+                         style={{background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.08) 0%, rgba(255, 216, 155, 0.03) 100%)', border: '1px solid rgba(255, 216, 155, 0.2)'}}>
+                        <h3 className="text-xl font-bold mb-5 flex items-center gap-2" style={{color: 'rgb(255, 216, 155)'}}>Sự kiện sắp tới</h3>
                         {getUpcomingEvents().length > 0 ? (
                             <div className="space-y-3">
                                 {getUpcomingEvents().map(event => (
                                     <div
                                         key={event.id}
-                                        onClick={() => navigate(`/events/${event.id}`)}
-                                        className="bg-gradient-to-r from-amber-50 to-blue-50 p-4 rounded-xl cursor-pointer hover:shadow-md transition-shadow border border-amber-100"
+                                        onClick={() => {
+                                            setSelectedEventId(event.id);
+                                            setIsDetailModalOpen(true);
+                                        }}
+                                        className="p-4 rounded-xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl"
+                                        style={{backgroundColor: 'rgba(255, 216, 155, 0.15)', border: '1px solid rgba(255, 216, 155, 0.3)'}}
                                     >
-                                        <h4 className="font-semibold text-blue-900 mb-1">{event.title}</h4>
-                                        <div className="flex items-center gap-2 text-sm text-blue-600">
+                                        <h4 className="font-bold text-white mb-2 text-lg">{event.title}</h4>
+                                        <div className="flex items-center gap-2 text-sm mb-1" style={{color: 'rgba(255, 216, 155, 0.9)'}}>
                                             <Calendar className="w-4 h-4" />
-                                            <span>{new Date(event.startDate).toLocaleDateString('vi-VN')}</span>
+                                            <span className="font-medium">{new Date(event.startDate).toLocaleDateString('vi-VN')}</span>
                                             <span className="mx-1">•</span>
-                                            <span>{formatTime(event.startDate)}</span>
+                                            <span className="font-medium">{formatTime(event.startDate)}</span>
                                         </div>
-                                        <p className="text-xs text-amber-600 mt-1">{getEventTypeLabel(event.eventType)}</p>
+                                        <p className="text-xs px-2.5 py-1 rounded-full inline-block" style={{backgroundColor: 'rgba(255, 216, 155, 0.2)', color: 'rgba(255, 216, 155, 0.8)'}}>
+                                            {getEventTypeLabel(event.eventType)}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-blue-400 text-center py-8">Không có sự kiện sắp tới</p>
+                            <p className="text-center py-12 text-sm" style={{color: 'rgba(255, 216, 155, 0.5)'}}>
+                                Không có sự kiện sắp tới
+                            </p>
                         )}
                     </div>
                 </div>
+                {/* Event Detail Modal */}
+                {isDetailModalOpen && selectedEventId && (
+                    <EventDetailModal
+                        eventId={selectedEventId}
+                        isOpen={isDetailModalOpen}
+                        onClose={() => {
+                            setIsDetailModalOpen(false);
+                            setSelectedEventId(null);
+                        }}
+                        onDelete={() => {
+                            refetchEvents();
+                            setIsDetailModalOpen(false);
+                            setSelectedEventId(null);
+                        }}
+                        onUpdate={() => {
+                            refetchEvents();
+                        }}
+                    />
+                )}
             </div>
         </div>
     );

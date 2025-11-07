@@ -41,10 +41,10 @@ export const getVietnameseZodiac = (zodiac: string): string => {
 // Lấy dữ liệu âm lịch + can chi + giờ
 export const getLunarInfo = (date: Date) => {
     const lsr = lunisolar(date);
-    const isLeap = lsr.lunar.isLeap;
+    const isLeap = lsr.lunar.isLeapMonth;
     const hour = date.getHours();
 
-    const hourBranchIndex = Math.floor((hour +1) / 2) % 12;
+    const hourBranchIndex = Math.floor((hour + 1) / 2) % 12;
     const hourBranch = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'][hourBranchIndex];
 
     // Can giờ (dựa trên can ngày + chi giờ)

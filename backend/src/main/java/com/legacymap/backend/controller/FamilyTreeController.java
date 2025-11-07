@@ -77,7 +77,7 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-//======================================================================================================================
+    //======================================================================================================================
     @PostMapping("/{treeId}/members")
     public ResponseEntity<ApiResponse<Person>> addMember(
             @PathVariable("treeId") UUID treeId,
@@ -123,7 +123,7 @@ public class FamilyTreeController {
         List<RelationshipDTO> rels = relationshipService.listByTree(treeId, parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success(rels));
     }
-    
+
     @GetMapping("/{treeId}/persons/{personId}/relationships")
     public ResponseEntity<ApiResponse<List<RelationshipDTO>>> listPersonRelationships(
             @PathVariable("treeId") UUID treeId,

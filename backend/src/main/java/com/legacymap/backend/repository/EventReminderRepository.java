@@ -6,9 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-import java.awt.*;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +13,7 @@ import java.util.UUID;
 @Repository
 public interface EventReminderRepository extends JpaRepository<EventReminder, UUID> {
 
-    @Query("SELECT er FROM EventReminder er WHERE er.status = 'PENDING' " +
+    @Query("SELECT er FROM EventReminder er WHERE er.status = 'pending' " +
             "AND er.scheduledAt <= :now " +
             "ORDER BY er.scheduledAt ASC")
     List<EventReminder> findPendingReminders(@Param("now") OffsetDateTime now);
