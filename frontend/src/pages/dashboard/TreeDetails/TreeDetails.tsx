@@ -44,6 +44,7 @@ export default function TreeDetails() {
     const [tree, setTree] = useState<TreeView | null>(null);
     const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
     const [graphVersion, setGraphVersion] = useState(0);
+    const [pendingNew, setPendingNew] = useState<Person | null>(null);
 
     useEffect(() => {
         if (!treeId) {
@@ -142,10 +143,12 @@ export default function TreeDetails() {
             setGraphVersion((v) => v + 1);
 
             if (hadSomeone) {
+                setPendingNew(created);
                 setSource(created);
                 setModalOpen(true);
-                showToast.success("Thêm thành viên thành công. Đang tìm kiếm mối quan hệ...");
+                showToast.success("Đang tìm kiếm mối quan hệ...");
             } else {
+                setPendingNew(null);
                 setSource(null);
                 setModalOpen(false);
                 showToast.success("Thêm thành viên thành công.");
@@ -218,6 +221,25 @@ export default function TreeDetails() {
         setIsEditing(true);
     };
 
+    const cancelRelationshipFlow = async () => {
+        if (!treeId || !userId || !pendingNew) {
+            setModalOpen(false);
+            setSource(null);
+            return;
+        }
+        try {
+            await api.deleteMember(userId, treeId, pendingNew.id);
+        } catch {
+        } finally {
+            setPersons((prev) => prev.filter((p) => p.id !== pendingNew.id));
+            setPendingNew(null);
+            setSource(null);
+            setModalOpen(false);
+            setGraphVersion((v) => v + 1);
+            showToast.success("Đã hủy thêm thành viên.");
+        }
+    };
+
     const confirmRelationship = async ({
                                            relation,
                                            candidateId,
@@ -235,7 +257,7 @@ export default function TreeDetails() {
                     return `PAIR:${a}-${b}:${t}`;
                 }
                 const parent = t === "PARENT" ? r.fromPersonId : r.toPersonId;
-                const child  = t === "PARENT" ? r.toPersonId   : r.fromPersonId;
+                const child = t === "PARENT" ? r.toPersonId : r.fromPersonId;
                 return `PARENT:${parent}->${child}`;
             })
         );
@@ -246,13 +268,14 @@ export default function TreeDetails() {
 
         if (relation === "PARENT" || relation === "CHILD") {
             const parentId = relation === "PARENT" ? source.id : candidateId;
-            const childId  = relation === "PARENT" ? candidateId : source.id;
+            const childId = relation === "PARENT" ? candidateId : source.id;
             person1Id = parentId;
             person2Id = childId;
             typeToSend = "PARENT";
         } else {
             const [a, b] = [source.id, candidateId].sort();
-            person1Id = a; person2Id = b;
+            person1Id = a;
+            person2Id = b;
             typeToSend = relation;
         }
 
@@ -335,7 +358,7 @@ export default function TreeDetails() {
 
         if (relation === "PARENT" || relation === "CHILD") {
             const parentId = relation === "PARENT" ? person1Id : person2Id;
-            const childId  = relation === "PARENT" ? person2Id : person1Id;
+            const childId = relation === "PARENT" ? person2Id : person1Id;
 
             const spouseOfParent = rels
                 .filter((r) => r.type === "SPOUSE" && (r.fromPersonId === parentId || r.toPersonId === parentId))
@@ -344,9 +367,7 @@ export default function TreeDetails() {
             for (const sp of spouseOfParent) await addParent(sp, childId);
 
             const parentsOfChild = new Set<string>(
-                newRels
-                    .filter((r) => r.type === "PARENT" && r.toPersonId === childId)
-                    .map((r) => r.fromPersonId)
+                newRels.filter((r) => r.type === "PARENT" && r.toPersonId === childId).map((r) => r.fromPersonId)
             );
             const sameParentsChildren = new Set<string>([childId]);
             for (const pid of parentsOfChild) {
@@ -401,7 +422,6 @@ export default function TreeDetails() {
                     await ensureSiblingClosure(a, p);
                 }
             }
-
         }
 
         setRels(newRels);
@@ -409,6 +429,7 @@ export default function TreeDetails() {
         showToast.success("Đã cập nhật mối quan hệ");
         setModalOpen(false);
         setSource(null);
+        setPendingNew(null);
     };
 
     const fetchSuggestions = useMemo(() => {
@@ -463,26 +484,15 @@ export default function TreeDetails() {
                 const res = await Promise.all(
                     chunk.map(async (cand) => {
                         try {
-                            const raw = (await api.suggestRelationship(
-                                userId,
-                                treeId,
-                                personId,
-                                cand.id
-                            )) as Array<{
+                            const raw = (await api.suggestRelationship(userId, treeId, personId, cand.id)) as Array<{
                                 type: string;
                                 confidence?: number;
                                 reasons?: string[];
                             }>;
                             if (!raw?.length) return null;
 
-                            const best = raw.sort(
-                                (a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)
-                            )[0];
-                            let rel = (best.type || "").toUpperCase() as
-                                | "PARENT"
-                                | "CHILD"
-                                | "SPOUSE"
-                                | "SIBLING";
+                            const best = raw.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
+                            let rel = (best.type || "").toUpperCase() as "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
                             let conf = best.confidence ?? 0;
                             const reasons = best.reasons ?? [];
 
@@ -534,37 +544,79 @@ export default function TreeDetails() {
         };
     }, [treeId, userId, persons, rels]);
 
+    const relsNormalized = useMemo(() => {
+        return rels.map(r =>
+            String(r.type).toUpperCase() === "CHILD"
+                ? { ...r, type: "PARENT", fromPersonId: r.toPersonId, toPersonId: r.fromPersonId }
+                : { ...r, type: String(r.type).toUpperCase() as any }
+        );
+    }, [rels]);
+
     const generationCount = useMemo(() => {
         if (!persons.length) return 0;
         const parentOf: Record<string, string[]> = {};
-        const hasParent: Record<string, boolean> = {};
-        for (const r of rels) {
-            const t = String(r.type).toUpperCase();
-            if (t === "PARENT") {
-                (parentOf[r.fromPersonId] ||= []).push(r.toPersonId);
-                hasParent[r.toPersonId] = true;
-            } else if (t === "CHILD") {
-                (parentOf[r.toPersonId] ||= []).push(r.fromPersonId);
-                hasParent[r.fromPersonId] = true;
-            }
+        const indeg: Record<string, number> = {};
+        const ids = persons.map(p => p.id);
+
+        for (const id of ids) indeg[id] = 0;
+
+        for (const r of relsNormalized) {
+            if (String(r.type).toUpperCase() !== "PARENT") continue;
+            (parentOf[r.fromPersonId] ||= []).push(r.toPersonId);
+            indeg[r.toPersonId] = (indeg[r.toPersonId] ?? 0) + 1;
+            parentOf[r.fromPersonId] ||= parentOf[r.fromPersonId] || [];
+            parentOf[r.toPersonId] ||= parentOf[r.toPersonId] || [];
         }
-        const ids = persons.map((p) => p.id);
-        const roots = ids.filter((id) => !hasParent[id]);
-        if (!roots.length) return 1;
-        const depth: Record<string, number> = {};
-        const q = [...roots];
-        roots.forEach((r) => (depth[r] = 1));
-        while (q.length) {
-            const cur = q.shift()!;
-            for (const c of parentOf[cur] || []) {
-                if (!depth[c]) {
-                    depth[c] = depth[cur] + 1;
-                    q.push(c);
+
+        const roots = ids.filter(id => (indeg[id] ?? 0) === 0);
+        if (roots.length) {
+            const depth: Record<string, number> = {};
+            const q: string[] = [];
+
+            for (const r of roots) {
+                depth[r] = 1;
+                q.push(r);
+            }
+
+            while (q.length) {
+                const u = q.shift()!;
+                const du = depth[u] || 1;
+                for (const v of parentOf[u] || []) {
+                    indeg[v] -= 1;
+                    if ((depth[v] ?? 0) < du + 1) depth[v] = du + 1;
+                    if (indeg[v] === 0) q.push(v);
                 }
             }
+
+            let ans = 1;
+            for (const id of ids) ans = Math.max(ans, depth[id] || 1);
+            return ans;
         }
-        return ids.reduce((m, id) => Math.max(m, depth[id] || 1), 1);
-    }, [persons, rels]);
+
+        const memo: Record<string, number> = {};
+        const visiting = new Set<string>();
+
+        const dfs = (u: string): number => {
+            if (memo[u]) return memo[u];
+            if (visiting.has(u)) {
+                return 1;
+            }
+            visiting.add(u);
+            let best = 1;
+            for (const v of parentOf[u] || []) {
+                best = Math.max(best, 1 + dfs(v));
+            }
+            visiting.delete(u);
+            memo[u] = best;
+            return best;
+        };
+
+        let ans = 1;
+        for (const id of ids) {
+            ans = Math.max(ans, dfs(id));
+        }
+        return ans;
+    }, [persons, relsNormalized]);
 
     const createdByName =
         ownerProfile?.fullName?.trim() ||
@@ -597,7 +649,7 @@ export default function TreeDetails() {
                         </button>
                         <button
                             onClick={handleAddClick}
-                            className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg白/30 px-4 py-2 text-white shadow-sm hover:shadow transition-all"
+                            className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
                             title="Thêm thành viên"
                         >
                             <LucideUserPlus className="w-5 h-5" />
@@ -626,7 +678,7 @@ export default function TreeDetails() {
                         <TreeGraph
                             key={graphVersion}
                             persons={persons}
-                            relationships={rels}
+                            relationships={relsNormalized}
                             onNodeClick={handleNodeClick}
                             selectedNodeId={anyModalOpen ? null : selectedPerson?.id}
                             onEmptyClick={handleAddClick}
@@ -656,7 +708,6 @@ export default function TreeDetails() {
                         : undefined
                 }
             />
-
             <PersonDetailsModal
                 isOpen={isViewingDetails}
                 person={selectedPerson}
@@ -668,7 +719,8 @@ export default function TreeDetails() {
             {source && (
                 <RelationshipModal
                     isOpen={modalOpen}
-                    onClose={() => setModalOpen(false)}
+                    onClose={cancelRelationshipFlow}
+                    onCancel={cancelRelationshipFlow}
                     source={source}
                     persons={persons}
                     fetchSuggestions={fetchSuggestions}

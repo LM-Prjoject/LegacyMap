@@ -167,7 +167,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                     lineHeight: 1.2,
                                     margin: 0
                                 }}>
-                                    Con Rồng Châu Tiên
+                                    Con Rồng Cháu Tiên
                                 </h1>
                                 <p style={{
                                     color: 'rgba(209, 185, 138, 0.7)',

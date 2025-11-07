@@ -59,16 +59,31 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
             case 'SIBLING': {
                 const curDOB = parse(currentPerson?.birthDate);
                 const othDOB = parse(otherPerson?.birthDate);
+
+                const g = genderOf(otherPerson);
+
                 if (curDOB && othDOB) {
                     if (othDOB < curDOB) {
-                        relationshipText = genderOf(otherPerson) === 'FEMALE' ? `Chị: ${otherPersonName}` : `Anh: ${otherPersonName}`;
+                        if (g === 'FEMALE') {
+                            relationshipText = `Chị gái: ${otherPersonName}`;
+                        } else {
+                            relationshipText = `Anh trai: ${otherPersonName}`;
+                        }
                     } else if (othDOB > curDOB) {
-                        relationshipText = `Em: ${otherPersonName}`;
+                        if (g === 'FEMALE') {
+                            relationshipText = `Em gái: ${otherPersonName}`;
+                        } else {
+                            relationshipText = `Em trai: ${otherPersonName}`;
+                        }
                     } else {
                         relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
                     }
                 } else {
-                    relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
+                    if (g === 'FEMALE') {
+                        relationshipText = `Chị/Em gái: ${otherPersonName}`;
+                    } else {
+                        relationshipText = `Anh/Em trai: ${otherPersonName}`;
+                    }
                 }
                 break;
             }

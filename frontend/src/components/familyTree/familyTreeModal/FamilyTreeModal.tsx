@@ -1,4 +1,5 @@
 import { FC, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader } from 'lucide-react';
 import { showToast } from '@/lib/toast.ts';
 import api, {
@@ -74,7 +75,9 @@ const FamilyTreeModal: FC<Props> = ({
     }, [initialData]);
 
     const onTextChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, type, value, checked } = e.target as HTMLInputElement & HTMLTextAreaElement;
+        const { name, type } = e.target as HTMLInputElement;
+        const value = (e.target as HTMLInputElement).value;
+        const checked = (e.target as HTMLInputElement).checked;
         setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
@@ -82,9 +85,7 @@ const FamilyTreeModal: FC<Props> = ({
         setError('');
         const f = e.target.files?.[0] || null;
 
-        if (preview && preview.startsWith('blob:')) {
-            URL.revokeObjectURL(preview);
-        }
+        if (preview && preview.startsWith('blob:')) URL.revokeObjectURL(preview);
 
         if (!f) {
             setFile(null);
@@ -92,8 +93,14 @@ const FamilyTreeModal: FC<Props> = ({
             return;
         }
 
-        if (!f.type.startsWith('image/')) { setError('File không phải là ảnh'); e.target.value = ''; return; }
-        if (f.size > MAX_SIZE) { setError('Ảnh tối đa 5MB'); e.target.value = ''; return; }
+        if (!f.type.startsWith('image/')) {
+            setError('File không phải là ảnh');
+            return;
+        }
+        if (f.size > MAX_SIZE) {
+            setError('Ảnh tối đa 5MB');
+            return;
+        }
 
         setFile(f);
         setPreview(URL.createObjectURL(f));
@@ -117,13 +124,13 @@ const FamilyTreeModal: FC<Props> = ({
                 setImgUploading(false);
             }
         }
-
         return form.coverImageUrl ? form.coverImageUrl : undefined;
     };
 
     const onSubmit = async () => {
         if (loading || imgUploading) return;
-        setError(''); setSuccess('');
+        setError('');
+        setSuccess('');
 
         if (!form.name.trim()) {
             showToast.error('Tên gia phả không được để trống');
@@ -180,27 +187,55 @@ const FamilyTreeModal: FC<Props> = ({
 
     const canSubmit = !loading && !imgUploading;
 
-    return (
-        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-8">
-            <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-md" onClick={onClose} />
-            <div className="relative w-full max-w-lg rounded-2xl bg-white/10 text-slate-50 ring-1 ring-white/15 shadow-2xl shadow-black/40 backdrop-blur-xl animate-[modalIn_.2s_ease-out]">
+    const offset = isEdit ? '7rem' : '5rem';
+    const maxH = `calc(100svh - ${isEdit ? '8rem' : '6rem'})`;
+
+    return createPortal(
+        <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[2147483647] flex items-start justify-center px-4"
+            style={{ paddingTop: offset }}
+            onTouchMove={(e) => e.stopPropagation()}
+            onClick={onClose}
+        >
+            <div className="absolute inset-0 bg-slate-900/70" />
+
+            <div
+                className="relative w-full max-w-lg rounded-2xl bg-white/10 text-slate-50 ring-1 ring-white/15 shadow-2xl shadow-black/40 backdrop-blur-xl animate-[modalIn_.2s_ease-out]"
+                style={{ maxHeight: maxH, overflowY: 'auto' }}
+                onClick={(e) => e.stopPropagation()} // chặn click xuyên ra overlay
+            >
                 <div className="flex items-center justify-between px-6 pt-5 pb-2">
                     <h3 className="text-2xl font-semibold tracking-wide">
                         {isEdit ? 'Chỉnh sửa Gia Phả' : 'Tạo Gia Phả Mới'}
                     </h3>
-                    <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors" aria-label="Đóng">
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                        aria-label="Đóng"
+                    >
                         <X size={20} className="text-white/80" />
                     </button>
                 </div>
 
                 <div className="px-6 pb-6">
-                    {error && <div className="mb-4 px-3 py-2 rounded-lg border border-red-400/40 bg-red-500/10 text-red-200 text-sm">{error}</div>}
-                    {success && <div className="mb-4 px-3 py-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 text-emerald-200 text-sm">{success}</div>}
+                    {error && (
+                        <div className="mb-4 px-3 py-2 rounded-lg border border-red-400/40 bg-red-500/10 text-red-200 text-sm">
+                            {error}
+                        </div>
+                    )}
+                    {success && (
+                        <div className="mb-4 px-3 py-2 rounded-lg border border-emerald-400/40 bg-emerald-500/10 text-emerald-200 text-sm">
+                            {success}
+                        </div>
+                    )}
 
                     <div className="space-y-4">
-                        {/* Name */}
                         <div>
-                            <label className="block text-sm font-medium text-white/80 mb-1.5">Tên Gia Phả *</label>
+                            <label className="block text-sm font-medium text-white/80 mb-1.5">
+                                Tên Gia Phả *
+                            </label>
                             <input
                                 type="text"
                                 name="name"
@@ -212,9 +247,10 @@ const FamilyTreeModal: FC<Props> = ({
                             />
                         </div>
 
-                        {/* Description */}
                         <div>
-                            <label className="block text-sm font-medium text-white/80 mb-1.5">Mô Tả</label>
+                            <label className="block text-sm font-medium text-white/80 mb-1.5">
+                                Mô Tả
+                            </label>
                             <textarea
                                 name="description"
                                 value={form.description}
@@ -225,9 +261,10 @@ const FamilyTreeModal: FC<Props> = ({
                             />
                         </div>
 
-                        {/* Cover */}
                         <div>
-                            <label className="block text-sm font-medium text-white/80 mb-1.5">Ảnh Bìa</label>
+                            <label className="block text-sm font-medium text-white/80 mb-1.5">
+                                Ảnh Bìa
+                            </label>
                             <input
                                 ref={fileRef}
                                 type="file"
@@ -259,7 +296,6 @@ const FamilyTreeModal: FC<Props> = ({
                             )}
                         </div>
 
-                        {/* Public */}
                         <label className="inline-flex items-center gap-2 cursor-pointer select-none">
                             <input
                                 type="checkbox"
@@ -272,7 +308,6 @@ const FamilyTreeModal: FC<Props> = ({
                             <span className="text-sm text-white/85">Công khai gia phả này</span>
                         </label>
 
-                        {/* Actions */}
                         <div className="flex gap-3 pt-2">
                             <button
                                 type="button"
@@ -286,10 +321,12 @@ const FamilyTreeModal: FC<Props> = ({
                                 type="button"
                                 onClick={onSubmit}
                                 disabled={!canSubmit}
-                                className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                                className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#b49e7b] to-[#d1b98a] text-white font-medium hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {(loading || imgUploading) && <Loader size={16} className="animate-spin" />}
-                                {isEdit ? (loading || imgUploading ? 'Đang lưu...' : 'Lưu thay đổi') : (loading || imgUploading ? 'Đang tạo...' : 'Tạo Gia Phả')}
+                                {isEdit
+                                    ? (loading || imgUploading ? 'Đang lưu...' : 'Lưu thay đổi')
+                                    : (loading || imgUploading ? 'Đang tạo...' : 'Tạo Gia Phả')}
                             </button>
                         </div>
                     </div>
@@ -302,7 +339,8 @@ const FamilyTreeModal: FC<Props> = ({
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
-        </div>
+        </div>,
+        document.body
     );
 };
 
