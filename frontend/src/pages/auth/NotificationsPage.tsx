@@ -97,9 +97,6 @@ const NotificationsPage = () => {
         );
     }
 
-
-
-
     // Icons & Colors
     const getIcon = (type: string) => {
         switch (type) {

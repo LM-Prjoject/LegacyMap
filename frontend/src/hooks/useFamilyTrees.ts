@@ -1,4 +1,3 @@
-// src/hooks/useFamilyTrees.ts
 import { useState, useEffect, useCallback } from 'react';
 
 export interface FamilyTree {
@@ -59,11 +58,11 @@ export const useFamilyTrees = (): UseFamilyTreesReturn => {
 
             // ===== FIX: Kiểm tra Content-Type trước khi parse JSON =====
             const contentType = response.headers.get('content-type');
-            console.log('📄 Content-Type:', contentType);
+            console.log('Content-Type:', contentType);
 
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
-                console.error('❌ Received HTML instead of JSON:', text.substring(0, 200));
+                console.error('Received HTML instead of JSON:', text.substring(0, 200));
 
                 if (response.status === 403) {
                     throw new Error('Bạn không có quyền truy cập. Cần quyền Admin.');
@@ -90,7 +89,7 @@ export const useFamilyTrees = (): UseFamilyTreesReturn => {
 
             // Parse JSON an toàn
             const data = await response.json();
-            console.log('✅ Family Trees data received:', data);
+            console.log('Family Trees data received:', data);
 
             // Backend có thể trả về { result: [...] } hoặc trực tiếp array
             const treesList = Array.isArray(data) ? data : (data.result || []);
@@ -98,7 +97,7 @@ export const useFamilyTrees = (): UseFamilyTreesReturn => {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định';
             setError(errorMessage);
-            console.error('❌ Error fetching family trees:', err);
+            console.error('Error fetching family trees:', err);
         } finally {
             setLoading(false);
         }

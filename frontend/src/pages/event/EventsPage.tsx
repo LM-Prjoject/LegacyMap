@@ -199,7 +199,7 @@ const EventsPage: React.FC = () => {
             <Navbar />
             {/* Header */}
 
-            <div className="px-6 py-6 pt-24 shadow-2xl relative overflow-hidden" style={{
+            <div className="px-6 py-6 pt-15 shadow-2xl relative overflow-hidden" style={{
                 background: 'linear-gradient(135deg, #2a3548 0%, #1f2937 50%, #2a3548 100%)',
                 borderBottom: '3px solid rgba(255, 216, 155, 0.3)'
             }}>
