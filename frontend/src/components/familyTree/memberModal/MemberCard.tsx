@@ -68,11 +68,25 @@ export const MemberCard = (
                     strokeWidth={isSelected ? 2 : 1.4}
                 />
 
-                <text x={0} y={34} textAnchor="middle" fontSize={10} fontWeight={300} fill="#111827">
+                <text
+                    x={0}
+                    y={34}
+                    textAnchor="middle"
+                    fontSize={10}
+                    fill="#111827"
+                    style={{ fontWeight: 300 }}
+                >
                     {name}
                 </text>
 
-                <text x={0} y={47} textAnchor="middle" fontSize={9} fontWeight={200} fill="#4b5563">
+                <text
+                    x={0}
+                    y={47}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fill="#4b5563"
+                    style={{ fontWeight: 200 }}
+                >
                     {life}
                 </text>
             </g>

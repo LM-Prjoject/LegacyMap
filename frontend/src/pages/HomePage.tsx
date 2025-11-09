@@ -11,10 +11,10 @@ import SignIn from '@/pages/auth/SignIn';
 import SignUp from '@/pages/auth/SignUp';
 import PasswordReset from '@/pages/auth/password-reset';
 
+type ModalType = 'signin' | 'signup' | 'password-reset' | null;
+
 export default function HomePage() {
-    const [showSignIn, setShowSignIn] = useState(false);
-    const [showSignUp, setShowSignUp] = useState(false);
-    const [showPasswordReset, setShowPasswordReset] = useState(false);
+    const [activeModal, setActiveModal] = useState<ModalType>(null);
     const [resetToken, setResetToken] = useState<string | null>(null);
 
     // Tự động scroll mượt khi click anchor
@@ -41,7 +41,7 @@ export default function HomePage() {
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
         if (token) {
-            setShowPasswordReset(true);
+            setActiveModal('password-reset');
             setResetToken(token);
             const url = new URL(window.location.href);
             url.searchParams.delete('token');
@@ -53,7 +53,7 @@ export default function HomePage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('showLogin') === '1') {
-            setShowSignIn(true);
+            setActiveModal('signin');
             const url = new URL(window.location.href);
             url.searchParams.delete('showLogin');
             window.history.replaceState({}, '', url.toString());
@@ -64,70 +64,74 @@ export default function HomePage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const error = params.get('error');
-        if (error) setShowSignIn(true);
+        if (error) setActiveModal('signin');
     }, []);
+
+    // Hàm đóng modal và clear URL params nếu có error
+    const handleCloseModal = () => {
+        setActiveModal(null);
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('error')) {
+            params.delete('error');
+            const url = new URL(window.location.href);
+            url.search = params.toString();
+            window.history.replaceState({}, '', url.toString());
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#fffaf3] text-[#20283d]">
-            {/* Modals */}
-            {showSignIn && (
+            {/* MODALS - Chỉ render modal đang active */}
+            {activeModal === 'signin' && (
                 <SignIn
-                    onClose={() => {
-                        setShowSignIn(false);
-                        const params = new URLSearchParams(window.location.search);
-                        if (params.has('error')) {
-                            params.delete('error');
-                            const url = new URL(window.location.href);
-                            url.search = params.toString();
-                            window.history.replaceState({}, '', url.toString());
-                        }
-                    }}
-                    onShowPasswordReset={() => {
-                        setShowSignIn(false);
-                        setShowPasswordReset(true);
-                    }}
-                    onShowSignUp={() => {
-                        setShowSignIn(false);
-                        setShowSignUp(true);
-                    }}
+                    onClose={handleCloseModal}
+                    onShowPasswordReset={() => setActiveModal('password-reset')}
+                    onShowSignUp={() => setActiveModal('signup')}
                 />
             )}
 
-            {showSignUp && (
+            {activeModal === 'signup' && (
                 <SignUp
-                    onClose={() => setShowSignUp(false)}
-                    onShowSignIn={() => {
-                        setShowSignUp(false);
-                        setShowSignIn(true);
-                    }}
+                    onClose={handleCloseModal}
+                    onShowSignIn={() => setActiveModal('signin')}
                 />
             )}
 
-            {showPasswordReset && (
+            {activeModal === 'password-reset' && (
                 <PasswordReset
-                    onClose={() => setShowPasswordReset(false)}
-                    onShowSignIn={() => {
-                        setShowPasswordReset(false);
-                        setShowSignIn(true);
-                    }}
+                    onClose={handleCloseModal}
+                    onShowSignIn={() => setActiveModal('signin')}
                     token={resetToken || undefined}
                 />
             )}
 
             {/* Navbar */}
-            <Navbar onLoginClick={() => setShowSignIn(true)} onSignupClick={() => setShowSignUp(true)} />
+            <Navbar
+                onLoginClick={() => setActiveModal('signin')}
+                onSignupClick={() => setActiveModal('signup')}
+            />
 
             {/* Nội dung chính */}
             <main>
-                <section id="hero"><HeroSection onSignupClick={() => setShowSignUp(true)} /></section>
-                <section id="stats"><StatsSection /></section>
-                <section id="features" className="scroll-mt-24"><FeaturesSection /></section>
-                <section id="about" className="scroll-mt-24"><AboutSection /></section>
-                <section id="testimonials" className="scroll-mt-24"><TestimonialsSection /></section>
+                <section id="hero">
+                    <HeroSection onSignupClick={() => setActiveModal('signup')} />
+                </section>
+                <section id="stats">
+                    <StatsSection />
+                </section>
+                <section id="features" className="scroll-mt-24">
+                    <FeaturesSection />
+                </section>
+                <section id="about" className="scroll-mt-24">
+                    <AboutSection />
+                </section>
+                <section id="testimonials" className="scroll-mt-24">
+                    <TestimonialsSection />
+                </section>
                 <section id="cta" className="scroll-mt-24">
                     <CTASection
-                        onLoginClick={() => setShowSignIn(true)}
-                        onSignupClick={() => setShowSignUp(true)}
+                        onLoginClick={() => setActiveModal('signin')}
+                        onSignupClick={() => setActiveModal('signup')}
                     />
                 </section>
             </main>

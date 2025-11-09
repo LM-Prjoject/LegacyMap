@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, UseUsersReturn } from '../types/ts_user';
 
-// Base URL tự động chọn giữa local và Render
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV
-    ? 'http://localhost:8080/legacy/api' // chạy local
-    : 'https://legacymap.onrender.com/legacy/api'); // deploy Render
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV
+        ? 'http://localhost:8080/legacy/api'
+        : 'https://legacymap.onrender.com/legacy/api');
 
 export const useUsers = (): UseUsersReturn => {
   const [users, setUsers] = useState<User[]>([]);
@@ -19,10 +18,11 @@ export const useUsers = (): UseUsersReturn => {
       setError(null);
 
       const token = localStorage.getItem('authToken');
-      if (!token) throw new Error('No authentication token found');
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập để tiếp tục');
+      }
 
-      console.log('Fetching users from:', `${API_BASE_URL}/admin/users`);
-      console.log('Using token:', token.substring(0, 15) + '...');
+      console.log('🌐 Fetching users from:', `${API_BASE_URL}/admin/users`);
 
       const response = await fetch(`${API_BASE_URL}/admin/users`, {
         method: 'GET',
@@ -35,28 +35,48 @@ export const useUsers = (): UseUsersReturn => {
 
       console.log('📡 Response status:', response.status);
 
-      // --- Error handling ---
-      if (response.status === 403) {
-        const html = await response.text();
-        console.warn('403 Forbidden (HTML returned):', html.slice(0, 100));
-        throw new Error('Access denied: Admin role required.');
-      }
-      if (response.status === 401) {
-        throw new Error('Authentication failed. Please login again.');
-      }
-      if (!response.ok) {
+      // ===== FIX: Kiểm tra Content-Type trước khi parse =====
+      const contentType = response.headers.get('content-type');
+      console.log('📄 Content-Type:', contentType);
+
+      // Nếu không phải JSON, đừng parse
+      if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        console.warn('Unexpected response:', text.slice(0, 100));
-        throw new Error(`Failed to fetch users: ${response.status}`);
+        console.error('❌ Received HTML instead of JSON:', text.substring(0, 200));
+
+        if (response.status === 403) {
+          throw new Error('Bạn không có quyền truy cập trang này. Cần quyền Admin.');
+        } else if (response.status === 401) {
+          throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+        } else {
+          throw new Error(`Lỗi server: ${response.status} ${response.statusText}`);
+        }
       }
 
-      // Parse JSON safely
+      // Xử lý lỗi status
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Bạn không có quyền truy cập. Cần quyền Admin.');
+        }
+        if (response.status === 401) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          window.location.href = '/signin';
+          throw new Error('Phiên đăng nhập hết hạn.');
+        }
+        throw new Error(`Không thể tải danh sách người dùng: ${response.status}`);
+      }
+
+      // Parse JSON an toàn
       const data = await response.json();
-      console.log('Users data received:', data);
-      setUsers(data);
+      console.log('✅ Users data received:', data);
+
+      // Backend có thể trả về { result: [...] } hoặc trực tiếp array
+      const usersList = Array.isArray(data) ? data : (data.result || []);
+      setUsers(usersList);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An error occurred';
-      console.error('Error fetching users:', err);
+      const message = err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định';
+      console.error('❌ Error fetching users:', err);
       setError(message);
     } finally {
       setLoading(false);
@@ -66,7 +86,7 @@ export const useUsers = (): UseUsersReturn => {
   const banUser = useCallback(async (userId: string) => {
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) throw new Error('No authentication token');
+      if (!token) throw new Error('Không tìm thấy token xác thực');
 
       const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/ban`, {
         method: 'POST',
@@ -75,7 +95,17 @@ export const useUsers = (): UseUsersReturn => {
           'Content-Type': 'application/json',
         },
       });
-      if (!res.ok) throw new Error('Failed to ban user');
+
+      if (res.status === 401 || res.status === 403) {
+        throw new Error('Không có quyền thực hiện thao tác này');
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Ban user failed:', text);
+        throw new Error('Không thể khóa người dùng');
+      }
+
       setUsers(prev => prev.map(u => (u.id === userId ? { ...u, isBanned: true } : u)));
     } catch (err) {
       console.error('Error banning user:', err);
@@ -86,7 +116,7 @@ export const useUsers = (): UseUsersReturn => {
   const unbanUser = useCallback(async (userId: string) => {
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) throw new Error('No authentication token');
+      if (!token) throw new Error('Không tìm thấy token xác thực');
 
       const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/unban`, {
         method: 'POST',
@@ -95,7 +125,15 @@ export const useUsers = (): UseUsersReturn => {
           'Content-Type': 'application/json',
         },
       });
-      if (!res.ok) throw new Error('Failed to unban user');
+
+      if (res.status === 401 || res.status === 403) {
+        throw new Error('Không có quyền thực hiện thao tác này');
+      }
+
+      if (!res.ok) {
+        throw new Error('Không thể mở khóa người dùng');
+      }
+
       setUsers(prev => prev.map(u => (u.id === userId ? { ...u, isBanned: false } : u)));
     } catch (err) {
       console.error('Error unbanning user:', err);

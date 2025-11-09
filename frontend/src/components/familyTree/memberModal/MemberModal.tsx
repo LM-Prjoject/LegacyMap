@@ -1,4 +1,4 @@
-import React,{ useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { showToast } from "@/lib/toast.ts";
 
@@ -38,6 +38,7 @@ export default function MemberModal({
     const [dragOver, setDragOver] = useState(false);
     const [isDeceased, setIsDeceased] = useState<boolean>(Boolean(initialValues?.deathDate));
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const [submitted, setSubmitted] = useState(false);
 
     useEffect(() => {
         if (!open) return;
@@ -53,6 +54,7 @@ export default function MemberModal({
         setForm(initialValues ?? { fullName: "" });
         setPreview(initialValues?.avatarUrl || "");
         setIsDeceased(Boolean(initialValues?.deathDate));
+        setSubmitted(false);
     }, [open, initialValues]);
 
     useEffect(() => {
@@ -63,14 +65,20 @@ export default function MemberModal({
     }, [form.avatarFile]);
 
     const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-    const canSubmitName = form.fullName.trim().length > 0;
 
-    const deathDateError =
-        isDeceased && form.birthDate && form.deathDate && form.deathDate < form.birthDate
-            ? "Ngày mất không thể là ngày trước ngày sinh."
-            : "";
+    const nameError = form.fullName.trim().length === 0 ? "Vui lòng nhập họ và tên." : "";
 
-    const canSubmitAll = canSubmitName && !deathDateError;
+    const birthDateError = !form.birthDate ? "Vui lòng chọn ngày sinh." : "";
+
+    const deathDateError = (() => {
+        if (!isDeceased) return "";
+        if (!form.deathDate) return "Vui lòng chọn ngày mất.";
+        if (form.birthDate && form.deathDate < form.birthDate) return "Ngày mất không thể là ngày trước ngày sinh.";
+        if (form.deathDate > today) return "Ngày mất không thể ở tương lai.";
+        return "";
+    })();
+
+    const canSubmitAll = !nameError && !birthDateError && !deathDateError;
 
     const handlePickFile = (file?: File) => {
         if (!file) return;
@@ -110,9 +118,12 @@ export default function MemberModal({
     };
 
     const handleSubmit = () => {
+        setSubmitted(true);
+
         if (!canSubmitAll) {
-            if (!canSubmitName) showToast.error("Vui lòng nhập họ và tên");
-            if (deathDateError) showToast.error(deathDateError);
+            if (nameError) showToast.error(nameError);
+            else if (birthDateError) showToast.error(birthDateError);
+            else if (deathDateError) showToast.error(deathDateError);
             return;
         }
         onSubmit({ ...form, gender: (form.gender || "") as any });
@@ -127,7 +138,6 @@ export default function MemberModal({
             aria-modal="true"
         >
             <div className="w-full max-w-2xl bg-white text-slate-900 rounded-2xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col">
-
                 <div className="flex items-center justify-between px-5 py-4 border-b">
                     <h3 className="text-lg font-semibold">{title}</h3>
                     <button aria-label="Đóng" onClick={onClose} className="p-2 rounded-full hover:bg-slate-100">
@@ -137,16 +147,24 @@ export default function MemberModal({
 
                 <div className="px-5 py-4 overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
                         <label className="flex flex-col gap-1">
                             <span className="text-sm text-slate-600">Họ và tên *</span>
                             <input
-                                className="border rounded-lg px-3 py-2"
+                                className={`border rounded-lg px-3 py-2 ${
+                                    submitted && nameError ? "border-red-500 focus-visible:outline-red-500" : ""
+                                }`}
                                 value={form.fullName}
                                 onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
                                 placeholder="Nguyễn Văn A"
                                 required
+                                aria-invalid={submitted && !!nameError}
+                                aria-describedby={submitted && nameError ? "name-error" : undefined}
                             />
+                            {submitted && nameError && (
+                                <span id="name-error" className="text-xs text-red-600 mt-1">
+                  {nameError}
+                </span>
+                            )}
                         </label>
 
                         <label className="flex flex-col gap-1">
@@ -165,16 +183,24 @@ export default function MemberModal({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
                             <label className="flex flex-col gap-1">
-                                <span className="text-sm text-slate-600">Ngày sinh</span>
+                                <span className="text-sm text-slate-600">Ngày sinh *</span>
                                 <input
                                     type="date"
-                                    className="border rounded-lg px-3 py-2"
+                                    className={`border rounded-lg px-3 py-2 ${
+                                        submitted && birthDateError ? "border-red-500 focus-visible:outline-red-500" : ""
+                                    }`}
                                     max={today}
                                     value={form.birthDate || ""}
-                                    onChange={(e) =>
-                                        setForm((f) => ({ ...f, birthDate: e.target.value || undefined }))
-                                    }
+                                    onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value || undefined }))}
+                                    required
+                                    aria-invalid={submitted && !!birthDateError}
+                                    aria-describedby={submitted && birthDateError ? "birth-error" : undefined}
                                 />
+                                {submitted && birthDateError && (
+                                    <span id="birth-error" className="text-xs text-red-600 mt-1">
+                    {birthDateError}
+                  </span>
+                                )}
                             </label>
 
                             <label className="flex flex-col gap-1">
@@ -182,9 +208,7 @@ export default function MemberModal({
                                 <input
                                     className="border rounded-lg px-3 py-2"
                                     value={form.birthPlace || ""}
-                                    onChange={(e) =>
-                                        setForm((f) => ({ ...f, birthPlace: e.target.value || undefined }))
-                                    }
+                                    onChange={(e) => setForm((f) => ({ ...f, birthPlace: e.target.value || undefined }))}
                                 />
                             </label>
                         </div>
@@ -203,23 +227,25 @@ export default function MemberModal({
 
                         {isDeceased && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
-
                                 <label className="flex flex-col gap-1">
-                                    <span className="text-sm text-slate-600">Ngày mất</span>
+                                    <span className="text-sm text-slate-600">Ngày mất *</span>
                                     <input
                                         type="date"
                                         className={`border rounded-lg px-3 py-2 ${
-                                            deathDateError ? "border-red-500 focus-visible:outline-red-500" : ""
+                                            submitted && deathDateError ? "border-red-500 focus-visible:outline-red-500" : ""
                                         }`}
                                         max={today}
                                         min={form.birthDate || undefined}
                                         value={form.deathDate || ""}
-                                        onChange={(e) =>
-                                            setForm((f) => ({ ...f, deathDate: e.target.value || undefined }))
-                                        }
+                                        onChange={(e) => setForm((f) => ({ ...f, deathDate: e.target.value || undefined }))}
+                                        required
+                                        aria-invalid={submitted && !!deathDateError}
+                                        aria-describedby={submitted && deathDateError ? "death-error" : undefined}
                                     />
-                                    {deathDateError && (
-                                        <span className="text-xs text-red-600 mt-1">{deathDateError}</span>
+                                    {submitted && deathDateError && (
+                                        <span id="death-error" className="text-xs text-red-600 mt-1">
+                      {deathDateError}
+                    </span>
                                     )}
                                 </label>
 
@@ -228,9 +254,7 @@ export default function MemberModal({
                                     <input
                                         className="border rounded-lg px-3 py-2"
                                         value={form.deathPlace || ""}
-                                        onChange={(e) =>
-                                            setForm((f) => ({ ...f, deathPlace: e.target.value || undefined }))
-                                        }
+                                        onChange={(e) => setForm((f) => ({ ...f, deathPlace: e.target.value || undefined }))}
                                     />
                                 </label>
                             </div>
@@ -254,7 +278,9 @@ export default function MemberModal({
                                     <img
                                         src={preview}
                                         alt="avatar preview"
-                                        className={`w-20 h-20 rounded-lg object-cover border cursor-pointer ${ submitting ? "opacity-60 pointer-events-none" : "" }`}
+                                        className={`w-20 h-20 rounded-lg object-cover border cursor-pointer ${
+                                            submitting ? "opacity-60 pointer-events-none" : ""
+                                        }`}
                                         onClick={() => inputRef.current?.click()}
                                     />
                                     <button
@@ -264,7 +290,10 @@ export default function MemberModal({
                                         aria-label="Xoá ảnh"
                                         title="Xoá ảnh"
                                         disabled={submitting}
-                                        style={{ opacity: submitting ? 0.6 : 1, pointerEvents: submitting ? "none" : "auto" }}
+                                        style={{
+                                            opacity: submitting ? 0.6 : 1,
+                                            pointerEvents: submitting ? "none" : "auto",
+                                        }}
                                     >
                                         <X size={14} />
                                     </button>
@@ -304,7 +333,7 @@ export default function MemberModal({
                     </button>
                     <button
                         onClick={handleSubmit}
-                        disabled={submitting || !canSubmitAll}
+                        disabled={submitting}
                         className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
                     >
                         {submitting ? (

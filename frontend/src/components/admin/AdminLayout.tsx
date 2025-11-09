@@ -1,5 +1,5 @@
 // src/components/admin/AdminLayout.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import logoImg from '@/assets/logo.png';
 
@@ -10,6 +10,24 @@ interface AdminLayoutProps {
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const location = useLocation();
 
+    useEffect(() => {
+        const navbar = document.querySelector('nav');
+        if (navbar) {
+            (navbar as HTMLElement).style.display = 'none';
+        }
+
+        document.body.style.paddingTop = '0';
+        document.body.style.backgroundColor = '#20283d';
+
+        return () => {
+            if (navbar) {
+                (navbar as HTMLElement).style.display = '';
+            }
+            document.body.style.paddingTop = '';
+            document.body.style.backgroundColor = '';
+        };
+    }, []);
+
     const menuItems = [
         { path: '/admin/dashboard', label: 'Tổng Quan', icon: '🏠' },
         { path: '/admin/users', label: 'Người Dùng', icon: '👥' },
@@ -18,82 +36,254 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     ];
 
     const isActive = (path: string) => {
-        // ✅ Special case: Tổng Quan active khi ở /admin hoặc /admin/dashboard
         if (path === '/admin/dashboard') {
             return location.pathname === '/admin' || location.pathname === '/admin/dashboard';
         }
-        return location.pathname === path;
+        return location.pathname.startsWith(path);
     };
 
     return (
-        <div className="min-h-screen flex bg-gradient-to-br from-[#20283d] to-[#2e3a57] text-white relative overflow-hidden">
-            {/* Ánh sáng nền mờ vàng kim */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-[#d1b98a]/10 blur-3xl rounded-full pointer-events-none" />
-            <div className="absolute bottom-0 right-1/3 w-[700px] h-[300px] bg-[#b49e7b]/10 blur-3xl rounded-full pointer-events-none" />
+        <>
+            <style dangerouslySetInnerHTML={{ __html: `
+                .admin-sidebar-link {
+                    display: flex !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    align-items: center !important;
+                    gap: 16px !important;
+                    padding: 16px 24px !important;
+                    margin-bottom: 8px !important;
+                    border-radius: 12px !important;
+                    text-decoration: none !important;
+                    transition: all 0.3s ease !important;
+                    cursor: pointer !important;
+                    font-size: 16px !important;
+                    font-weight: 500 !important;
+                }
+                
+                .admin-sidebar-link.active {
+                    background: linear-gradient(90deg, #d1b98a 0%, #f4e9c8 100%) !important;
+                    color: #20283d !important;
+                    font-weight: 600 !important;
+                    box-shadow: 0 4px 12px rgba(209, 185, 138, 0.2) !important;
+                }
+                
+                .admin-sidebar-link:not(.active) {
+                    background: transparent !important;
+                    color: #e5e7eb !important;
+                }
+                
+                .admin-sidebar-link:not(.active):hover {
+                    background: rgba(46, 58, 87, 0.6) !important;
+                    color: #f4e9c8 !important;
+                }
+                
+                .admin-sidebar-nav {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                }
+            `}} />
 
-            {/* Sidebar */}
-            <aside className="w-80 bg-[#1b2233]/95 border-r border-[#d1b98a]/20 shadow-[4px_0_15px_rgba(0,0,0,0.25)] flex flex-col z-20 relative">
-                {/* Logo Section */}
-                <Link
-                    to="/"
-                    className="p-6 border-b border-[#d1b98a]/20 hover:bg-[#20283d]/60 transition-all no-underline"
-                >
-                    <div className="flex items-center gap-4">
-                        <img
-                            src={logoImg}
-                            alt="Logo"
-                            className="w-16 h-16 object-contain drop-shadow-[0_0_8px_rgba(209,185,138,0.3)]"
-                        />
-                        <div>
-                            <h1 className="text-[#d1b98a]/90 text-sm italic font-medium">
-                                Con Rồng Cháu Tiên
-                            </h1>
+            <div style={{
+                position: 'fixed',
+                inset: 0,
+                width: '100vw',
+                height: '100vh',
+                display: 'flex',
+                background: 'linear-gradient(135deg, #20283d 0%, #2e3a57 100%)',
+                color: 'white',
+                overflow: 'hidden'
+            }}>
+                {/* Background effects */}
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '900px',
+                    height: '400px',
+                    background: 'rgba(209, 185, 138, 0.1)',
+                    filter: 'blur(120px)',
+                    borderRadius: '50%',
+                    pointerEvents: 'none'
+                }} />
+
+                {/* SIDEBAR */}
+                <aside style={{
+                    width: '300px',
+                    minWidth: '300px',
+                    maxWidth: '300px',
+                    height: '100vh',
+                    background: 'rgba(27, 34, 51, 0.95)',
+                    borderRight: '1px solid rgba(209, 185, 138, 0.2)',
+                    boxShadow: '4px 0 15px rgba(0,0,0,0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    zIndex: 50,
+                    flexShrink: 0
+                }}>
+                    {/* Logo Section */}
+                    <Link
+                        to="/"
+                        style={{
+                            height: '120px',
+                            minHeight: '120px',
+                            maxHeight: '120px',
+                            padding: '24px',
+                            borderBottom: '1px solid rgba(209, 185, 138, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            flexShrink: 0,
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            transition: 'background 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(32, 40, 61, 0.6)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <img
+                                src={logoImg}
+                                alt="Logo"
+                                style={{
+                                    width: '64px',
+                                    height: '64px',
+                                    objectFit: 'contain',
+                                    filter: 'drop-shadow(0 0 8px rgba(209, 185, 138, 0.3))'
+                                }}
+                            />
+                            <div>
+                                <h1 style={{
+                                    color: '#d1b98a',
+                                    fontSize: '16px',
+                                    fontWeight: 600,
+                                    lineHeight: 1.2,
+                                    margin: 0
+                                }}>
+                                    Con Rồng Cháu Tiên
+                                </h1>
+                                <p style={{
+                                    color: 'rgba(209, 185, 138, 0.7)',
+                                    fontSize: '12px',
+                                    marginTop: '2px',
+                                    marginBottom: 0
+                                }}>
+                                    LegacyMap Admin
+                                </p>
+                            </div>
                         </div>
+                    </Link>
+
+                    {/* MENU ITEMS */}
+                    <nav
+                        className="admin-sidebar-nav"
+                        style={{
+                            flex: 1,
+                            padding: '16px',
+                            marginTop: '8px',
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        {menuItems.map((item) => {
+                            const active = isActive(item.path);
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    className={`admin-sidebar-link ${active ? 'active' : ''}`}
+                                >
+                                    <span style={{ fontSize: '24px' }}>{item.icon}</span>
+                                    <span>{item.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </aside>
+
+                {/* MAIN CONTENT AREA */}
+                <main style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    zIndex: 10,
+                    minWidth: 0,
+                    height: '100vh',
+                    maxHeight: '100vh'
+                }}>
+                    {/* Header - Fixed */}
+                    <div style={{
+                        height: '120px',
+                        minHeight: '120px',
+                        maxHeight: '120px',
+                        background: 'rgba(32, 40, 61, 0.75)',
+                        backdropFilter: 'blur(10px)',
+                        borderBottom: '1px solid rgba(209, 185, 138, 0.2)',
+                        padding: '0 32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        flexShrink: 0
+                    }}>
+                        <h2 style={{
+                            fontSize: '24px',
+                            fontWeight: 700,
+                            background: 'linear-gradient(90deg, #d1b98a 0%, #f4e9c8 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            margin: 0
+                        }}>
+                            Khu vực quản trị
+                        </h2>
+                        <span style={{
+                            fontSize: '14px',
+                            color: 'rgba(244, 233, 200, 0.8)',
+                            fontStyle: 'italic',
+                            fontWeight: 500
+                        }}>
+                            LegacyMap Admin
+                        </span>
                     </div>
-                </Link>
 
-                {/* Menu Items */}
-                <nav className="flex-1 p-4 mt-2">
-                    {menuItems.map((item) => {
-                        const active = isActive(item.path);
-                        return (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={`
-                  flex items-center gap-4 px-6 py-4 mb-2 rounded-xl transition-all no-underline
-                  ${
-                                    active
-                                        ? 'bg-gradient-to-r from-[#d1b98a] to-[#f4e9c8] text-[#20283d] font-semibold shadow-lg shadow-[#d1b98a]/20'
-                                        : 'text-gray-200 hover:text-[#f4e9c8] hover:bg-[#2e3a57]/60 hover:shadow-md hover:shadow-[#d1b98a]/10'
-                                }
-                `}
-                            >
-                                <span className="text-2xl">{item.icon}</span>
-                                <span className="text-base">{item.label}</span>
-                            </Link>
-                        );
-                    })}
-                </nav>
-            </aside>
+                    {/* Scrollable Content */}
+                    <div style={{
+                        flex: 1,
+                        height: 'calc(100vh - 120px)',
+                        maxHeight: 'calc(100vh - 120px)',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                        padding: '32px'
+                    }}>
+                        {children}
+                    </div>
+                </main>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-auto relative z-10">
-                {/* Thanh tiêu đề cố định */}
-                <div className="sticky top-0 z-10 backdrop-blur-md bg-[#20283d]/75 border-b border-[#d1b98a]/20 px-8 py-4 flex items-center justify-between shadow-sm">
-                    <h2 className="text-xl font-bold bg-gradient-to-r from-[#d1b98a] to-[#f4e9c8] bg-clip-text text-transparent select-none">
-                        Khu vực quản trị
-                    </h2>
-                    <span className="text-sm text-[#f4e9c8]/80 italic">LegacyMap Admin</span>
-                </div>
-
-                {/* Nội dung con */}
-                <div className="p-8">{children}</div>
-            </main>
-
-            {/* Ánh sáng nền phụ */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1000px] h-[300px] bg-[#d1b98a]/10 blur-[120px] rounded-full pointer-events-none" />
-        </div>
+                {/* Bottom glow */}
+                <div style={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '1000px',
+                    height: '300px',
+                    background: 'rgba(209, 185, 138, 0.1)',
+                    filter: 'blur(120px)',
+                    borderRadius: '50%',
+                    pointerEvents: 'none',
+                    zIndex: 0
+                }} />
+            </div>
+        </>
     );
 };
 

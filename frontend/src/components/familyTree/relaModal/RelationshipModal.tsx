@@ -11,6 +11,7 @@ export interface PairSuggestion {
 interface Props {
     isOpen: boolean;
     onClose: () => void;
+    onCancel?: () => void;
     source: Person;
     persons: Person[];
     fetchSuggestions: (sourceId: string) => Promise<PairSuggestion[]>;
@@ -27,6 +28,7 @@ const RELATION_LABEL: Record<RelationUpper, string> = {
 export default function RelationshipModal({
                                               isOpen,
                                               onClose,
+                                              onCancel,
                                               source,
                                               persons,
                                               fetchSuggestions,
@@ -48,15 +50,13 @@ export default function RelationshipModal({
         setPicked({ relation: "", candidateId: "" });
         setLoading(true);
         fetchSuggestions(source.id)
-            .then((list) => setSuggestions(list))
+            .then((list) => setSuggestions(list || []))
             .catch((e) => setError(String(e?.message || e)))
             .finally(() => setLoading(false));
     }, [isOpen, source?.id, fetchSuggestions]);
 
     const selected =
-        picked.candidateId
-            ? suggestions.find((s) => s.candidateId === picked.candidateId)
-            : suggestions[0];
+        picked.candidateId ? suggestions.find((s) => s.candidateId === picked.candidateId) : suggestions[0];
 
     useEffect(() => {
         if (!picked.candidateId) return;
@@ -67,15 +67,21 @@ export default function RelationshipModal({
         }));
     }, [picked.candidateId, suggestions]);
 
+    const handleCancel = onCancel ?? onClose;
+
+    const effectiveRelation = picked.relation || selected?.relation || "";
+    const effectiveCandidateId = picked.candidateId || selected?.candidateId || "";
+    const canConfirm = !!effectiveRelation && !!effectiveCandidateId && !loading;
+
     return (
         <div className={`fixed inset-0 z-50 ${isOpen ? "" : "hidden"}`}>
-            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/40" onClick={handleCancel} />
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] max-w-[95vw] rounded-2xl bg-white shadow-xl">
                 <div className="p-4 border-b flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
                         Xác nhận mối quan hệ cho <span className="text-emerald-700">{source.fullName}</span>
                     </h3>
-                    <button onClick={onClose} className="px-3 py-1 rounded hover:bg-gray-100">
+                    <button onClick={handleCancel} className="px-3 py-1 rounded hover:bg-gray-100">
                         Đóng
                     </button>
                 </div>
@@ -100,9 +106,7 @@ export default function RelationshipModal({
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-sm text-gray-600">
-                                    Không có gợi ý.
-                                </div>
+                                <div className="text-sm text-gray-600">Không có gợi ý.</div>
                             )}
 
                             <div className="grid grid-cols-2 gap-3">
@@ -143,21 +147,19 @@ export default function RelationshipModal({
                 </div>
 
                 <div className="p-4 border-t flex items-center justify-end gap-2">
-                    <button className="px-3 py-2 rounded-lg border" onClick={onClose}>
+                    <button className="px-3 py-2 rounded-lg border" onClick={handleCancel}>
                         Hủy
                     </button>
                     <button
                         className="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
-                        disabled={loading}
+                        disabled={!canConfirm}
                         onClick={async () => {
-                            const relation = (picked.relation || selected?.relation) as RelationUpper | undefined;
-                            const candidateId = (picked.candidateId || selected?.candidateId) as string | undefined;
-                            if (!relation || !candidateId) {
-                                setError("Hãy chọn đủ người và loại quan hệ");
-                                return;
-                            }
+                            if (!canConfirm) return;
                             setError("");
-                            await onConfirm({ relation, candidateId });
+                            await onConfirm({
+                                relation: effectiveRelation as RelationUpper,
+                                candidateId: effectiveCandidateId,
+                            });
                             onClose();
                         }}
                     >

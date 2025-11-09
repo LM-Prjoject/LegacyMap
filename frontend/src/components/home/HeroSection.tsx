@@ -1,5 +1,6 @@
 // src/components/home/HeroSection.tsx
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from '@/components/layout/Button';
 import RongPhuong from '@/assets/Rong_Phuong.jpg';
 
@@ -10,9 +11,34 @@ interface HeroSectionProps {
 export default function HeroSection({ onSignupClick }: HeroSectionProps) {
     const [isVisible, setIsVisible] = useState(false);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState<any>(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         setIsVisible(true);
+
+        // Check authentication status
+        const checkAuth = () => {
+            const token = localStorage.getItem('authToken');
+            const userStr = localStorage.getItem('user');
+            const isAuth = !!(token && userStr);
+            setIsAuthenticated(isAuth);
+
+            if (isAuth && userStr) {
+                try {
+                    const userData = JSON.parse(userStr);
+                    setUser(userData);
+                } catch {
+                    setUser(null);
+                }
+            } else {
+                setUser(null);
+            }
+        };
+
+        checkAuth();
+        window.addEventListener('storage', checkAuth);
 
         const handleMouseMove = (e: MouseEvent) => {
             setMousePos({
@@ -22,8 +48,33 @@ export default function HeroSection({ onSignupClick }: HeroSectionProps) {
         };
 
         window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('storage', checkAuth);
+        };
     }, []);
+
+    const isAdmin = () => {
+        if (!user) return false;
+        return user.roleName === 'admin' || user.role === 'admin';
+    };
+
+    const getDashboardUrl = () => {
+        return isAdmin() ? '/admin/dashboard' : '/dashboard';
+    };
+
+    const handlePrimaryClick = () => {
+        if (isAuthenticated) {
+            navigate(getDashboardUrl());
+        } else {
+            onSignupClick();
+        }
+    };
+
+    const getButtonText = () => {
+        if (!isAuthenticated) return 'Bắt đầu miễn phí';
+        return isAdmin() ? 'Quản lý hệ thống' : 'Bắt đầu';
+    };
 
     return (
         <header className="relative overflow-hidden bg-gradient-to-br from-[#0f1419] via-[#1e2a3a] to-[#0f1419] text-white min-h-screen flex items-center">
@@ -183,11 +234,11 @@ export default function HeroSection({ onSignupClick }: HeroSectionProps) {
                             <Button
                                 variant="primary"
                                 size="lg"
-                                onClick={onSignupClick}
+                                onClick={handlePrimaryClick}
                                 className="relative overflow-hidden bg-gradient-to-r from-[#d4af7a] via-[#ffd89b] to-[#d4af7a] bg-[length:200%_100%] text-[#0f1419] font-bold shadow-[0_20px_50px_rgba(255,216,155,0.5),0_0_80px_rgba(212,175,122,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] hover:shadow-[0_25px_60px_rgba(255,216,155,0.7),0_0_100px_rgba(212,175,122,0.5)] transition-all duration-500 hover:scale-110 active:scale-105 border-2 border-[#ffd89b]/50 group px-10 py-4 text-lg"
                             >
                                 <span className="relative z-10 flex items-center gap-2">
-                                    Bắt đầu miễn phí
+                                    {getButtonText()}
                                     <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                     </svg>

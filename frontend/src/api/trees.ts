@@ -293,6 +293,18 @@ async function updateMember(
   return pickData<Person>(json);
 }
 
+async function deleteMember(userId: string, treeId: string, personId: string): Promise<void> {
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/members/${encodeURIComponent(personId)}?userId=${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<any>>(res);
+    throw new Error(j?.message || "Xóa thành viên thất bại");
+  }
+}
+
 async function listRelationships(
     userId: string,
     treeId: string
@@ -429,6 +441,7 @@ const api = {
   listMembers,
   addMember,
   updateMember,
+  deleteMember,
   listRelationships,
   listPersonRelationships,
   createRelationship,

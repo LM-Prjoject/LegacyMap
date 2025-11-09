@@ -188,25 +188,36 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<FamilyTreeResponse> getAllFamilyTrees() {
         checkAdminPermission();
 
         log.info("🌳 Admin accessing all family trees");
 
         try {
-            List<FamilyTree> familyTrees = familyTreeRepository.findAllByOrderByCreatedAtDesc();
+            // ✅ Sử dụng method với JOIN FETCH
+            List<FamilyTree> familyTrees = familyTreeRepository.findAllWithUserOrderByCreatedAtDesc();
 
             log.info("📊 Found {} family trees in database", familyTrees.size());
+
+            // ✅ DEBUG: Log chi tiết từng tree
+            for (FamilyTree tree : familyTrees) {
+                log.info("🌳 Tree ID: {}, Name: {}, CreatedBy: {}",
+                        tree.getId(),
+                        tree.getName(),
+                        tree.getCreatedBy() != null ? tree.getCreatedBy().getEmail() : "NULL");
+            }
 
             List<FamilyTreeResponse> response = familyTrees.stream()
                     .map(tree -> {
                         try {
                             FamilyTreeResponse dto = FamilyTreeResponse.fromEntity(tree);
 
+                            // ✅ Count members
                             long memberCount = personRepository.countByFamilyTree_Id(tree.getId());
                             dto.setMemberCount(memberCount);
 
-                            log.debug("🌳 Tree '{}' has {} members", tree.getName(), memberCount);
+                            log.debug("✅ Converted tree '{}' with {} members", tree.getName(), memberCount);
 
                             return dto;
                         } catch (Exception e) {
@@ -218,6 +229,12 @@ public class AdminServiceImpl implements AdminService {
                     .collect(Collectors.toList());
 
             log.info("✅ Successfully converted {} family trees to DTOs", response.size());
+
+            // ✅ DEBUG: Log response trước khi return
+            if (!response.isEmpty()) {
+                log.info("📦 First tree in response: {}", response.get(0));
+            }
+
             return response;
 
         } catch (Exception e) {
