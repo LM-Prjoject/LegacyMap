@@ -130,7 +130,7 @@ const FamilyTreesPage: React.FC = () => {
                 <div className="flex flex-col md:flex-row gap-4">
                     <input
                         type="text"
-                        placeholder="🔍 Tìm kiếm theo tên, email hoặc người tạo..."
+                        placeholder="Tìm kiếm theo tên, email hoặc người tạo..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="flex-1 px-4 py-3 bg-[#2e3a57]/70 border border-[#d1b98a]/30 rounded-lg text-[#f4e9c8] placeholder-[#f4e9c8]/40 focus:ring-2 focus:ring-[#d1b98a] focus:border-[#d1b98a] transition-all"
@@ -145,12 +145,12 @@ const FamilyTreesPage: React.FC = () => {
                         <FilterButton
                             active={showPublicOnly === true}
                             onClick={() => setShowPublicOnly(true)}
-                            label="🌍 Công khai"
+                            label="Công khai"
                         />
                         <FilterButton
                             active={showPublicOnly === false}
                             onClick={() => setShowPublicOnly(false)}
-                            label="🔒 Riêng tư"
+                            label="Riêng tư"
                         />
                     </div>
                 </div>

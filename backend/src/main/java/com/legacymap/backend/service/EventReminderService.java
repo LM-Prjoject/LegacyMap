@@ -104,38 +104,6 @@ public class EventReminderService {
         createRemindersForEvent(event);
     }
 
-//    @Scheduled(fixedRate = 60000)
-//    @Transactional
-//    public void processPendingReminders() {
-//        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
-//        // Lấy các reminder đã đến HOẶC quá 1 phút (để xử lý "gửi ngay")
-//        OffsetDateTime threshold = nowUtc.minusMinutes(1);
-//        List<EventReminder> pendingReminders = eventReminderRepository.findPendingRemindersBefore(nowUtc);
-//
-//        if (pendingReminders.isEmpty()) {
-//            return;
-//        }
-//
-//        log.info("Processing {} pending reminders (now: {}, threshold: {})",
-//                pendingReminders.size(), nowUtc, threshold);
-//
-//        for (EventReminder reminder : pendingReminders) {
-//            try {
-//                log.info("Sending reminder {} scheduled for {}", reminder.getId(), reminder.getScheduledAt());
-//                sendReminder(reminder);
-//                reminder.setStatus(EventReminder.ReminderStatus.sent);
-//                reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
-//                eventReminderRepository.save(reminder);
-//                log.info("Successfully sent reminder {}", reminder.getId());
-//            } catch (Exception e) {
-//                log.error("Failed to send reminder {}", reminder.getId(), e);
-//                reminder.setStatus(EventReminder.ReminderStatus.failed);
-//                reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
-//                eventReminderRepository.save(reminder);
-//            }
-//        }
-//    }
-
     @Scheduled(fixedRate = 30_000)
     @Transactional
     public void processPendingReminders() {

@@ -117,7 +117,6 @@ const EventFormPage: React.FC = () => {
             background: 'linear-gradient(135deg, #1a1f2e 0%, #2a3548 50%, #1f2937 100%)',
         }}>
             <Navbar />
-            <div className="h-16"></div>
             {/* Header */}
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 relative z-10">
                 <div className="flex items-center justify-between">

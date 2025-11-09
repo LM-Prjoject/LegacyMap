@@ -1,4 +1,3 @@
-// src/hooks/useCurrentUser.ts
 import { useState, useEffect } from 'react';
 import { authApi } from '@/api/auth';
 import type {User} from '@/types/ts_user';
