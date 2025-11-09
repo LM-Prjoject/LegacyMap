@@ -40,17 +40,17 @@ public class CustomOidcUserService extends OidcUserService {
 
         log.info("🔐 Google OIDC login for email: {}", email);
 
-        // ✅ CHECK BAN TRƯỚC - QUAN TRỌNG NHẤT
-        // ✅ FIXED: Throw Spring Security exception để failureHandler catch được
+        // CHECK BAN TRƯỚC - QUAN TRỌNG NHẤT
+        // FIXED: Throw Spring Security exception để failureHandler catch được
         if (isEmailBanned(email)) {
-            log.warn("🚫 BLOCKED: Email {} is banned", email);
-            throw new DisabledException("BANNED: Account is banned"); // ✅ Thêm prefix để dễ detect
+            log.warn("BLOCKED: Email {} is banned", email);
+            throw new DisabledException("BANNED: Account is banned"); // Thêm prefix để dễ detect
         }
 
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user == null) {
-            log.info("👤 Creating new Google user: {}", email);
+            log.info("Creating new Google user: {}", email);
             String base = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9._-]", "");
             String username = suggestUniqueUsername(base);
 
@@ -74,7 +74,7 @@ public class CustomOidcUserService extends OidcUserService {
             userProfileRepository.save(profile);
 
         } else {
-            log.info("✅ Existing user found: {}", email);
+            log.info("Existing user found: {}", email);
 
             UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
             if (profile == null) {
@@ -94,14 +94,14 @@ public class CustomOidcUserService extends OidcUserService {
                 userProfileRepository.save(profile);
             }
 
-            // ✅ FIXED: Throw Spring Security exceptions
+            // FIXED: Throw Spring Security exceptions
             if (Boolean.TRUE.equals(user.getIsBanned())) {
-                log.warn("🚫 User {} is banned", email);
+                log.warn("User {} is banned", email);
                 throw new DisabledException("BANNED: Account is banned");
             }
 
             if (Boolean.FALSE.equals(user.getIsActive())) {
-                log.warn("⚠️ User {} is disabled", email);
+                log.warn("User {} is disabled", email);
                 throw new DisabledException("DISABLED: Account is disabled");
             }
         }
@@ -113,20 +113,20 @@ public class CustomOidcUserService extends OidcUserService {
     }
 
     /**
-     * ✅ Kiểm tra email có bị ban không (check tất cả accounts)
+     * Kiểm tra email có bị ban không (check tất cả accounts)
      */
     private boolean isEmailBanned(String email) {
         try {
             List<User> allAccounts = userRepository.findAllByEmail(email);
 
-            log.info("🔍 Found {} account(s) with email: {}", allAccounts.size(), email);
+            log.info("Found {} account(s) with email: {}", allAccounts.size(), email);
 
             // Nếu CÓ BẤT KỲ account nào bị ban → email bị ban
             boolean isBanned = allAccounts.stream()
                     .anyMatch(u -> Boolean.TRUE.equals(u.getIsBanned()));
 
             if (isBanned) {
-                log.warn("🚫 Email {} has banned account(s)", email);
+                log.warn("Email {} has banned account(s)", email);
                 for (User u : allAccounts) {
                     log.info("   - Account: Provider={}, isBanned={}", u.getProvider(), u.getIsBanned());
                 }
@@ -135,7 +135,7 @@ public class CustomOidcUserService extends OidcUserService {
             return isBanned;
 
         } catch (Exception e) {
-            log.error("❌ Error checking ban status: {}", e.getMessage());
+            log.error("Error checking ban status: {}", e.getMessage());
             return false;
         }
     }

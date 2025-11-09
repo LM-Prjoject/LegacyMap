@@ -45,24 +45,24 @@ public class AuthController {
 
     @GetMapping("/verify")
     public void verifyEmail(@RequestParam("token") String token, HttpServletResponse httpResp) throws java.io.IOException {
-        log.info("🔐 Email verification attempt for token: {}", token);
+        log.info("Email verification attempt for token: {}", token);
 
         var optToken = authTokenRepository.findByTokenAndType(token, "email_verification");
         if (optToken.isEmpty()) {
-            log.warn("❌ Verification token not found: {}", token);
+            log.warn("Verification token not found: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=invalid_token");
             return;
         }
         AuthToken authToken = optToken.get();
 
         if (authToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            log.warn("❌ Verification token expired: {}", token);
+            log.warn("Verification token expired: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_expired");
             return;
         }
 
         if (Boolean.TRUE.equals(authToken.getUsed())) {
-            log.warn("❌ Verification token already used: {}", token);
+            log.warn("Verification token already used: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_used");
             return;
         }
@@ -75,7 +75,7 @@ public class AuthController {
         authToken.setUsed(true);
         authTokenRepository.save(authToken);
 
-        log.info("✅ Email verified successfully for user: {}", user.getEmail());
+        log.info("Email verified successfully for user: {}", user.getEmail());
 
         // Redirect về FE và mở modal đăng nhập
         String target = frontendUrl + "?showLogin=1";
@@ -84,27 +84,27 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
-        log.info("🔐 Login request for identifier: {}", request.getIdentifier());
+        log.info("Login request for identifier: {}", request.getIdentifier());
 
         try {
-            // ✅ Gọi authenticationService.login() - giờ nó trả về AuthenticationResponse rồi
+            // Gọi authenticationService.login() - giờ nó trả về AuthenticationResponse rồi
             AuthenticationResponse response = authenticationService.login(
                     request.getIdentifier(),
                     request.getPassword()
             );
 
-            log.info("✅ Login successful for user: {}", request.getIdentifier());
+            log.info("Login successful for user: {}", request.getIdentifier());
             return ApiResponse.success(response, "Login successful");
 
         } catch (Exception e) {
-            log.error("❌ Login failed for {}: {}", request.getIdentifier(), e.getMessage());
+            log.error("Login failed for {}: {}", request.getIdentifier(), e.getMessage());
             throw e;
         }
     }
 
 
     /**
-     * 🔥 THÊM MỚI: Helper method để tìm user bằng email hoặc username
+     * THÊM MỚI: Helper method để tìm user bằng email hoặc username
      */
     private Optional<User> findUserByIdentifier(String identifier) {
         // Thử tìm bằng email trước
@@ -118,11 +118,11 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        log.info("🔐 Get current user request");
+        log.info("Get current user request");
 
         Map<String, Object> result = new HashMap<>();
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("❌ Missing or invalid Authorization header");
+            log.warn("Missing or invalid Authorization header");
             result.put("error", "Missing or invalid Authorization header");
             return ResponseEntity.status(401).body(result);
         }
@@ -134,7 +134,7 @@ public class AuthController {
             String sub = claims.getSubject();
 
             if (sub == null) {
-                log.warn("❌ Invalid token: missing subject");
+                log.warn("Invalid token: missing subject");
                 result.put("error", "Invalid token: missing subject");
                 return ResponseEntity.status(401).body(result);
             }
@@ -142,7 +142,7 @@ public class AuthController {
             UUID userId = UUID.fromString(sub);
             User user = userRepository.findById(userId).orElse(null);
             if (user == null) {
-                log.warn("❌ User not found for ID: {}", userId);
+                log.warn("User not found for ID: {}", userId);
                 result.put("error", "User not found");
                 return ResponseEntity.status(404).body(result);
             }
@@ -177,10 +177,10 @@ public class AuthController {
                 userJson.put("profile", profileJson);
             }
 
-            log.info("✅ Current user retrieved: {}", user.getEmail());
+            log.info("Current user retrieved: {}", user.getEmail());
             return ResponseEntity.ok(userJson);
         } catch (Exception ex) {
-            log.error("❌ Token validation failed: {}", ex.getMessage());
+            log.error("Token validation failed: {}", ex.getMessage());
             result.put("error", "Invalid or expired token");
             return ResponseEntity.status(401).body(result);
         }

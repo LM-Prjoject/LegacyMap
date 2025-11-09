@@ -29,10 +29,10 @@ public class FamilyTreeResponse {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 
-    // ✅ NEW: Member count field
+    // NEW: Member count field
     private Long memberCount;
 
-    // ✅ Static factory method để convert từ Entity sang DTO
+    // Static factory method để convert từ Entity sang DTO
     public static FamilyTreeResponse fromEntity(FamilyTree tree) {
         if (tree == null) {
             return null;

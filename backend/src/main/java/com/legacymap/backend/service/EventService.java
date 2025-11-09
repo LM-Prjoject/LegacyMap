@@ -12,7 +12,6 @@ import com.legacymap.backend.repository.EventRepository;
 import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.legacymap.backend.utils.LunarSolarConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -229,20 +228,6 @@ public class EventService {
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
-    }
-
-    private EventResponse mapToResponseWithLunarCheck(Event event) {
-        EventResponse response = mapToResponse(event);
-
-        if (event.getCalendarType() == Event.CalendarType.lunar) {
-            if (event.getStartDate() != null)
-                response.setStartDate(LunarSolarConverter.toSolar(event.getStartDate()));
-
-            if (event.getEndDate() != null)
-                response.setEndDate(LunarSolarConverter.toSolar(event.getEndDate()));
-        }
-
-        return response;
     }
 
     private EventResponse mapToResponse(Event event) {

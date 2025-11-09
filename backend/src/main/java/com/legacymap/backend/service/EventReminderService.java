@@ -40,19 +40,22 @@ public class EventReminderService {
             EventCreateRequest.ReminderConfig reminderCfg = objectMapper.convertValue(
                     event.getReminder(), EventCreateRequest.ReminderConfig.class
             );
-
             Integer daysBefore = reminderCfg.getDaysBefore();
             List<String> methods = reminderCfg.getMethods();
-
             if (daysBefore == null || methods == null || methods.isEmpty()) {
                 log.warn("Invalid reminder config for event {}", event.getId());
                 return;
             }
 
-            OffsetDateTime reminderTimeUtc = event.getStartDate().minusDays(daysBefore);
+            OffsetDateTime reminderTimeUtc;
+            if (daysBefore == 0) {
+                // Gửi NGAY LẬP TỨC nếu chọn "bây giờ"
+                reminderTimeUtc = OffsetDateTime.now(ZoneOffset.UTC);
+            } else {
+                reminderTimeUtc = event.getStartDate().minusDays(daysBefore);
+            }
 
             createReminderForUser(event, event.getCreatedBy(), methods, reminderTimeUtc);
-
         } catch (IllegalArgumentException e) {
             log.error("Error parsing reminder config for event {}", event.getId(), e);
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
@@ -101,70 +104,103 @@ public class EventReminderService {
         createRemindersForEvent(event);
     }
 
-    @Scheduled(fixedRate = 60000)
+//    @Scheduled(fixedRate = 60000)
+//    @Transactional
+//    public void processPendingReminders() {
+//        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
+//        // Lấy các reminder đã đến HOẶC quá 1 phút (để xử lý "gửi ngay")
+//        OffsetDateTime threshold = nowUtc.minusMinutes(1);
+//        List<EventReminder> pendingReminders = eventReminderRepository.findPendingRemindersBefore(nowUtc);
+//
+//        if (pendingReminders.isEmpty()) {
+//            return;
+//        }
+//
+//        log.info("Processing {} pending reminders (now: {}, threshold: {})",
+//                pendingReminders.size(), nowUtc, threshold);
+//
+//        for (EventReminder reminder : pendingReminders) {
+//            try {
+//                log.info("Sending reminder {} scheduled for {}", reminder.getId(), reminder.getScheduledAt());
+//                sendReminder(reminder);
+//                reminder.setStatus(EventReminder.ReminderStatus.sent);
+//                reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
+//                eventReminderRepository.save(reminder);
+//                log.info("Successfully sent reminder {}", reminder.getId());
+//            } catch (Exception e) {
+//                log.error("Failed to send reminder {}", reminder.getId(), e);
+//                reminder.setStatus(EventReminder.ReminderStatus.failed);
+//                reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
+//                eventReminderRepository.save(reminder);
+//            }
+//        }
+//    }
+
+    @Scheduled(fixedRate = 30_000)
     @Transactional
     public void processPendingReminders() {
         OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
-        List<EventReminder> pendingReminders = eventReminderRepository.findPendingReminders(nowUtc);
 
-        if (pendingReminders.isEmpty()) {
-            return;
-        }
+        // Lấy tất cả reminder <= now (bao gồm "bây giờ")
+        List<EventReminder> pending = eventReminderRepository.findPendingReminders(nowUtc);
 
-        log.info("Processing {} pending reminders", pendingReminders.size());
+        if (pending.isEmpty()) return;
 
-        for (EventReminder reminder : pendingReminders) {
+        log.info("Processing {} pending reminder(s)", pending.size());
+
+        for (EventReminder r : pending) {
             try {
-                sendReminder(reminder);
-                reminder.setStatus(EventReminder.ReminderStatus.sent);
-                reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
-                eventReminderRepository.save(reminder);
-                log.info("Successfully sent reminder {}", reminder.getId());
+                sendReminder(r);
+                r.setStatus(EventReminder.ReminderStatus.sent);
+                r.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
             } catch (Exception e) {
-                log.error("Failed to send reminder {}", reminder.getId(), e);
-                reminder.setStatus(EventReminder.ReminderStatus.failed);
-                eventReminderRepository.save(reminder);
+                log.error("Failed reminder {} – {}", r.getId(), e.toString());
+                r.setStatus(EventReminder.ReminderStatus.failed);
+                r.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
             }
+            eventReminderRepository.save(r);
         }
     }
 
     private void sendReminder(EventReminder reminder) {
         Event event = reminder.getEvent();
         User user = reminder.getUser();
-
-        if (event == null || user == null) {
-            log.error("Event or User not found for reminder {}", reminder.getId());
-            return;
-        }
-
+        boolean notifSuccess = true, emailSuccess = true;
         EventReminder.SendMethod method = reminder.getSendMethod();
 
-        // Gửi NOTIFICATION
         if (method == EventReminder.SendMethod.notification || method == EventReminder.SendMethod.both) {
             try {
                 notificationService.sendEventReminderNotification(
-                        user.getId(),
-                        event.getTitle(),
-                        event.getStartDate(),
-                        event.getId()
+                        user.getId(), event.getTitle(), event.getStartDate(), event.getId()
                 );
-                log.info("Sent web notification for reminder {}", reminder.getId());
+                log.info("Web notification queued for reminder {}", reminder.getId());
             } catch (Exception e) {
-                log.error("Failed to send web notification for reminder {}", reminder.getId(), e);
+                log.error("Failed to queue web notification for reminder {}", reminder.getId(), e);
+                notifSuccess = false;
             }
         }
 
-        // Gửi EMAIL
         if (method == EventReminder.SendMethod.email || method == EventReminder.SendMethod.both) {
             try {
                 String subject = "Nhắc nhở sự kiện: " + event.getTitle();
                 String message = buildReminderMessage(event);
-                sendEmail(user.getEmail(), subject, message);
-                log.info("Sent email for reminder {}", reminder.getId());
+                emailService.sendEmail(user.getEmail(), subject, message);
+                log.info("Email sent for reminder {}", reminder.getId());
             } catch (Exception e) {
                 log.error("Failed to send email for reminder {}", reminder.getId(), e);
+                emailSuccess = false;
             }
         }
+
+        boolean isSent = switch (method) {
+            case both -> notifSuccess || emailSuccess;
+            case notification -> notifSuccess;
+            case email -> emailSuccess;
+        };
+
+        reminder.setStatus(isSent ? EventReminder.ReminderStatus.sent : EventReminder.ReminderStatus.failed);
+        // Luôn ghi sent_at khi xử lý
+        reminder.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
     }
 
     private void sendEmail(String toEmail, String subject, String message) {
