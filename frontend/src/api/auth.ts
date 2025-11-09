@@ -70,7 +70,7 @@ export const authApi = {
                 password_length: payload.password.length // Thêm để debug
             });
 
-            // 🔍 THÊM: Log full URL
+            // THÊM: Log full URL
             const fullUrl = http.defaults.baseURL + '/auth/login';
             console.log('URL:', fullUrl);
 

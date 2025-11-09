@@ -13,15 +13,21 @@ import java.util.UUID;
 @Repository
 public interface EventReminderRepository extends JpaRepository<EventReminder, UUID> {
 
-    @Query("SELECT er FROM EventReminder er WHERE er.status = 'pending' " +
-            "AND er.scheduledAt <= :now " +
-            "ORDER BY er.scheduledAt ASC")
-    List<EventReminder> findPendingReminders(@Param("now") OffsetDateTime now);
-
     List<EventReminder> findByEventId(UUID eventId);
 
     @Query("SELECT er FROM EventReminder er WHERE er.user = :user AND er.status = :status ORDER BY er.scheduledAt ASC")
     List<EventReminder> findByUserAndStatusOrderByScheduledAtAsc(
             @Param("user") User user,
             @Param("status") EventReminder.ReminderStatus status);
+
+    @Query("SELECT er FROM EventReminder er WHERE er.status = 'pending' AND er.scheduledAt <= :now")
+    List<EventReminder> findPendingRemindersBefore(@Param("now") OffsetDateTime now);
+
+    @Query("""
+    SELECT er FROM EventReminder er 
+    WHERE er.status = 'pending' 
+      AND er.scheduledAt <= :now
+    ORDER BY er.scheduledAt ASC
+    """)
+    List<EventReminder> findPendingReminders(@Param("now") OffsetDateTime now);
 }

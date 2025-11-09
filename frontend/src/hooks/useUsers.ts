@@ -1,4 +1,3 @@
-// src/hooks/useUsers.ts
 import { useState, useEffect, useCallback } from 'react';
 import { User, UseUsersReturn } from '../types/ts_user';
 
@@ -22,8 +21,8 @@ export const useUsers = (): UseUsersReturn => {
       const token = localStorage.getItem('authToken');
       if (!token) throw new Error('No authentication token found');
 
-      console.log('🌐 Fetching users from:', `${API_BASE_URL}/admin/users`);
-      console.log('🔑 Using token:', token.substring(0, 15) + '...');
+      console.log('Fetching users from:', `${API_BASE_URL}/admin/users`);
+      console.log('Using token:', token.substring(0, 15) + '...');
 
       const response = await fetch(`${API_BASE_URL}/admin/users`, {
         method: 'GET',

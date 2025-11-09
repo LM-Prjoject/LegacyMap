@@ -1,6 +1,5 @@
 package com.legacymap.backend.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legacymap.backend.dto.request.NotificationCreateRequest;
 import com.legacymap.backend.dto.response.NotificationResponse;
@@ -17,7 +16,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -35,6 +33,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationWebSocketService webSocketService;
 
     private User loadUserOrThrow(UUID userId) {
         return userRepository.findById(userId)
@@ -51,6 +50,7 @@ public class NotificationService {
                 .message(request.getMessage())
                 .type(request.getType() != null ? request.getType() : Notification.NotificationType.system)
                 .isRead(false)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         if (request.getRelatedEntity() != null) {
@@ -58,20 +58,12 @@ public class NotificationService {
         }
 
         Notification savedNotification = notificationRepository.save(notification);
-        log.info("Created notification for user {}: {}", userId, request.getTitle());
+        NotificationResponse response = mapToResponse(savedNotification);
 
-        return mapToResponse(savedNotification);
-    }
+        // Gửi real-time
+        webSocketService.sendNotificationToUser(userId, response);
 
-    @Transactional
-    public void createNotificationForUsers(List<UUID> userIds, NotificationCreateRequest request) {
-        for (UUID userId : userIds) {
-            try {
-                createNotification(userId, request);
-            } catch (Exception e) {
-                log.error("Failed to create notification for user {}", userId, e);
-            }
-        }
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -157,6 +149,7 @@ public class NotificationService {
     }
 
     public void sendEventReminderNotification(UUID userId, String eventTitle, OffsetDateTime eventTime, UUID eventId) {
+        log.info(">>> QUEUE NOTIFICATION for user={} event={}", userId, eventId);
         String formattedTime = eventTime
                 .atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
                 .format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
@@ -204,9 +197,12 @@ public class NotificationService {
         response.setMessage(notification.getMessage());
         response.setType(notification.getType());
         response.setIsRead(notification.getIsRead());
+        OffsetDateTime createdAt = notification.getCreatedAt() != null
+                ? notification.getCreatedAt()
+                : OffsetDateTime.now(ZoneOffset.UTC);
 
         ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
-        response.setCreatedAt(notification.getCreatedAt().atZoneSameInstant(vnZone).toOffsetDateTime());
+        response.setCreatedAt(createdAt.atZoneSameInstant(vnZone).toOffsetDateTime());
 
         if (notification.getRelatedEntity() != null) {
             response.setRelatedEntity(objectMapper.convertValue(

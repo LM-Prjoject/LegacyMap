@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter, Loader2 } from 'lucide-react';
-import {notificationApi} from "@/api/notificationApi.ts";
-import type { NotificationResponse } from '@/types/notification';
+import { useState, useEffect, useCallback} from 'react';
+import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter, Loader2} from 'lucide-react';
+import { notificationApi } from "@/api/notificationApi";
+import type { NotificationResponse, NotificationStatsResponse } from '@/types/notification';
+import {webSocketService} from "@/api/websocket";
+import {useCurrentUser} from "@/hooks/useCurrentUser";
+import Navbar from "@/components/layout/Navbar.tsx";
 
 const NotificationsPage = () => {
+    const { userId, loading: userLoading } = useCurrentUser();
     const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -12,13 +16,12 @@ const NotificationsPage = () => {
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [stats, setStats] = useState({ unreadCount: 0, totalCount: 0 });
+    const [newNotificationIds, setNewNotificationIds] = useState<Set<string>>(new Set());
 
-    // Load notifications
     const loadNotifications = useCallback(async (pageNum = 0, append = false) => {
         try {
             setLoading(pageNum === 0);
             const data = await notificationApi.getNotifications(pageNum, 15);
-
             const newNotifs = data.content || [];
             setNotifications(prev => append ? [...prev, ...newNotifs] : newNotifs);
             setHasMore(!data.last);
@@ -30,10 +33,9 @@ const NotificationsPage = () => {
         }
     }, []);
 
-    // Load stats
     const loadStats = useCallback(async () => {
         try {
-            const data = await notificationApi.getStats();
+            const data: NotificationStatsResponse = await notificationApi.getStats();
             setStats({
                 unreadCount: data.unreadCount || 0,
                 totalCount: data.totalCount || 0
@@ -43,11 +45,60 @@ const NotificationsPage = () => {
         }
     }, []);
 
-    // Initial load
+    // Kết nối WebSocket khi có userId
     useEffect(() => {
-        loadNotifications(0, false);
-        loadStats();
-    }, [loadNotifications, loadStats]);
+        if (!userId || userLoading) return;
+
+        webSocketService.connect(userId, (notif) => {
+            setNotifications(prev => [notif, ...prev]);
+            setNewNotificationIds(prev => new Set(prev).add(notif.id));
+            setTimeout(() => {
+                setNewNotificationIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(notif.id);
+                    return next;
+                });
+            }, 3000);
+            loadStats();
+        });
+
+        return () => webSocketService.disconnect();
+    }, [userId, userLoading]);
+
+    useEffect(() => {
+        if (userId && !userLoading) {
+            loadNotifications(0, false);
+            loadStats();
+        }
+    }, [userId, userLoading, loadNotifications, loadStats]);
+
+    // Nếu đang load user
+    if (userLoading) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'rgb(255, 216, 155)' }} />
+            </div>
+        );
+    }
+
+    // Nếu không có user
+    if (!userId) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen text-white">
+                <Bell className="w-16 h-16 mb-4 opacity-30" />
+                <p>Vui lòng đăng nhập để xem thông báo</p>
+                <button
+                    onClick={() => window.location.href = '/login'}
+                    className="mt-4 px-4 py-2 bg-gradient-to-r from-[#b49e7b] to-[#d1b98a] text-[#2a3548] rounded-lg"
+                >
+                    Đăng nhập
+                </button>
+            </div>
+        );
+    }
+
+
+
 
     // Icons & Colors
     const getIcon = (type: string) => {
@@ -78,6 +129,7 @@ const NotificationsPage = () => {
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
+        if (minutes < 1) return 'Vừa xong';
         if (minutes < 60) return `${minutes} phút trước`;
         if (hours < 24) return `${hours} giờ trước`;
         if (days < 7) return `${days} ngày trước`;
@@ -128,7 +180,6 @@ const NotificationsPage = () => {
         loadStats();
     };
 
-    // Filter
     const filteredNotifications = notifications.filter(n => {
         if (filter === 'unread' && n.isRead) return false;
         if (filter === 'read' && !n.isRead) return false;
@@ -140,18 +191,24 @@ const NotificationsPage = () => {
 
     return (
         <div className="min-h-screen pt-20 pb-12 px-4" style={{ backgroundColor: '#2a3548' }}>
-            <div className="max-w-4xl mx-auto">
+            <Navbar />
+            <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#b49e7b] to-[#d1b98a] flex items-center justify-center shadow-lg">
+                            <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-[#b49e7b] to-[#d1b98a] flex items-center justify-center shadow-lg">
                                 <Bell className="w-6 h-6 text-[#2a3548]" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center animate-pulse">
+                                        {unreadCount}
+                                    </span>
+                                )}
                             </div>
                             <div>
                                 <h1 className="text-3xl font-bold text-white">Thông báo</h1>
                                 <p className="text-sm" style={{ color: 'rgb(255, 216, 155)' }}>
-                                    {unreadCount} thông báo chưa đọc
+                                    {unreadCount > 0 ? `${unreadCount} chưa đọc` : 'Không có thông báo mới'}
                                 </p>
                             </div>
                         </div>
@@ -243,7 +300,7 @@ const NotificationsPage = () => {
                                 key={n.id}
                                 className={`rounded-xl border backdrop-blur-sm transition-all hover:scale-[1.02] ${
                                     n.isRead ? 'bg-white/5' : `bg-gradient-to-r ${getTypeColor(n.type)}`
-                                }`}
+                                } ${newNotificationIds.has(n.id) ? 'animate-pulse ring-2 ring-yellow-400' : ''}`}
                                 style={{ borderColor: n.isRead ? 'rgba(255, 216, 155, 0.1)' : undefined }}
                             >
                                 <div className="p-4 flex items-start gap-4">
@@ -257,7 +314,12 @@ const NotificationsPage = () => {
 
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2 mb-1">
-                                            <h3 className="font-semibold text-white text-sm">{n.title}</h3>
+                                            <h3 className="font-semibold text-white text-sm">
+                                                {n.title}
+                                                {newNotificationIds.has(n.id) && (
+                                                    <span className="ml-2 inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping" />
+                                                )}
+                                            </h3>
                                             {!n.isRead && (
                                                 <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#b49e7b] to-[#d1b98a] flex-shrink-0 mt-1.5" />
                                             )}
@@ -301,26 +363,6 @@ const NotificationsPage = () => {
                         >
                             Xem thêm
                         </button>
-                    </div>
-                )}
-
-                {/* Stats */}
-                {notifications.length > 0 && (
-                    <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                            <div className="text-2xl font-bold text-white mb-1">{stats.totalCount}</div>
-                            <div className="text-sm" style={{ color: 'rgb(255, 216, 155)' }}>Tổng</div>
-                        </div>
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                            <div className="text-2xl font-bold text-white mb-1">{unreadCount}</div>
-                            <div className="text-sm" style={{ color: 'rgb(255, 216, 155)' }}>Chưa đọc</div>
-                        </div>
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                            <div className="text-2xl font-bold text-white mb-1">
-                                {notifications.filter(n => n.type === 'event_reminder').length}
-                            </div>
-                            <div className="text-sm" style={{ color: 'rgb(255, 216, 155)' }}>Nhắc nhở</div>
-                        </div>
                     </div>
                 )}
             </div>
