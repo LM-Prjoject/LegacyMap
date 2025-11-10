@@ -45,24 +45,24 @@ public class AuthController {
 
     @GetMapping("/verify")
     public void verifyEmail(@RequestParam("token") String token, HttpServletResponse httpResp) throws java.io.IOException {
-        log.info("🔐 Email verification attempt for token: {}", token);
+        log.info("Email verification attempt for token: {}", token);
 
         var optToken = authTokenRepository.findByTokenAndType(token, "email_verification");
         if (optToken.isEmpty()) {
-            log.warn("❌ Verification token not found: {}", token);
+            log.warn("Verification token not found: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=invalid_token");
             return;
         }
         AuthToken authToken = optToken.get();
 
         if (authToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
-            log.warn("❌ Verification token expired: {}", token);
+            log.warn("Verification token expired: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_expired");
             return;
         }
 
         if (Boolean.TRUE.equals(authToken.getUsed())) {
-            log.warn("❌ Verification token already used: {}", token);
+            log.warn("Verification token already used: {}", token);
             httpResp.sendRedirect(frontendUrl + "?showLogin=1&err=token_used");
             return;
         }
@@ -75,7 +75,7 @@ public class AuthController {
         authToken.setUsed(true);
         authTokenRepository.save(authToken);
 
-        log.info("✅ Email verified successfully for user: {}", user.getEmail());
+        log.info("Email verified successfully for user: {}", user.getEmail());
 
         // Redirect về FE và mở modal đăng nhập
         String target = frontendUrl + "?showLogin=1";
@@ -84,7 +84,6 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
-
         try {
             AuthenticationResponse response = authenticationService.login(
                     request.getIdentifier(),

@@ -1,4 +1,3 @@
-// src/hooks/useUsers.ts
 import { useState, useEffect, useCallback } from 'react';
 import { User, UseUsersReturn } from '../types/ts_user';
 
@@ -23,7 +22,7 @@ export const useUsers = (): UseUsersReturn => {
         throw new Error('Vui lòng đăng nhập để tiếp tục');
       }
 
-      console.log('🌐 Fetching users from:', `${API_BASE_URL}/admin/users`);
+      console.log('Fetching users from:', `${API_BASE_URL}/admin/users`);
 
       const response = await fetch(`${API_BASE_URL}/admin/users`, {
         method: 'GET',
@@ -34,16 +33,16 @@ export const useUsers = (): UseUsersReturn => {
         credentials: 'include',
       });
 
-      console.log('📡 Response status:', response.status);
+      console.log('Response status:', response.status);
 
       // ===== FIX: Kiểm tra Content-Type trước khi parse =====
       const contentType = response.headers.get('content-type');
-      console.log('📄 Content-Type:', contentType);
+      console.log('Content-Type:', contentType);
 
       // Nếu không phải JSON, đừng parse
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        console.error('❌ Received HTML instead of JSON:', text.substring(0, 200));
+        console.error('Received HTML instead of JSON:', text.substring(0, 200));
 
         if (response.status === 403) {
           throw new Error('Bạn không có quyền truy cập trang này. Cần quyền Admin.');
@@ -70,14 +69,14 @@ export const useUsers = (): UseUsersReturn => {
 
       // Parse JSON an toàn
       const data = await response.json();
-      console.log('✅ Users data received:', data);
+      console.log('Users data received:', data);
 
       // Backend có thể trả về { result: [...] } hoặc trực tiếp array
       const usersList = Array.isArray(data) ? data : (data.result || []);
       setUsers(usersList);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Đã xảy ra lỗi không xác định';
-      console.error('❌ Error fetching users:', err);
+      console.error('Error fetching users:', err);
       setError(message);
     } finally {
       setLoading(false);

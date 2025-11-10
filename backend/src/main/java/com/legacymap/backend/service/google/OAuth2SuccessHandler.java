@@ -38,49 +38,49 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String redirectUrl = frontendUrl + "/signin";
 
         try {
-            log.info("🔐 OAuth2 authentication success handler started");
+            log.info("OAuth2 authentication success handler started");
 
             // 1. Lấy email từ OAuth2User
             OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
             String email = oauthUser.getAttribute("email");
 
-            log.info("📧 Google email: {}", email);
+            log.info("Google email: {}", email);
 
             if (email == null || email.trim().isEmpty()) {
-                log.error("❌ Missing email from Google OAuth");
+                log.error("Missing email from Google OAuth");
                 redirectUrl += "?error=" + URLEncoder.encode("missing_email", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
             }
 
-            // 2. ✅ CHECK BAN TRƯỚC - Quan trọng nhất
-            log.info("🔍 Checking if email is banned: {}", email);
+            // 2. CHECK BAN TRƯỚC - Quan trọng nhất
+            log.info("Checking if email is banned: {}", email);
             if (isEmailBanned(email)) {
-                log.warn("🚫 Email {} is BANNED - blocking login", email);
+                log.warn("Email {} is BANNED - blocking login", email);
                 redirectUrl += "?error=" + URLEncoder.encode("banned", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
             }
 
-            log.info("✅ Email {} is NOT banned - proceeding", email);
+            log.info("Email {} is NOT banned - proceeding", email);
 
             // 3. Tìm user trong database
             Optional<User> userOpt = userRepository.findByEmail(email);
 
             if (userOpt.isEmpty()) {
-                log.error("❌ User not found in database: {}", email);
+                log.error("User not found in database: {}", email);
                 redirectUrl += "?error=" + URLEncoder.encode("user_not_found", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
             }
 
             User user = userOpt.get();
-            log.info("👤 User found: ID={}, Provider={}, isBanned={}",
+            log.info("User found: ID={}, Provider={}, isBanned={}",
                     user.getId(), user.getProvider(), user.getIsBanned());
 
             // 4. Double check ban status (safety)
             if (Boolean.TRUE.equals(user.getIsBanned())) {
-                log.warn("🚫 User {} is banned (double check)", email);
+                log.warn("User {} is banned (double check)", email);
                 redirectUrl += "?error=" + URLEncoder.encode("banned", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
@@ -89,21 +89,21 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             // 5. Update last login
             user.setLastLogin(java.time.OffsetDateTime.now());
             userRepository.save(user);
-            log.info("✅ Updated last login for user: {}", email);
+            log.info("Updated last login for user: {}", email);
 
             // 6. Generate JWT token
             String jwt = authenticationService.generateAccessToken(user);
-            log.info("✅ Generated JWT token for user: {}", email);
+            log.info("Generated JWT token for user: {}", email);
 
             // 7. Redirect với token
             String targetUrl = frontendUrl + "/auth/google-success?token=" + jwt;
-            log.info("✅ Redirecting to: {}", targetUrl);
+            log.info("Redirecting to: {}", targetUrl);
             response.sendRedirect(targetUrl);
 
         } catch (Exception e) {
-            log.error("❌ CRITICAL ERROR in OAuth2SuccessHandler: {}", e.getMessage(), e);
-            log.error("❌ Exception type: {}", e.getClass().getName());
-            log.error("❌ Stack trace: ", e);
+            log.error("CRITICAL ERROR in OAuth2SuccessHandler: {}", e.getMessage(), e);
+            log.error("Exception type: {}", e.getClass().getName());
+            log.error("Stack trace: ", e);
 
             // Redirect về signin với error message
             redirectUrl += "?error=" + URLEncoder.encode("auth_failed", StandardCharsets.UTF_8);
@@ -111,7 +111,7 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             try {
                 response.sendRedirect(redirectUrl);
             } catch (Exception redirectError) {
-                log.error("❌ Failed to redirect after error: {}", redirectError.getMessage());
+                log.error("Failed to redirect after error: {}", redirectError.getMessage());
                 // Fallback: ghi response trực tiếp
                 response.setStatus(HttpServletResponse.SC_FOUND);
                 response.setHeader("Location", redirectUrl);

@@ -199,7 +199,7 @@ const EventsPage: React.FC = () => {
             <Navbar />
             {/* Header */}
 
-            <div className="px-6 py-6 pt-24 shadow-2xl relative overflow-hidden" style={{
+            <div className="px-6 py-6 pt-15 shadow-2xl relative overflow-hidden" style={{
                 background: 'linear-gradient(135deg, #2a3548 0%, #1f2937 50%, #2a3548 100%)',
                 borderBottom: '3px solid rgba(255, 216, 155, 0.3)'
             }}>
@@ -462,7 +462,7 @@ const EventsPage: React.FC = () => {
                                             boxShadow: '0 5px 20px rgba(42, 53, 72, 0.15)'
                                         }}
                                     >
-                                        <h4 className="font-black text-xl mb-3" style={{
+                                        <h4 className="font-black text-lg mb-2" style={{
                                             color: '#2a3548',
                                             textShadow: '0 1px 3px rgba(0,0,0,0.1)'
                                         }}>{event.title}</h4>
@@ -489,7 +489,9 @@ const EventsPage: React.FC = () => {
 
                     <div className="rounded-3xl shadow-2xl p-6"
                          style={{background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.08) 0%, rgba(255, 216, 155, 0.03) 100%)', border: '1px solid rgba(255, 216, 155, 0.2)'}}>
-                        <h3 className="text-xl font-bold mb-5 flex items-center gap-2" style={{color: 'rgb(255, 216, 155)'}}>Sự kiện sắp tới</h3>
+                        <h3 className="text-xl font-bold mb-5 flex items-center gap-2" style={{color: 'rgb(255, 216, 155)'}}>
+                            Sự kiện sắp tới
+                        </h3>
                         {getUpcomingEvents().length > 0 ? (
                             <div className="space-y-3">
                                 {getUpcomingEvents().map(event => (
