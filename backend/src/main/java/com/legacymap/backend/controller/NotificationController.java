@@ -3,13 +3,15 @@ package com.legacymap.backend.controller;
 import com.legacymap.backend.dto.response.NotificationResponse;
 import com.legacymap.backend.dto.response.NotificationStatsResponse;
 import com.legacymap.backend.service.NotificationService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,7 +21,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class NotificationController {
 
-    @Autowired
     private final NotificationService notificationService;
 
     private UUID getCurrentUserId() {
@@ -40,6 +41,23 @@ public class NotificationController {
     @GetMapping("/stats")
     public ResponseEntity<NotificationStatsResponse> getNotificationStats() {
         return ResponseEntity.ok(notificationService.getNotificationStats(getCurrentUserId()));
+    }
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamNotifications(
+            @RequestParam("userId") UUID userId,
+            HttpServletRequest request
+    ) {
+        // Optional: validate JWT in cookie nếu cần
+        // String token = extractJwtFromCookie(request);
+        // if (token != null && jwtUtil.validateToken(token).equals(userId)) { ... }
+
+        return notificationService.subscribe(userId);
+    }
+
+    @GetMapping("/latest")
+    public ResponseEntity<List<NotificationResponse>> getLatestNotifications() {
+        return ResponseEntity.ok(notificationService.getUserNotifications(getCurrentUserId(), Pageable.ofSize(10)).getContent());
     }
 
     @PutMapping("/{notificationId}/read")

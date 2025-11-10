@@ -16,13 +16,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,7 +35,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
-    private final NotificationWebSocketService webSocketService;
+    private final Map<UUID, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     private User loadUserOrThrow(UUID userId) {
         return userRepository.findById(userId)
@@ -60,16 +62,40 @@ public class NotificationService {
         Notification savedNotification = notificationRepository.save(notification);
         NotificationResponse response = mapToResponse(savedNotification);
 
-        // Gửi real-time
-        webSocketService.sendNotificationToUser(userId, response);
+        sendNotificationToUser(userId, response);
 
         return response;
+    }
+
+    public void sendNotificationToUser(UUID userId, NotificationResponse response) {
+        SseEmitter emitter = emitters.get(userId);
+        if (emitter != null) {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("notification")
+                        .data(response));
+            } catch (IOException e) {
+                log.warn("Lỗi gửi SSE đến user {}: {}", userId, e.getMessage());
+                emitters.remove(userId);
+            }
+        }
+    }
+
+    public SseEmitter subscribe(UUID userId) {
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        emitters.put(userId, emitter);
+
+        emitter.onCompletion(() -> emitters.remove(userId));
+        emitter.onTimeout(() -> emitters.remove(userId));
+        emitter.onError(e -> emitters.remove(userId));
+
+        log.info("User {} subscribed to notification SSE", userId);
+        return emitter;
     }
 
     @Transactional(readOnly = true)
     public Page<NotificationResponse> getUserNotifications(UUID userId, Pageable pageable) {
         User user = loadUserOrThrow(userId);
-
         return notificationRepository.findByUserOrderByCreatedAtDesc(user, pageable)
                 .map(this::mapToResponse);
     }
@@ -148,8 +174,8 @@ public class NotificationService {
         log.info("Deleted {} old notifications for user {}", deletedCount, userId);
     }
 
+    /** Gửi các loại thông báo khác nhau **/
     public void sendEventReminderNotification(UUID userId, String eventTitle, OffsetDateTime eventTime, UUID eventId) {
-        log.info(">>> QUEUE NOTIFICATION for user={} event={}", userId, eventId);
         String formattedTime = eventTime
                 .atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
                 .format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
@@ -185,7 +211,6 @@ public class NotificationService {
         request.setTitle(title);
         request.setMessage(message);
         request.setType(Notification.NotificationType.system);
-
         createNotification(userId, request);
     }
 
@@ -197,6 +222,7 @@ public class NotificationService {
         response.setMessage(notification.getMessage());
         response.setType(notification.getType());
         response.setIsRead(notification.getIsRead());
+
         OffsetDateTime createdAt = notification.getCreatedAt() != null
                 ? notification.getCreatedAt()
                 : OffsetDateTime.now(ZoneOffset.UTC);

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback} from 'react';
 import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter, Loader2} from 'lucide-react';
 import { notificationApi } from "@/api/notificationApi";
+import { sseService } from "@/api/sseService";
 import type { NotificationResponse, NotificationStatsResponse } from '@/types/notification';
-import {webSocketService} from "@/api/websocket";
 import {useCurrentUser} from "@/hooks/useCurrentUser";
 import Navbar from "@/components/layout/Navbar.tsx";
 
@@ -45,25 +45,35 @@ const NotificationsPage = () => {
         }
     }, []);
 
-    // Kết nối WebSocket khi có userId
     useEffect(() => {
         if (!userId || userLoading) return;
 
-        webSocketService.connect(userId, (notif) => {
-            setNotifications(prev => [notif, ...prev]);
-            setNewNotificationIds(prev => new Set(prev).add(notif.id));
-            setTimeout(() => {
-                setNewNotificationIds(prev => {
-                    const next = new Set(prev);
-                    next.delete(notif.id);
-                    return next;
-                });
-            }, 3000);
-            loadStats();
-        });
+        let eventSource: EventSource | null = null;
 
-        return () => webSocketService.disconnect();
-    }, [userId, userLoading]);
+        const connectSSE = async () => {
+            eventSource = sseService.connect(userId, (notif) => {
+                setNotifications(prev => [notif, ...prev]);
+                const id = notif.id;
+                setNewNotificationIds(prev => new Set(prev).add(id));
+                setTimeout(() => {
+                    setNewNotificationIds(prev => {
+                        const next = new Set(prev);
+                        next.delete(id);
+                        return next;
+                    });
+                }, 3000);
+                loadStats();
+            });
+        };
+
+        connectSSE();
+
+        return () => {
+            if (eventSource) {
+                sseService.disconnect(eventSource);
+            }
+        };
+    }, [userId, userLoading, loadStats]);
 
     useEffect(() => {
         if (userId && !userLoading) {
