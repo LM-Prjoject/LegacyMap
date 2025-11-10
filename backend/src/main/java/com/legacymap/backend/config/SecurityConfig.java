@@ -92,6 +92,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/password/forgot").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/password/reset").permitAll()
+                        .requestMatchers("/api/notifications/stream").permitAll()
                         .requestMatchers("/api/trees/**").permitAll()
                         .requestMatchers("/api/events/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()

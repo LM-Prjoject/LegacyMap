@@ -5,7 +5,7 @@ import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
 import { notificationApi } from "@/api/notificationApi";
-import { webSocketService } from "@/api/websocket";
+import { sseService } from "@/api/sseService";
 
 interface NavbarProps {
     onLoginClick?: () => void;
@@ -35,21 +35,41 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         ? 'text-white hover:text-[#d1b98a]'
         : 'text-white hover:text-[#d1b98a]';
 
+    const loadStats = async () => {
+        try {
+            const data = await notificationApi.getStats();
+            const count = data.unreadCount || 0;
+            setUnreadCount(count);
+            localStorage.setItem('unreadCount', count.toString());
+        } catch (err) {
+            console.error('Failed to load notification stats', err);
+        }
+    };
+
     useEffect(() => {
         const checkAuth = () => {
             const token = localStorage.getItem('authToken');
             const userStr = localStorage.getItem('user');
+            const savedUnread = localStorage.getItem('unreadCount');
+
             if (token && userStr) {
                 try {
                     const userData = JSON.parse(userStr);
                     setUser(userData);
                     setIsAuthenticated(true);
+
+                    if (savedUnread) {
+                        setUnreadCount(parseInt(savedUnread, 10));
+                    }
+
+                    loadStats();
                 } catch {
                     setIsAuthenticated(false);
                 }
             } else {
                 setIsAuthenticated(false);
                 setUser(null);
+                setUnreadCount(0);
             }
         };
 
@@ -58,33 +78,25 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         return () => window.removeEventListener('storage', checkAuth);
     }, []);
 
-    const loadStats = async () => {
-        try {
-            const data = await notificationApi.getStats();
-            setUnreadCount(data.unreadCount || 0);
-        } catch (err) {
-            console.error('Failed to load notification stats', err);
+    useEffect(() => {
+        if (user?.userId) {
+            loadStats();
         }
-    };
+    }, [user?.userId]);
 
     useEffect(() => {
         if (!user?.userId) return;
 
-        webSocketService.connect(user.userId, (notif) => {
-            console.log("received notif:", notif);
+        const eventSource = sseService.connect(user.userId, (notif) => {
+            console.log('notif', notif);
             setUnreadCount(prev => prev + 1);
+            localStorage.setItem('unreadCount', (parseInt(localStorage.getItem('unreadCount') || '0') + 1).toString());
+            setTimeout(loadStats, 1000);
         });
 
-        return () => webSocketService.disconnect();
+        return () => sseService.disconnect(eventSource);
     }, [user?.userId]);
 
-
-    // Load stats khi user đã authenticated
-    useEffect(() => {
-        if (isAuthenticated && user) {
-            loadStats();
-        }
-    }, [isAuthenticated, user]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -105,6 +117,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const handleLogout = () => {
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
+        localStorage.removeItem('unreadCount');
         setIsAuthenticated(false);
         setUser(null);
         setShowDropdown(false);
