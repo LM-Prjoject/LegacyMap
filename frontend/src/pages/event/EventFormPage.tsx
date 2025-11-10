@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, ChevronDown, Users, FileText, Lock, MapPin, Calendar, Bell } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, Users, FileText, Lock, MapPin, Calendar, Bell, X, ContactRound, ListTree } from 'lucide-react';
 import { eventsApi } from '@/api/eventApi';
+import api, {FamilyTree, Person} from '@/api/trees';
 import { EventCreateRequest, EventType, CalendarType, RecurrenceRule } from '@/types/event';
 import { useEventContext } from '@/contexts/EventContext';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -29,10 +30,56 @@ const EventFormPage: React.FC = () => {
         },
         isPublic: true
     });
-
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isPersonalEvent, setIsPersonalEvent] = useState(false);
+    const [familyTrees, setFamilyTrees] = useState<FamilyTree[]>([]);
+    const [selectedTreeId, setSelectedTreeId] = useState<string>('');
+    const [members, setMembers] = useState<Person[]>([]);
+    const [searchMember, setSearchMember] = useState('');
+    const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+
+
+    useEffect(() => {
+        if (!isPersonalEvent) {
+            const loadTrees = async () => {
+                try {
+                    const userData = localStorage.getItem('user');
+                    if (!userData) throw new Error('Vui lòng đăng nhập lại');
+                    const user = JSON.parse(userData);
+                    const trees = await api.listTrees(user.id);
+                    setFamilyTrees(trees);
+                    if (trees.length > 0) {
+                        setSelectedTreeId(trees[0].id);
+                    }
+                } catch (err) {
+                    setError('Không tải được cây gia phả');
+                }
+            };
+            loadTrees();
+        } else {
+            setFamilyTrees([]);
+            setSelectedTreeId('');
+        }
+    }, [isPersonalEvent]);
+
+    useEffect(() => {
+        if (selectedTreeId && !isPersonalEvent) {
+            const loadMembers = async () => {
+                try {
+                    const userData = localStorage.getItem('user');
+                    const user = JSON.parse(userData!);
+                    const list = await api.listMembers(user.id, selectedTreeId);
+                    setMembers(list);
+                } catch (err) {
+                    console.error('Load members failed', err);
+                }
+            };
+            loadMembers();
+        } else {
+            setMembers([]);
+        }
+    }, [selectedTreeId, isPersonalEvent]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,24 +99,19 @@ const EventFormPage: React.FC = () => {
                 endDate: endIso,
             };
 
-            const userData = localStorage.getItem('user');
-            let familyTreeId: string | null = null;
-
-            if (userData) {
-                const user = JSON.parse(userData);
-                familyTreeId = user.familyTreeId || user.family_tree_id || user.familyTree?.id || null;
+            if (!isPersonalEvent) {
+                if (!selectedTreeId) {
+                    throw new Error('Vui lòng chọn cây gia phả');
+                }
+                await eventsApi.createEvent(request, selectedTreeId);
+            } else {
+                await eventsApi.createEvent(request);
             }
-
-            if (!isPersonalEvent && !familyTreeId) {
-                throw new Error('Family tree ID not found. Please log in again or create a family tree first.');
-            }
-
-            await eventsApi.createEvent(request, isPersonalEvent ? undefined : familyTreeId!);
 
             triggerEventsUpdate();
             navigate('/events');
         } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Failed to create event');
+            setError(err.response?.data?.message || err.message || 'Tạo sự kiện thất bại');
         } finally {
             setLoading(false);
         }
@@ -192,6 +234,130 @@ const EventFormPage: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Chọn cây gia phả */}
+                    {!isPersonalEvent && (
+                        <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
+                            background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                            border: '1px solid rgba(255, 216, 155, 0.2)',
+                        }}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <ListTree className="w-5 h-5 text-[rgb(255,216,155)]" />
+                                <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                    Chọn cây gia phả <span className="text-red-400">*</span>
+                                </label>
+                            </div>
+                            {familyTrees.length === 0 ? (
+                                <p className="text-yellow-300">Bạn chưa có cây gia phả nào. Vui lòng tạo trước.</p>
+                            ) : (
+                                <div className="relative">
+                                    <select
+                                        value={selectedTreeId}
+                                        onChange={(e) => setSelectedTreeId(e.target.value)}
+                                        className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            border: '1px solid rgba(255, 216, 155, 0.2)',
+                                            color: 'white'
+                                        }}
+                                    >
+                                        {familyTrees.map(tree => (
+                                            <option key={tree.id} value={tree.id} className="bg-[#2a3548]">
+                                                {tree.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[rgb(255,216,155)] pointer-events-none" />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Người liên quan */}
+                    {!isPersonalEvent && selectedTreeId && members.length > 0 && (
+                        <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
+                            background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
+                            border: '1px solid rgba(255, 216, 155, 0.2)',
+                        }}>
+                            <div className="flex items-center gap-3 mb-4">
+                                <ContactRound className="w-5 h-5 text-[rgb(255,216,155)]" />
+                                <label className="text-lg font-bold text-[rgb(255,216,155)]">
+                                    Người liên quan
+                                </label>
+                            </div>
+
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Tìm và chọn người..."
+                                    value={searchMember}
+                                    onChange={(e) => setSearchMember(e.target.value)}
+                                    onFocus={() => setShowMemberDropdown(true)}
+                                    className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)]"
+                                    style={{
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        border: '1px solid rgba(255, 216, 155, 0.2)',
+                                        color: 'white'
+                                    }}
+                                />
+
+                                {showMemberDropdown && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#2a3548] border border-[rgba(255,216,155,0.3)] rounded-xl shadow-xl z-10 max-h-60 overflow-y-auto">
+                                        {members
+                                            .filter(m => m.fullName.toLowerCase().includes(searchMember.toLowerCase()))
+                                            .map(member => {
+                                                const isSelected = formData.relatedPersons?.some(p => p.id === member.id);
+                                                return (
+                                                    <div
+                                                        key={member.id}
+                                                        onClick={() => {
+                                                            if (!isSelected) {
+                                                                handleInputChange('relatedPersons', [
+                                                                    ...(formData.relatedPersons || []),
+                                                                    { id: member.id, name: member.fullName }
+                                                                ]);
+                                                            }
+                                                            setSearchMember('');
+                                                            setShowMemberDropdown(false);
+                                                        }}
+                                                        className="px-4 py-3 hover:bg-[rgba(255,216,155,0.1)] cursor-pointer flex items-center justify-between"
+                                                    >
+                                                        <span className="text-white">{member.fullName}</span>
+                                                        {isSelected && <span className="text-[rgb(255,216,155)] text-xs">Đã chọn</span>}
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {formData.relatedPersons && formData.relatedPersons.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {formData.relatedPersons.map((person, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                                            style={{
+                                                background: 'rgba(255, 216, 155, 0.15)',
+                                                color: 'rgb(255, 216, 155)'
+                                            }}
+                                        >
+                                            {person.name}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    handleInputChange('relatedPersons', formData.relatedPersons!.filter((_, i) => i !== idx));
+                                                }}
+                                                className="ml-1 hover:text-white"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Event Name */}
                     <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
                         background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
@@ -280,22 +446,23 @@ const EventFormPage: React.FC = () => {
                         />
                     </div>
 
-                    {/* Time Section */}
+                    {/* Time Section*/}
                     <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.02]" style={{
                         background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
                         border: '1px solid rgba(255, 216, 155, 0.2)',
                         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
                     }}>
-                        <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center gap-3 mb-6">
                             <Calendar className="w-5 h-5 text-[rgb(255,216,155)]" />
                             <label className="text-lg font-bold text-[rgb(255,216,155)]">
                                 Thời gian
                             </label>
                         </div>
-                        <div className="space-y-4">
+
+                        <div className="space-y-5">
                             {/* Start Date & Time */}
                             <div>
-                                <label className="block text-s font-medium text-white/70 mb-2">Thời gian bắt đầu</label>
+                                <label className="block text-s font-medium text-white/70 mb-2">Thời gian bắt đầu <span className="text-red-400">*</span></label>
                                 <input
                                     type="datetime-local"
                                     value={formData.startDate}
@@ -325,9 +492,44 @@ const EventFormPage: React.FC = () => {
                                     }}
                                 />
                             </div>
-                            {/* Full Day Option */}
-                            <div className="mt-4">
-                                <label className="flex items-center gap-2 mt-4 cursor-pointer group">
+
+                            {/* Calendar Type */}
+                            <div>
+                                <label className="block text-m font-semibold mb-3" style={{ color: 'rgb(255, 216, 155)' }}>Loại lịch</label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <input
+                                            type="radio"
+                                            name="calendarType"
+                                            value={CalendarType.SOLAR}
+                                            checked={formData.calendarType === CalendarType.SOLAR}
+                                            onChange={(e) => handleInputChange('calendarType', e.target.value as CalendarType)}
+                                            className="w-4 h-4"
+                                            style={{ accentColor: 'rgb(255, 216, 155)' }}
+                                        />
+                                        <span className="text-white/90 group-hover:text-white transition-colors">Dương lịch</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <input
+                                            type="radio"
+                                            name="calendarType"
+                                            value={CalendarType.LUNAR}
+                                            checked={formData.calendarType === CalendarType.LUNAR}
+                                            onChange={(e) => handleInputChange('calendarType', e.target.value as CalendarType)}
+                                            className="w-4 h-4"
+                                            style={{ accentColor: 'rgb(255, 216, 155)' }}
+                                        />
+                                        <span className="text-white/90 group-hover:text-white transition-colors">Âm lịch</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <hr className="border-[rgba(255,216,155,0.2)]" />
+
+                            {/* Options */}
+                            <div className="space-y-4">
+                                {/* Full Day Option */}
+                                <label className="flex items-center gap-2 cursor-pointer group">
                                     <input
                                         type="checkbox"
                                         checked={formData.isFullDay || false}
@@ -337,37 +539,52 @@ const EventFormPage: React.FC = () => {
                                     />
                                     <span className="text-white/90 group-hover:text-white transition-colors">Sự kiện cả ngày</span>
                                 </label>
-                            </div>
-                        </div>
 
-                        {/* Calendar Type */}
-                        <div className="mt-4">
-                            <label className="block text-m font-semibold mb-3" style={{ color: 'rgb(255, 216, 155)' }}>Loại lịch</label>
-                            <div className="flex gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input
-                                        type="radio"
-                                        name="calendarType"
-                                        value={CalendarType.SOLAR}
-                                        checked={formData.calendarType === CalendarType.SOLAR}
-                                        onChange={(e) => handleInputChange('calendarType', e.target.value as CalendarType)}
-                                        className="w-4 h-4"
-                                        style={{ accentColor: 'rgb(255, 216, 155)' }}
-                                    />
-                                    <span className="text-white/90 group-hover:text-white transition-colors">Dương lịch</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer group">
-                                    <input
-                                        type="radio"
-                                        name="calendarType"
-                                        value={CalendarType.LUNAR}
-                                        checked={formData.calendarType === CalendarType.LUNAR}
-                                        onChange={(e) => handleInputChange('calendarType', e.target.value as CalendarType)}
-                                        className="w-4 h-4"
-                                        style={{ accentColor: 'rgb(255, 216, 155)' }}
-                                    />
-                                    <span className="text-white/90 group-hover:text-white transition-colors">Âm lịch</span>
-                                </label>
+                                {/* Recurring Event */}
+                                <div className="space-y-3">
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.isRecurring || false}
+                                            onChange={(e) => {
+                                                handleInputChange('isRecurring', e.target.checked);
+                                                if (e.target.checked && formData.recurrenceRule === RecurrenceRule.NONE) {
+                                                    handleInputChange('recurrenceRule', RecurrenceRule.YEARLY);
+                                                }
+                                            }}
+                                            className="w-4 h-4"
+                                            style={{ accentColor: 'rgb(255, 216, 155)' }}
+                                        />
+                                        <span className="text-white/90 group-hover:text-white transition-colors">Sự kiện lặp lại</span>
+                                    </label>
+
+                                    {formData.isRecurring && (
+                                        <div className="ml-6 pl-4 border-l-2 border-[rgba(255,216,155,0.3)] space-y-2">
+                                            <label className="block text-sm font-medium text-white/60 mb-2">Tần suất lặp lại</label>
+                                            <div className="flex gap-4">
+                                                {Object.values(RecurrenceRule)
+                                                    .filter(r => r !== RecurrenceRule.NONE)
+                                                    .map(rule => (
+                                                        <label key={rule} className="flex items-center gap-2 cursor-pointer">
+                                                            <input
+                                                                type="radio"
+                                                                name="recurrence"
+                                                                value={rule}
+                                                                checked={formData.recurrenceRule === rule}
+                                                                onChange={(e) => handleInputChange('recurrenceRule', e.target.value as RecurrenceRule)}
+                                                                className="w-4 h-4"
+                                                                style={{ accentColor: 'rgb(255, 216, 155)' }}
+                                                            />
+                                                            <span className="text-white/80 text-sm">
+                                                                {rule === RecurrenceRule.YEARLY && 'Hàng năm'}
+                                                                {rule === RecurrenceRule.MONTHLY && 'Hàng tháng'}
+                                                            </span>
+                                                        </label>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -497,7 +714,7 @@ const EventFormPage: React.FC = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group"
+                            className="px-6 py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group"
                             style={{
                                 background: 'linear-gradient(135deg, rgb(255, 216, 155) 0%, rgb(255, 196, 115) 100%)',
                                 color: '#1a1f2e',
@@ -505,7 +722,7 @@ const EventFormPage: React.FC = () => {
                             }}
                         >
                             <Save className="w-4 h-4" />
-                            <span>{loading ? 'Đang tạo...' : 'Lưu'}</span>
+                            <span>{loading ? 'Đang tạo...' : 'Tạo sự kiện'}</span>
                         </button>
                     </div>
                 </form>
