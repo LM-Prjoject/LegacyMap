@@ -45,7 +45,7 @@ export default function TreeDetails() {
     const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
     const [graphVersion, setGraphVersion] = useState(0);
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
-
+    const [hoverInspectId, setHoverInspectId] = useState<string | null>(null);
     useEffect(() => {
         if (!treeId) {
             setLoading(false);
@@ -627,6 +627,40 @@ export default function TreeDetails() {
 
     const anyModalOpen = memberOpen || isEditing || isViewingDetails || modalOpen;
 
+    type Highlight = {
+        nodes: Set<string>;
+        edges: Set<string>;
+        couple: Set<string>;
+        focusChild?: string;
+    };
+
+    const highlight = useMemo<Highlight>(() => {
+        if (!hoverInspectId) return { nodes: new Set(), edges: new Set(), couple: new Set() };
+
+        const parents = relsNormalized
+            .filter(r => r.type === "PARENT" && r.toPersonId === hoverInspectId)
+            .map(r => r.fromPersonId);
+
+        const children = relsNormalized
+            .filter(r => r.type === "PARENT" && r.fromPersonId === hoverInspectId)
+            .map(r => r.toPersonId);
+
+        const edges = new Set<string>();
+        parents.forEach(p => edges.add(`${p}->${hoverInspectId}`));
+        children.forEach(c => edges.add(`${hoverInspectId}->${c}`));
+
+        const couple = new Set<string>();
+        if (parents.length === 2 && relsNormalized.some(r => {
+            if (r.type !== "SPOUSE") return false;
+            const a = r.fromPersonId, b = r.toPersonId;
+            return (a === parents[0] && b === parents[1]) || (a === parents[1] && b === parents[0]);
+        })) {
+            couple.add(parents[0]); couple.add(parents[1]);
+        }
+
+        return { nodes: new Set([...parents, ...children]), edges, couple, focusChild: hoverInspectId };
+    }, [hoverInspectId, relsNormalized]);
+
     return (
         <div className="relative min-h-screen">
             <img src={bg} alt="" className="absolute inset-0 w-full h-full object-cover -z-10" />
@@ -682,6 +716,11 @@ export default function TreeDetails() {
                             onNodeClick={handleNodeClick}
                             selectedNodeId={anyModalOpen ? null : selectedPerson?.id}
                             onEmptyClick={handleAddClick}
+                            highlightNodeIds={[...highlight.nodes]}
+                            highlightEdges={[...highlight.edges]}
+                            onHoverNode={setHoverInspectId}
+                            highlightCoupleIds={[...highlight.couple]}
+                            focusChildId={highlight.focusChild}
                         />
                     )}
                 </main>
@@ -715,11 +754,16 @@ export default function TreeDetails() {
                 relationships={rels}
                 onClose={handleCloseDetails}
                 onEditClick={handleEditClick}
+                onHoverPerson={setHoverInspectId}
             />
             {source && (
                 <RelationshipModal
                     isOpen={modalOpen}
-                    onClose={cancelRelationshipFlow}
+                    onClose={() => {
+                        setModalOpen(false);
+                        setSource(null);
+                        setPendingNew(null);
+                    }}
                     onCancel={cancelRelationshipFlow}
                     source={source}
                     persons={persons}

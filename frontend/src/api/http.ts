@@ -1,4 +1,5 @@
 import axios from 'axios'
+import {showToast} from "@/lib/toast.ts";
 
 export const http = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy/api',
@@ -8,17 +9,8 @@ export const http = axios.create({
 http.interceptors.request.use((config) => {
     const token = localStorage.getItem('authToken');
 
-    // Debug logging
-    console.log('HTTP Request:', {
-        method: config.method?.toUpperCase(),
-        url: `${config.baseURL}${config.url}`,
-        hasToken: !!token,
-        tokenPreview: token ? `${token.substring(0, 20)}...` : 'NO TOKEN'
-    });
-
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log('Token added to Authorization header');
     } else {
         console.warn('No token found - request will be anonymous');
     }
@@ -62,7 +54,7 @@ http.interceptors.response.use(
         // Xử lý 403 Forbidden
         if (error?.response?.status === 403) {
             console.error('Forbidden - User does not have required role (ADMIN)');
-            alert('You do not have permission to perform this action. Admin role required.');
+            showToast.warning('Không đủ quyền truy cập.');
         }
 
         return Promise.reject(error);

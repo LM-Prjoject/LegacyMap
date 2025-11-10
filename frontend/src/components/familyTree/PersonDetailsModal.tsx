@@ -1,6 +1,6 @@
-import {X} from "lucide-react";
-import {useEffect, useState} from "react";
-import {Relationship} from "@/api/trees";
+import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Relationship } from "@/api/trees";
 
 interface PersonDetailsModalProps {
     isOpen: boolean;
@@ -9,25 +9,25 @@ interface PersonDetailsModalProps {
     relationships: Relationship[];
     onClose: () => void;
     onEditClick: () => void;
+    onHoverPerson?: (id: string | null) => void;
 }
 
 const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Chưa cập nhật';
+    if (!dateString) return "Chưa cập nhật";
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Chưa cập nhật';
-    return date.toLocaleDateString('vi-VN');
+    if (isNaN(date.getTime())) return "Chưa cập nhật";
+    return date.toLocaleDateString("vi-VN");
 };
-
 
 const getRelationshipText = (rel: Relationship, currentPersonId: string, persons: any[]) => {
     try {
         const otherPersonId = rel.fromPersonId === currentPersonId ? rel.toPersonId : rel.fromPersonId;
-        const otherPerson = persons.find(p => p.id === otherPersonId);
+        const otherPerson = persons.find((p) => p.id === otherPersonId);
         if (!otherPerson) return null;
 
-        const otherPersonName = otherPerson.fullName || 'Không rõ';
+        const otherPersonName = otherPerson.fullName || "Không rõ";
         const isFromPerson = rel.fromPersonId === currentPersonId;
-        const currentPerson = persons.find(p => p.id === currentPersonId);
+        const currentPerson = persons.find((p) => p.id === currentPersonId);
 
         const parse = (d?: string) => {
             const t = d ? new Date(d) : null;
@@ -37,26 +37,30 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
         const genderOf = (p: any) => String(p?.gender ?? "").toUpperCase();
 
         let relationshipText = "";
+        let isParentOfCurrent = false;
 
         switch (rel.type) {
-            case 'SPOUSE':
-                relationshipText = genderOf(currentPerson) === 'FEMALE' ? `Chồng: ${otherPersonName}` : `Vợ: ${otherPersonName}`;
+            case "SPOUSE":
+                relationshipText = genderOf(currentPerson) === "FEMALE" ? `Chồng: ${otherPersonName}` : `Vợ: ${otherPersonName}`;
                 break;
-            case 'PARENT':
-                if (isFromPerson) relationshipText = `Con: ${otherPersonName}`;
-                else relationshipText = genderOf(otherPerson) === 'FEMALE' ? `Mẹ: ${otherPersonName}` : `Bố: ${otherPersonName}`;
+            case "PARENT":
+                if (isFromPerson)
+                    relationshipText = genderOf(otherPerson) === "FEMALE" ? `Con gái: ${otherPersonName}` : `Con trai: ${otherPersonName}`;
+                else {
+                    relationshipText = genderOf(otherPerson) === "FEMALE" ? `Mẹ: ${otherPersonName}` : `Bố: ${otherPersonName}`;
+                    isParentOfCurrent = true;
+                }
                 break;
-            case 'CHILD': {
+            case "CHILD": {
                 if (isFromPerson) {
-                    relationshipText = genderOf(otherPerson) === 'FEMALE'
-                        ? `Mẹ: ${otherPersonName}`
-                        : `Bố: ${otherPersonName}`;
+                    relationshipText = genderOf(otherPerson) === "FEMALE" ? `Mẹ: ${otherPersonName}` : `Bố: ${otherPersonName}`;
+                    isParentOfCurrent = true;
                 } else {
                     relationshipText = `Con: ${otherPersonName}`;
                 }
                 break;
             }
-            case 'SIBLING': {
+            case "SIBLING": {
                 const curDOB = parse(currentPerson?.birthDate);
                 const othDOB = parse(otherPerson?.birthDate);
 
@@ -64,26 +68,14 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
 
                 if (curDOB && othDOB) {
                     if (othDOB < curDOB) {
-                        if (g === 'FEMALE') {
-                            relationshipText = `Chị gái: ${otherPersonName}`;
-                        } else {
-                            relationshipText = `Anh trai: ${otherPersonName}`;
-                        }
+                        relationshipText = g === "FEMALE" ? `Chị gái: ${otherPersonName}` : `Anh trai: ${otherPersonName}`;
                     } else if (othDOB > curDOB) {
-                        if (g === 'FEMALE') {
-                            relationshipText = `Em gái: ${otherPersonName}`;
-                        } else {
-                            relationshipText = `Em trai: ${otherPersonName}`;
-                        }
+                        relationshipText = g === "FEMALE" ? `Em gái: ${otherPersonName}` : `Em trai: ${otherPersonName}`;
                     } else {
                         relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
                     }
                 } else {
-                    if (g === 'FEMALE') {
-                        relationshipText = `Chị/Em gái: ${otherPersonName}`;
-                    } else {
-                        relationshipText = `Anh/Em trai: ${otherPersonName}`;
-                    }
+                    relationshipText = g === "FEMALE" ? `Chị/Em gái: ${otherPersonName}` : `Anh/Em trai: ${otherPersonName}`;
                 }
                 break;
             }
@@ -91,7 +83,7 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
                 relationshipText = `Quan hệ: ${otherPersonName} (${rel.type})`;
         }
 
-        return { text: relationshipText, person: otherPerson, type: rel.type, relationshipId: rel.id };
+        return { text: relationshipText, person: otherPerson, type: rel.type, relationshipId: rel.id, isParent: isParentOfCurrent };
     } catch {
         return null;
     }
@@ -103,14 +95,23 @@ export default function PersonDetailsModal({
                                                persons,
                                                relationships,
                                                onClose,
-                                               onEditClick
+                                               onEditClick,
+                                               onHoverPerson,
                                            }: PersonDetailsModalProps) {
-    const [filteredRelationships, setFilteredRelationships] = useState<Array<{
-        text: string;
-        person: any;
-        type: string;
-        relationshipId?: string;
-    }>>([]);
+    const [filteredRelationships, setFilteredRelationships] = useState<
+        Array<{
+            text: string;
+            person: any;
+            type: string;
+            relationshipId?: string;
+            isParent?: boolean;
+        }>
+    >([]);
+
+    useEffect(() => {
+        if (!isOpen) onHoverPerson?.(null);
+        return () => onHoverPerson?.(null);
+    }, [isOpen, onHoverPerson]);
 
     useEffect(() => {
         if (!person?.id || !relationships?.length || !persons?.length) {
@@ -119,55 +120,34 @@ export default function PersonDetailsModal({
         }
 
         try {
-            console.log('Filtering relationships for person:', person.id);
-            
-            // Track processed person IDs to avoid duplicates
             const processedPersonIds = new Set<string>();
-            
-            // First, filter and process all relationships
+
             const allRelationships = relationships
-                .filter(rel => {
-                    // Only include relationships where the current person is involved
-                    if (rel.fromPersonId !== person.id && rel.toPersonId !== person.id) {
-                        return false;
-                    }
-                    
-                    // Get the other person's ID
+                .filter((rel) => {
+                    if (rel.fromPersonId !== person.id && rel.toPersonId !== person.id) return false;
                     const otherPersonId = rel.fromPersonId === person.id ? rel.toPersonId : rel.fromPersonId;
-                    
-                    // Skip if we've already processed a relationship with this person
-                    if (processedPersonIds.has(otherPersonId)) {
-                        return false;
-                    }
-                    
-                    // Mark this person as processed
+                    if (processedPersonIds.has(otherPersonId)) return false;
                     processedPersonIds.add(otherPersonId);
                     return true;
                 })
-                .map(rel => getRelationshipText(rel, person.id, persons))
+                .map((rel) => getRelationshipText(rel, person.id, persons))
                 .filter((rel): rel is NonNullable<typeof rel> => rel !== null);
 
-            // Sort relationships: PARENT -> SPOUSE -> CHILD
             const personRelationships = allRelationships.sort((a, b) => {
-                const order = { 'PARENT': 1, 'SPOUSE': 2, 'CHILD': 3 };
-                // Determine the effective type for sorting
+                const order = { PARENT: 1, SPOUSE: 2, CHILD: 3 } as const;
                 const getEffectiveType = (item: typeof a) => {
-                    if (item.text.startsWith('Con:')) return 'CHILD';
-                    if (item.text.startsWith('Bố/Mẹ:')) return 'PARENT';
-                    if (item.text.startsWith('Vợ:') || item.text.startsWith('Chồng:')) return 'SPOUSE';
+                    const t = item.text;
+                    if (t.startsWith("Mẹ:") || t.startsWith("Bố:")) return "PARENT";
+                    if (t.startsWith("Con:")) return "CHILD";
+                    if (t.startsWith("Vợ:") || t.startsWith("Chồng:")) return "SPOUSE";
                     return item.type;
                 };
-                
-                const typeA = getEffectiveType(a);
-                const typeB = getEffectiveType(b);
-                
-                return (order[typeA as keyof typeof order] || 99) - (order[typeB as keyof typeof order] || 99);
+                return (order[getEffectiveType(a) as keyof typeof order] ?? 99) - (order[getEffectiveType(b) as keyof typeof order] ?? 99);
             });
 
-            console.log('Filtered relationships:', personRelationships);
             setFilteredRelationships(personRelationships);
         } catch (error) {
-            console.error('Error processing relationships:', error);
+            console.error("Error processing relationships:", error);
             setFilteredRelationships([]);
         }
     }, [person?.id, relationships, persons]);
@@ -177,17 +157,13 @@ export default function PersonDetailsModal({
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-screen items-center justify-center p-4">
-                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose}></div>
+                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={() => { onHoverPerson?.(null); onClose(); }}></div>
 
-                <div
-                    className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl">
+                <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl">
                     <div className="sticky top-0 bg-white z-20 flex justify-between items-center p-4 border-b">
                         <h2 className="text-xl font-semibold">Thông tin chi tiết</h2>
-                        <button
-                            onClick={onClose}
-                            className="p-1 rounded-full hover:bg-gray-100"
-                        >
-                            <X className="h-5 w-5"/>
+                        <button onClick={() => { onHoverPerson?.(null); onClose(); }} className="p-1 rounded-full hover:bg-gray-100">
+                            <X className="h-5 w-5" />
                         </button>
                     </div>
 
@@ -196,14 +172,9 @@ export default function PersonDetailsModal({
                             <div className="flex-shrink-0">
                                 <div className="w-32 h-32 rounded-lg overflow-hidden bg-gray-100">
                                     {person.avatarUrl ? (
-                                        <img
-                                            src={person.avatarUrl}
-                                            alt={person.fullName}
-                                            className="w-full h-full object-cover"
-                                        />
+                                        <img src={person.avatarUrl} alt={person.fullName} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div
-                                            className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
+                                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
                                             <span className="text-sm">No photo</span>
                                         </div>
                                     )}
@@ -214,9 +185,7 @@ export default function PersonDetailsModal({
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <h1 className="text-2xl font-bold">{person.fullName}</h1>
-                                        <p className="text-gray-600">
-                                            {person.gender === 'male' ? 'Nam' : person.gender === 'female' ? 'Nữ' : 'Khác'}
-                                        </p>
+                                        <p className="text-gray-600">{person.gender === "male" ? "Nam" : person.gender === "female" ? "Nữ" : "Khác"}</p>
                                     </div>
                                     <button
                                         onClick={onEditClick}
@@ -262,67 +231,46 @@ export default function PersonDetailsModal({
                                 )}
 
                                 <div className="mt-6">
-                                    <p className="text-sm font-medium text-gray-500 mb-3">
-                                        Mối quan hệ
-                                    </p>
+                                    <p className="text-sm font-medium text-gray-500 mb-3">Mối quan hệ</p>
                                     {filteredRelationships.length > 0 ? (
                                         <div className="space-y-3">
-                                            {filteredRelationships.map((rel, index) => {
-                                                // Log relationship details for debugging
-                                                console.log(`[Relationship ${index + 1}]`, {
-                                                    relationshipId: rel.relationshipId,
-                                                    type: rel.type,
-                                                    person: {
-                                                        id: rel.person?.id,
-                                                        name: rel.person?.fullName,
-                                                        gender: rel.person?.gender
-                                                    },
-                                                    relationshipText: rel.text,
-                                                    timestamp: new Date().toISOString()
-                                                });
-
-                                                return (
-                                                    <div
-                                                        key={`${rel.relationshipId || index}-${rel.type}`}
-                                                        className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            {rel.person?.avatarUrl ? (
-                                                                <img
-                                                                    src={rel.person.avatarUrl}
-                                                                    alt={rel.person.fullName}
-                                                                    className="w-10 h-10 rounded-full object-cover"
-                                                                    onError={(e) => {
-                                                                        const target = e.target as HTMLImageElement;
-                                                                        target.onerror = null;
-                                                                        target.src = "";
-                                                                        console.warn(`Failed to load avatar for ${rel.person?.fullName}`);
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                                    <span className="text-xs">
-                                        {rel.person?.fullName?.charAt(0) || "?"}
-                                    </span>
-                                                                </div>
-                                                            )}
-                                                            <div>
-                                                                <p className="font-medium text-gray-800">
-                                                                    {rel.person?.fullName || "Không rõ"}
-                                                                </p>
-                                                                <p className="text-sm text-gray-600">
-                                                                    {rel.text}
-                                                                </p>
+                                            {filteredRelationships.map((rel, index) => (
+                                                <div
+                                                    key={`${rel.relationshipId || index}-${rel.type}`}
+                                                    className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                                                    onMouseEnter={() => {
+                                                        // chỉ highlight viền mẹ/bố khi hover vào item là PARENT của current
+                                                        if (onHoverPerson) onHoverPerson(rel.isParent ? rel.person?.id ?? null : null);
+                                                    }}
+                                                    onMouseLeave={() => onHoverPerson?.(null)}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {rel.person?.avatarUrl ? (
+                                                            <img
+                                                                src={rel.person.avatarUrl}
+                                                                alt={rel.person.fullName}
+                                                                className="w-10 h-10 rounded-full object-cover"
+                                                                onError={(e) => {
+                                                                    const target = e.target as HTMLImageElement;
+                                                                    target.onerror = null;
+                                                                    target.src = "";
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                                                                <span className="text-xs">{rel.person?.fullName?.charAt(0) || "?"}</span>
                                                             </div>
+                                                        )}
+                                                        <div>
+                                                            <p className="font-medium text-gray-800">{rel.person?.fullName || "Không rõ"}</p>
+                                                            <p className="text-sm text-gray-600">{rel.text}</p>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            ))}
                                         </div>
                                     ) : (
-                                        <p className="text-gray-500">
-                                            Người này chưa có thông tin mối quan hệ
-                                        </p>
+                                        <p className="text-gray-500">Người này chưa có thông tin mối quan hệ</p>
                                     )}
                                 </div>
                             </div>

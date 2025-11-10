@@ -84,28 +84,20 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
-        log.info("🔐 Login request for identifier: {}", request.getIdentifier());
 
         try {
-            // ✅ Gọi authenticationService.login() - giờ nó trả về AuthenticationResponse rồi
             AuthenticationResponse response = authenticationService.login(
                     request.getIdentifier(),
                     request.getPassword()
             );
-
-            log.info("✅ Login successful for user: {}", request.getIdentifier());
             return ApiResponse.success(response, "Login successful");
 
         } catch (Exception e) {
-            log.error("❌ Login failed for {}: {}", request.getIdentifier(), e.getMessage());
+            log.error(request.getIdentifier(), e.getMessage());
             throw e;
         }
     }
 
-
-    /**
-     * 🔥 THÊM MỚI: Helper method để tìm user bằng email hoặc username
-     */
     private Optional<User> findUserByIdentifier(String identifier) {
         // Thử tìm bằng email trước
         Optional<User> userOpt = userRepository.findByEmail(identifier);
@@ -118,11 +110,8 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        log.info("🔐 Get current user request");
-
         Map<String, Object> result = new HashMap<>();
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.warn("❌ Missing or invalid Authorization header");
             result.put("error", "Missing or invalid Authorization header");
             return ResponseEntity.status(401).body(result);
         }
@@ -134,7 +123,6 @@ public class AuthController {
             String sub = claims.getSubject();
 
             if (sub == null) {
-                log.warn("❌ Invalid token: missing subject");
                 result.put("error", "Invalid token: missing subject");
                 return ResponseEntity.status(401).body(result);
             }
@@ -142,7 +130,6 @@ public class AuthController {
             UUID userId = UUID.fromString(sub);
             User user = userRepository.findById(userId).orElse(null);
             if (user == null) {
-                log.warn("❌ User not found for ID: {}", userId);
                 result.put("error", "User not found");
                 return ResponseEntity.status(404).body(result);
             }
@@ -176,11 +163,8 @@ public class AuthController {
                 profileJson.put("avatarUrl", profile.getAvatarUrl());
                 userJson.put("profile", profileJson);
             }
-
-            log.info("✅ Current user retrieved: {}", user.getEmail());
             return ResponseEntity.ok(userJson);
         } catch (Exception ex) {
-            log.error("❌ Token validation failed: {}", ex.getMessage());
             result.put("error", "Invalid or expired token");
             return ResponseEntity.status(401).body(result);
         }
