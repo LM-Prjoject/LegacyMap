@@ -4,6 +4,8 @@ import { LogOut, User, Album, TreePine, Menu, CalendarFold, Bell } from 'lucide-
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
+import { notificationApi } from "@/api/notificationApi";
+import { webSocketService } from "@/api/websocket";
 
 interface NavbarProps {
     onLoginClick?: () => void;
@@ -18,9 +20,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const [user, setUser] = useState<any>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
     const location = useLocation();
-
-    // Thêm useRef để theo dõi dropdown
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useAutoLogout(30);
@@ -57,7 +58,34 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         return () => window.removeEventListener('storage', checkAuth);
     }, []);
 
-    // Thêm useEffect để xử lý click outside
+    const loadStats = async () => {
+        try {
+            const data = await notificationApi.getStats();
+            setUnreadCount(data.unreadCount || 0);
+        } catch (err) {
+            console.error('Failed to load notification stats', err);
+        }
+    };
+
+    useEffect(() => {
+        if (!user?.userId) return;
+
+        webSocketService.connect(user.userId, (notif) => {
+            console.log("received notif:", notif);
+            setUnreadCount(prev => prev + 1);
+        });
+
+        return () => webSocketService.disconnect();
+    }, [user?.userId]);
+
+
+    // Load stats khi user đã authenticated
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            loadStats();
+        }
+    }, [isAuthenticated, user]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -83,7 +111,6 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         window.location.href = '/';
     };
 
-    // Xử lý click logo - về homepage + scroll to top
     const handleLogoClick = (e: React.MouseEvent) => {
         e.preventDefault();
         navigate('/');
@@ -131,9 +158,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
             }}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Row - Tăng height từ h-16 lên h-20 */}
                 <div className="flex justify-between items-center h-20">
-                    {/* Logo - Tăng kích thước */}
+                    {/* Logo */}
                     <a
                         href="/"
                         onClick={handleLogoClick}
@@ -156,7 +182,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                         </div>
                     </a>
 
-                    {/* Desktop menu - Tăng font size và gap */}
+                    {/* Desktop menu */}
                     <div className="hidden md:flex items-center gap-12" style={{ position: 'relative', zIndex: 100000 }}>
                         <a href="#features" className={`${linkColor} no-underline text-[15px] font-medium`}>
                             Tính năng
@@ -172,131 +198,137 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                         </a>
                     </div>
 
-                    {/* Actions - Tăng kích thước avatar và button */}
+                    {/* Actions */}
                     <div className="hidden md:flex items-center gap-3" style={{ position: 'relative', zIndex: 100000 }}>
                         {isAuthenticated ? (
-                            <div style={{ position: 'relative' }} ref={dropdownRef}>
-                                <button
-                                    onClick={() => setShowDropdown(!showDropdown)}
-                                    className="flex items-center gap-3 hover:opacity-90 transition-opacity"
-                                >
-                                    {getAvatarUrl() ? (
-                                        <img
-                                            src={getAvatarUrl() as string}
-                                            alt={getDisplayName()}
-                                            className="w-12 h-12 rounded-full object-cover shadow-lg ring-2 ring-[rgba(209,185,138,0.35)]"
-                                            referrerPolicy="no-referrer"
-                                        />
-                                    ) : (
+                            <>
+                                {/* User Dropdown */}
+                                <div style={{ position: 'relative' }} ref={dropdownRef}>
+                                    <button
+                                        onClick={() => setShowDropdown(!showDropdown)}
+                                        className="flex items-center gap-3 hover:opacity-90 transition-opacity"
+                                    >
+                                        {getAvatarUrl() ? (
+                                            <img
+                                                src={getAvatarUrl() as string}
+                                                alt={getDisplayName()}
+                                                className="w-12 h-12 rounded-full object-cover shadow-lg ring-2 ring-[rgba(209,185,138,0.35)]"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                        ) : (
+                                            <div
+                                                className={`w-12 h-12 rounded-full ${
+                                                    isAdmin()
+                                                        ? 'bg-gradient-to-br from-[#b49e7b] to-[#d1b98a]'
+                                                        : 'bg-gradient-to-br from-[#2e3a57] to-[#20283d]'
+                                                } flex items-center justify-center text-white font-semibold text-lg shadow-lg ring-2 ring-[rgba(209,185,138,0.35)]`}
+                                            >
+                                                {getInitials()}
+                                            </div>
+                                        )}
+                                        <span className="hidden md:block text-[15px] font-medium text-white">
+                                            {getDisplayName()}
+                                        </span>
+                                    </button>
+
+                                    {showDropdown && (
                                         <div
-                                            className={`w-12 h-12 rounded-full ${
-                                                isAdmin()
-                                                    ? 'bg-gradient-to-br from-[#b49e7b] to-[#d1b98a]'
-                                                    : 'bg-gradient-to-br from-[#2e3a57] to-[#20283d]'
-                                            } flex items-center justify-center text-white font-semibold text-lg shadow-lg ring-2 ring-[rgba(209,185,138,0.35)]`}
+                                            className="rounded-lg shadow-xl py-2 border"
+                                            style={{
+                                                position: 'absolute',
+                                                right: 0,
+                                                marginTop: '0.75rem',
+                                                width: '15rem',
+                                                zIndex: 100000,
+                                                background: 'linear-gradient(180deg, rgba(26,31,46,0.95) 0%, rgba(32,40,61,0.95) 100%)',
+                                                borderColor: 'rgba(209,185,138,0.25)'
+                                            }}
                                         >
-                                            {getInitials()}
+                                            <div className="px-4 py-3 border-b border-[rgba(209,185,138,0.2)]">
+                                                <p className="text-[15px] font-semibold text-white flex items-center gap-2">
+                                                    {getDisplayName()}
+                                                    {isAdmin() && (
+                                                        <span className="px-2 py-0.5 bg-[#b49e7b]/20 text-[#d1b98a] text-xs font-bold rounded">
+                                                            ADMIN
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <p className="text-xs text-white/70 truncate">
+                                                    {user?.email}
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowDropdown(false);
+                                                    navigate(getDashboardUrl());
+                                                }}
+                                                className={`w-full px-4 py-2.5 text-left text-[14px] hover:bg-white/5 transition flex items-center gap-2 ${
+                                                    isAdmin() ? 'text-[#d1b98a] font-medium' : 'text-white'
+                                                }`}
+                                            >
+                                                {isAdmin() ? (
+                                                    <>
+                                                        <Album className="h-4 w-4" />
+                                                        Admin Dashboard
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <TreePine className="h-4 w-4" />
+                                                        Tạo cây gia phả
+                                                    </>
+                                                )}
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowDropdown(false);
+                                                    navigate('/profile');
+                                                }}
+                                                className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-white/5 transition flex items-center gap-2"
+                                            >
+                                                <User className="h-4 w-4" />
+                                                Trang cá nhân
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setShowDropdown(false);
+                                                    navigate('/events');
+                                                }}
+                                                className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-white/5 transition flex items-center gap-2"
+                                            >
+                                                <CalendarFold className="h-4 w-4" />
+                                                Sự kiện
+                                            </button>
+
+                                            <hr className="my-2 border-[rgba(209,185,138,0.25)]" />
+
+                                            <button
+                                                onClick={handleLogout}
+                                                className="w-full px-4 py-2.5 text-left text-[14px] text-red-300 hover:bg-red-500/10 transition flex items-center gap-2"
+                                            >
+                                                <LogOut className="h-4 w-4" />
+                                                Đăng xuất
+                                            </button>
                                         </div>
                                     )}
-                                    <span className="hidden md:block text-[15px] font-medium text-white">
-                                        {getDisplayName()}
-                                    </span>
+                                </div>
+
+                                {/* Notification Bell */}
+                                <button
+                                    onClick={() => navigate('/notifications')}
+                                    className="relative p-2.5 rounded-full hover:bg-white/10 transition-all"
+                                    title="Thông báo"
+                                >
+                                    <Bell className="w-6 h-6 text-white" />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow-lg">
+                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                        </span>
+                                    )}
                                 </button>
-
-                                {showDropdown && (
-                                    <div
-                                        className="rounded-lg shadow-xl py-2 border"
-                                        style={{
-                                            position: 'absolute',
-                                            right: 0,
-                                            marginTop: '0.75rem',
-                                            width: '15rem',
-                                            zIndex: 100000,
-                                            background: 'linear-gradient(180deg, rgba(26,31,46,0.95) 0%, rgba(32,40,61,0.95) 100%)',
-                                            borderColor: 'rgba(209,185,138,0.25)'
-                                        }}
-                                    >
-                                        <div className="px-4 py-3 border-b border-[rgba(209,185,138,0.2)]">
-                                            <p className="text-[15px] font-semibold text-white flex items-center gap-2">
-                                                {getDisplayName()}
-                                                {isAdmin() && (
-                                                    <span className="px-2 py-0.5 bg-[#b49e7b]/20 text-[#d1b98a] text-xs font-bold rounded">
-                                                        ADMIN
-                                                    </span>
-                                                )}
-                                            </p>
-                                            <p className="text-xs text-white/70 truncate">
-                                                {user?.email}
-                                            </p>
-                                        </div>
-
-                                        <button
-                                            onClick={() => {
-                                                setShowDropdown(false);
-                                                navigate(getDashboardUrl());
-                                            }}
-                                            className={`w-full px-4 py-2.5 text-left text-[14px] hover:bg-white/5 transition flex items-center gap-2 ${
-                                                isAdmin() ? 'text-[#d1b98a] font-medium' : 'text-white'
-                                            }`}
-                                        >
-                                            {isAdmin() ? (
-                                                <>
-                                                    <Album className="h-4 w-4" />
-                                                    Admin Dashboard
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <TreePine className="h-4 w-4" />
-                                                    Tạo cây gia phả
-                                                </>
-                                            )}
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setShowDropdown(false);
-                                                navigate('/profile');
-                                            }}
-                                            className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-white/5 transition flex items-center gap-2"
-                                        >
-                                            <User className="h-4 w-4" />
-                                            Trang cá nhân
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setShowDropdown(false);
-                                                navigate('/events');
-                                            }}
-                                            className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-white/5 transition flex items-center gap-2"
-                                        >
-                                            <CalendarFold className="h-4 w-4" />
-                                            Sự kiện
-                                        </button>
-
-                                        <button
-                                            onClick={() => {
-                                                setShowDropdown(false);
-                                                navigate('/notifications');
-                                            }}
-                                            className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-white/5 transition flex items-center gap-2"
-                                        >
-                                            <Bell className="h-4 w-4" />
-                                            Thông báo
-                                        </button>
-
-                                        <hr className="my-2 border-[rgba(209,185,138,0.25)]" />
-
-                                        <button
-                                            onClick={handleLogout}
-                                            className="w-full px-4 py-2.5 text-left text-[14px] text-red-300 hover:bg-red-500/10 transition flex items-center gap-2"
-                                        >
-                                            <LogOut className="h-4 w-4" />
-                                            Đăng xuất
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            </>
                         ) : isHomePage ? (
                             <>
                                 <Button
@@ -329,7 +361,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                         )}
                     </div>
 
-                    {/* Mobile menu button - Tăng kích thước icon */}
+                    {/* Mobile menu button */}
                     <button
                         className="md:hidden text-[#d1b98a]"
                         onClick={() => setIsOpen((v) => !v)}
@@ -340,7 +372,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                     </button>
                 </div>
 
-                {/* Mobile menu - Tăng padding và font size */}
+                {/* Mobile menu */}
                 {isOpen && (
                     <div className="md:hidden pb-4 space-y-2">
                         <a href="#features" className="block text-white hover:text-[#d1b98a] py-3 text-[15px]">
