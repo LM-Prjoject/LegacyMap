@@ -67,7 +67,8 @@ export default function RelationshipModal({
         }));
     }, [picked.candidateId, suggestions]);
 
-    const handleCancel = onCancel ?? onClose;
+    const close  = onClose;
+    const cancel = onCancel ?? onClose;
 
     const effectiveRelation = picked.relation || selected?.relation || "";
     const effectiveCandidateId = picked.candidateId || selected?.candidateId || "";
@@ -75,15 +76,13 @@ export default function RelationshipModal({
 
     return (
         <div className={`fixed inset-0 z-50 ${isOpen ? "" : "hidden"}`}>
-            <div className="absolute inset-0 bg-black/40" onClick={handleCancel} />
+            <div className="absolute inset-0 bg-black/40" onClick={close} />
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] max-w-[95vw] rounded-2xl bg-white shadow-xl">
                 <div className="p-4 border-b flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
                         Xác nhận mối quan hệ cho <span className="text-emerald-700">{source.fullName}</span>
                     </h3>
-                    <button onClick={handleCancel} className="px-3 py-1 rounded hover:bg-gray-100">
-                        Đóng
-                    </button>
+                    <button onClick={close} className="px-3 py-1 rounded hover:bg-gray-100">Đóng</button>
                 </div>
 
                 <div className="p-4 space-y-4">
@@ -147,9 +146,7 @@ export default function RelationshipModal({
                 </div>
 
                 <div className="p-4 border-t flex items-center justify-end gap-2">
-                    <button className="px-3 py-2 rounded-lg border" onClick={handleCancel}>
-                        Hủy
-                    </button>
+                    <button className="px-3 py-2 rounded-lg border" onClick={cancel}>Hủy</button>
                     <button
                         className="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
                         disabled={!canConfirm}

@@ -47,10 +47,10 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
             switch(errorParam) {
                 case 'banned':
-                    errorMessage = 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin để biết thêm chi tiết.';
+                    errorMessage = 'Tài khoản của bạn đã bị khóa.';
                     break;
                 case 'disabled':
-                    errorMessage = 'Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ admin.';
+                    errorMessage = 'Tài khoản đã bị vô hiệu hóa.';
                     break;
                 case 'auth_failed':
                     errorMessage = 'Đăng nhập Google thất bại. Vui lòng thử lại.';
@@ -72,7 +72,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         // Xử lý email verification
         const token = urlParams.get('token');
         if (token) handleEmailVerification(token);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleEmailVerification = async (token: string) => {
@@ -83,7 +82,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
             if (response.success && response.result) {
                 const { user, token: authToken } = response.result;
-                if (!authToken) throw new Error('Không nhận được token đăng nhập');
+                if (!authToken) throw new Error('Đã xảy ra lỗi. Vui lòng thử lại sau.');
 
                 setUserName(user?.profile?.fullName ?? user?.email ?? 'người dùng');
                 localStorage.setItem('authToken', authToken);
@@ -120,28 +119,21 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             setLoading(true);
             setError('');
 
-            console.log('🚀 Login attempt:', data.identifier);
-
             const response = await authApi.login({
                 identifier: data.identifier,
                 password: data.password,
             });
-
-            console.log('📦 Login response:', response);
 
             if (response.result?.token) {
                 const { token, user } = response.result;
 
                 localStorage.setItem('authToken', token);
                 localStorage.setItem('user', JSON.stringify(user));
-
-                console.log('✅ Login successful - redirecting to homepage');
                 window.location.href = '/';
             } else {
                 throw new Error('No token received from server');
             }
         } catch (error: any) {
-            console.error('❌ Login error:', error);
 
             let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
 
@@ -149,7 +141,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 const backendMessage = error.response.data.message;
 
                 if (backendMessage.includes('banned') || backendMessage.includes('USER_BANNED')) {
-                    errorMessage = 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ admin.';
+                    errorMessage = 'Tài khoản của bạn đã bị khóa';
                 } else if (backendMessage.includes('disabled') || backendMessage.includes('ACCOUNT_DISABLED')) {
                     errorMessage = 'Tài khoản đã bị vô hiệu hóa.';
                 } else if (backendMessage.includes('not verified') || backendMessage.includes('ACCOUNT_NOT_VERIFIED')) {

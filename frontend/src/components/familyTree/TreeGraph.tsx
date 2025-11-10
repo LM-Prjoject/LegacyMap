@@ -29,6 +29,11 @@ interface Props {
     onNodeClick?: (id: string) => void;
     selectedNodeId?: string | null;
     onEmptyClick?: () => void;
+    highlightNodeIds?: string[];
+    highlightEdges?: string[];
+    onHoverNode?: (id: string | null) => void;
+    highlightCoupleIds?: string[];
+    focusChildId?: string | null;
 }
 
 type XY = { x: number; y: number };
@@ -47,7 +52,26 @@ const toRawAttrs = (a: Partial<CustomNodeAttributes>): Record<string, string | n
     life: String(a.life ?? ""),
 });
 
-export default function TreeGraph({ persons, relationships, onNodeClick, selectedNodeId, onEmptyClick }: Props) {
+export default function TreeGraph({
+                                      persons,
+                                      relationships,
+                                      onNodeClick,
+                                      selectedNodeId,
+                                      onEmptyClick,
+                                      highlightNodeIds = [],
+                                      highlightEdges = [],
+                                      onHoverNode,
+                                      highlightCoupleIds = [],
+                                      focusChildId = null
+                                  }: Props) {
+
+    const highlightNodes = useMemo(() => new Set(highlightNodeIds), [highlightNodeIds]);
+    const highlightEdgeSet = useMemo(() => new Set(highlightEdges), [highlightEdges]);
+    const highlightCoupleSet = useMemo(() => new Set(highlightCoupleIds), [highlightCoupleIds]);
+    const shouldDim = (id: string) =>
+        (highlightNodes.size > 0 || !!focusChildId) &&
+        !highlightNodes.has(id) &&
+        id !== focusChildId;
     const containerRef = useRef<HTMLDivElement>(null);
     const [translate] = useState<{ x: number; y: number }>({ x: 500, y: 100 });
 
@@ -171,7 +195,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
         </g>
     );
 
-    const renderNode: RenderCustomNodeElementFn = (rd3tNode: CustomNodeElementProps) => {
+    const renderNode: RenderCustomNodeElementFn = (rd3tNode) => {
         const nodeDatum = rd3tNode.nodeDatum as unknown as { attributes?: CustomNodeAttributes };
         const attrs = (nodeDatum.attributes ?? { id: "" }) as CustomNodeAttributes;
         const id = attrs.id;
@@ -187,9 +211,23 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             const husbandId = attrs.husbandId || "";
             const wifeId = attrs.wifeId || "";
 
+            const showCoupleOutline =
+                highlightCoupleSet.has(husbandId) && highlightCoupleSet.has(wifeId);
+
             return (
                 <g>
-                    <g transform="translate(-45,-40)">
+                    <g
+                        transform="translate(-45,-40)"
+                        opacity={shouldDim(husbandId) ? 0.25 : 1}
+                        onMouseEnter={() => onHoverNode?.(husbandId)}
+                        onMouseLeave={() => onHoverNode?.(null)}
+                    >
+                        {showCoupleOutline && (
+                            <rect
+                                x={-52} y={-74} width={104} height={148} rx={12}
+                                fill="none" stroke="#6366f1" strokeWidth={3}
+                            />
+                        )}
                         {MemberCard(onNodeClick, selectedNodeId === husbandId)({
                             ...rd3tNode,
                             nodeDatum: {
@@ -199,7 +237,19 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                             } as RawNodeDatum,
                         } as CustomNodeElementProps)}
                     </g>
-                    <g transform="translate(45,-40)">
+
+                    <g
+                        transform="translate(45,-40)"
+                        opacity={shouldDim(wifeId) ? 0.25 : 1}
+                        onMouseEnter={() => onHoverNode?.(wifeId)}
+                        onMouseLeave={() => onHoverNode?.(null)}
+                    >
+                        {showCoupleOutline && (
+                            <rect
+                                x={-52} y={-74} width={104} height={148} rx={12}
+                                fill="none" stroke="#0ea5e9" strokeWidth={3}
+                            />
+                        )}
                         {MemberCard(onNodeClick, selectedNodeId === wifeId)({
                             ...rd3tNode,
                             nodeDatum: {
@@ -213,13 +263,26 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             );
         }
 
-        return MemberCard(onNodeClick, isSelected)({
-            ...rd3tNode,
-            nodeDatum: {
-                ...rd3tNode.nodeDatum,
-                attributes: toRawAttrs({ id, avatar: (attrs.avatar as string) || avtFallback, life: (attrs.life as string) || "—" }),
-            } as RawNodeDatum,
-        } as CustomNodeElementProps);
+        const dimSingle = shouldDim(id);
+        return (
+            <g
+                opacity={dimSingle ? 0.25 : 1}
+                onMouseEnter={() => onHoverNode?.(id)}
+                onMouseLeave={() => onHoverNode?.(null)}
+            >
+                {MemberCard(onNodeClick, isSelected)({
+                    ...rd3tNode,
+                    nodeDatum: {
+                        ...rd3tNode.nodeDatum,
+                        attributes: toRawAttrs({
+                            id,
+                            avatar: (attrs.avatar as string) || avtFallback,
+                            life: (attrs.life as string) || "—",
+                        }),
+                    } as RawNodeDatum,
+                } as CustomNodeElementProps)}
+            </g>
+        );
     };
 
     const hasEdges = useMemo(
@@ -245,17 +308,31 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
 
     const lines = useMemo(() => {
         if (!hasEdges) return null as any;
-        return relationships.map((r) => {
-            const type = String(r.type).toUpperCase();
-            if (type !== "PARENT" && type !== "CHILD") return null;
-            const a = nodePos[r.fromPersonId];
-            const b = nodePos[r.toPersonId];
-            if (!a || !b) return null;
-            const p1 = { x: a.y, y: a.x };
-            const p2 = { x: b.y, y: b.x };
-            return <line key={`${r.fromPersonId}-${r.toPersonId}-${r.type}`} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#222" strokeWidth={2} />;
-        }).filter(Boolean);
-    }, [nodePos, relationships, hasEdges]);
+        return relationships
+            .map((r) => {
+                const type = String(r.type).toUpperCase();
+                if (type !== "PARENT" && type !== "CHILD") return null;
+                const a = nodePos[r.fromPersonId];
+                const b = nodePos[r.toPersonId];
+                if (!a || !b) return null;
+                const p1 = { x: a.y, y: a.x };
+                const p2 = { x: b.y, y: b.x };
+                const isHighlighted = highlightEdgeSet.has(`${r.fromPersonId}->${r.toPersonId}`);
+                return (
+                    <line
+                        key={`${r.fromPersonId}-${r.toPersonId}-${r.type}`}
+                        x1={p1.x}
+                        y1={p1.y}
+                        x2={p2.x}
+                        y2={p2.y}
+                        stroke={isHighlighted ? "#d97706" : "#9ca3af"}
+                        strokeWidth={isHighlighted ? 4 : 2}
+                        opacity={isHighlighted ? 1 : 0.25}
+                    />
+                );
+            })
+            .filter(Boolean);
+    }, [nodePos, relationships, hasEdges, highlightEdgeSet]);
 
     return (
         <div ref={containerRef} className="relative w-full h-[70vh] bg-white rounded-xl shadow-inner overflow-hidden">
