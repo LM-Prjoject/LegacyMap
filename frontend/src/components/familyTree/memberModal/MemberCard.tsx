@@ -5,6 +5,10 @@ import avt from "@/assets/avt.jpg";
 const uniqueClipId = (base?: string) =>
     `avatarClip-${(base && String(base)) || Math.random().toString(36).slice(2)}`;
 
+const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength - 1) + "…";
+};
 
 export const MemberCard = (
     onClick?: (id: string) => void,
@@ -76,7 +80,7 @@ export const MemberCard = (
                     fill="#111827"
                     style={{ fontWeight: 300 }}
                 >
-                    {name}
+                    {truncateText(name, 10)}
                 </text>
 
                 <text
