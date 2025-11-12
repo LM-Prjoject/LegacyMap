@@ -18,7 +18,6 @@ public class RelationshipDTO {
     private UUID person1Id;
     private UUID person2Id;
     private String relationshipType;
-    private String notes;
     private LocalDateTime createdAt;
     private UUID createdBy;
 
@@ -28,7 +27,6 @@ public class RelationshipDTO {
                 .person1Id(relationship.getPerson1().getId())
                 .person2Id(relationship.getPerson2().getId())
                 .relationshipType(relationship.getRelationshipType())
-                .notes(relationship.getNotes())
                 .createdAt(relationship.getCreatedAt().toLocalDateTime())
                 .createdBy(relationship.getCreatedBy().getId())
                 .build();
