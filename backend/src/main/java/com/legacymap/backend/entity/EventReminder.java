@@ -24,9 +24,12 @@ public class EventReminder {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recipient_type", nullable = false, length = 10)
+    private RecipientType recipientType;
+
+    @Column(name = "recipient_id", nullable = false)
+    private UUID recipientId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "send_method", nullable = false, length = 20)
@@ -52,5 +55,9 @@ public class EventReminder {
 
     public enum ReminderStatus {
         pending, sent, failed
+    }
+
+    public enum RecipientType {
+        user, person
     }
 }

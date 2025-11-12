@@ -11,7 +11,8 @@ import java.util.UUID;
 public class EventReminderResponse {
     private UUID id;
     private UUID eventId;
-    private UUID userId;
+    private EventReminder.RecipientType recipientType;
+    private UUID recipientId;
     private EventReminder.SendMethod sendMethod;
     private OffsetDateTime scheduledAt;
     private OffsetDateTime sentAt;
