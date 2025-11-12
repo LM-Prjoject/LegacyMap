@@ -33,9 +33,6 @@ public class Relationship {
     @Column(name = "relationship_type")
     private String relationshipType; // parent, child, spouse, sibling
 
-    @Column(columnDefinition = "text")
-    private String notes;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;

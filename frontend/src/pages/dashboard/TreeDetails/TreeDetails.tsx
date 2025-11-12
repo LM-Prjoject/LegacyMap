@@ -632,11 +632,9 @@ export default function TreeDetails() {
         try {
             await api.deleteMember(userId, treeId, personId);
 
-            // Xoá khỏi state
             setPersons(prev => prev.filter(p => p.id !== personId));
             setRels(prev => prev.filter(r => r.fromPersonId !== personId && r.toPersonId !== personId));
 
-            // Đóng mọi modal liên quan
             setIsViewingDetails(false);
             setSelectedPerson(null);
             if (source?.id === personId) {
