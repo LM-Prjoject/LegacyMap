@@ -14,11 +14,11 @@ RUN chmod +x mvnw
 # Tải trước dependencies để tăng tốc build
 RUN ./mvnw dependency:go-offline -B
 
-# Sau đó mới copy source code (để tận dụng cache Docker)
-COPY src ./src
+# DÙNG COPY . . ĐỂ TRÁNH LỖI "src not found"
+COPY . .
 
 # Build ứng dụng (bỏ qua test)
-RUN ./mvnw clean package -DskipTests
+RUN ./mvnw clean package -DskipTests -B
 
 # ============================
 # STEP 2: Run the application
@@ -29,11 +29,11 @@ WORKDIR /app
 # Copy file jar đã build từ bước builder
 COPY --from=builder /app/target/*.jar app.jar
 
-# ✅ Ép container chỉ dùng IPv4 (fix lỗi DNS)
+# Ép container chỉ dùng IPv4 (fix lỗi DNS)
 ENV JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true"
 
-# Render sẽ tự dùng cổng 8080, em chỉ cần expose
-EXPOSE 8080
+# Railway yêu cầu: listen trên $PORT (mặc định 8080)
+EXPOSE ${PORT:-8080}
 
-# Chạy ứng dụng
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Chạy ứng dụng với server.port từ env var PORT
+ENTRYPOINT ["java", "-jar", "app.jar", "--server.port=${PORT:-8080}"]
