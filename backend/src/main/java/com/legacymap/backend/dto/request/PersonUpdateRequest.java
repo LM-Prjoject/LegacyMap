@@ -14,4 +14,6 @@ public class PersonUpdateRequest {
     private String deathPlace;
     private String biography;
     private String avatarUrl;
+    private String email;
+    private String phone;
 }

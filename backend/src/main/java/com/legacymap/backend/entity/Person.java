@@ -47,6 +47,12 @@ public class Person {
     @Column(name = "avatar_url", columnDefinition = "text")
     private String avatarUrl;
 
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @Column(name = "phone", length = 50)
+    private String phone;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
