@@ -4,20 +4,19 @@
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 
-# Sao chép Maven Wrapper và pom.xml trước (để cache dependency)
+# Chỉ cần mvnw + pom.xml (không cần .mvn)
 COPY mvnw pom.xml ./
-COPY .mvn .mvn
 
 # Cài quyền thực thi cho mvnw
 RUN chmod +x mvnw
 
-# Tải trước dependencies để tăng tốc build
+# Tải dependencies (cache layer)
 RUN ./mvnw dependency:go-offline -B
 
-# DÙNG COPY . . ĐỂ TRÁNH LỖI "src not found"
+# Copy toàn bộ source (an toàn)
 COPY . .
 
-# Build ứng dụng (bỏ qua test)
+# Build app
 RUN ./mvnw clean package -DskipTests -B
 
 # ============================
@@ -26,14 +25,12 @@ RUN ./mvnw clean package -DskipTests -B
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# Copy file jar đã build từ bước builder
 COPY --from=builder /app/target/*.jar app.jar
 
-# Ép container chỉ dùng IPv4 (fix lỗi DNS)
-ENV JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true"
+# Ép IPv4 + G1GC
+ENV JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true -XX:+UseG1GC"
 
-# Railway yêu cầu: listen trên $PORT (mặc định 8080)
+# Railway yêu cầu: dynamic PORT
 EXPOSE ${PORT:-8080}
 
-# Chạy ứng dụng với server.port từ env var PORT
 ENTRYPOINT ["java", "-jar", "app.jar", "--server.port=${PORT:-8080}"]
