@@ -1,36 +1,31 @@
 # ============================
-# STEP 1: Build the application
+# STEP 1: Build
 # ============================
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 
-# Chỉ cần mvnw + pom.xml (không cần .mvn)
+# Copy Maven Wrapper + pom.xml
 COPY mvnw pom.xml ./
+COPY .mvn .mvn
 
-# Cài quyền thực thi cho mvnw
 RUN chmod +x mvnw
 
-# Tải dependencies (cache layer)
-RUN ./mvnw dependency:go-offline -B
+# BỎ DÒNG NÀY ĐỂ TRÁNH LỖI
+# RUN ./mvnw dependency:go-offline -B
 
-# Copy toàn bộ source (an toàn)
-COPY . .
+# Copy source
+COPY src ./src
 
-# Build app
+# Build app (tự tải dependencies nếu cần)
 RUN ./mvnw clean package -DskipTests -B
 
 # ============================
-# STEP 2: Run the application
+# STEP 2: Run
 # ============================
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-
 COPY --from=builder /app/target/*.jar app.jar
 
-# Ép IPv4 + G1GC
-ENV JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true -XX:+UseG1GC"
-
-# Railway yêu cầu: dynamic PORT
+ENV JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true"
 EXPOSE ${PORT:-8080}
-
 ENTRYPOINT ["java", "-jar", "app.jar", "--server.port=${PORT:-8080}"]
