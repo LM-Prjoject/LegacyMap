@@ -1,6 +1,7 @@
-import { X } from "lucide-react";
+import { X, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Relationship } from "@/api/trees";
+import PopupModal from "@/components/popupModal/PopupModal"
 
 interface PersonDetailsModalProps {
     isOpen: boolean;
@@ -9,7 +10,7 @@ interface PersonDetailsModalProps {
     relationships: Relationship[];
     onClose: () => void;
     onEditClick: () => void;
-    onHoverPerson?: (id: string | null) => void;
+    onDelete?: (personId: string) => Promise<void> | void;
 }
 
 const formatDate = (dateString?: string | null) => {
@@ -41,11 +42,13 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
 
         switch (rel.type) {
             case "SPOUSE":
-                relationshipText = genderOf(currentPerson) === "FEMALE" ? `Chồng: ${otherPersonName}` : `Vợ: ${otherPersonName}`;
+                relationshipText =
+                    genderOf(currentPerson) === "FEMALE" ? `Chồng: ${otherPersonName}` : `Vợ: ${otherPersonName}`;
                 break;
             case "PARENT":
                 if (isFromPerson)
-                    relationshipText = genderOf(otherPerson) === "FEMALE" ? `Con gái: ${otherPersonName}` : `Con trai: ${otherPersonName}`;
+                    relationshipText =
+                        genderOf(otherPerson) === "FEMALE" ? `Con gái: ${otherPersonName}` : `Con trai: ${otherPersonName}`;
                 else {
                     relationshipText = genderOf(otherPerson) === "FEMALE" ? `Mẹ: ${otherPersonName}` : `Bố: ${otherPersonName}`;
                     isParentOfCurrent = true;
@@ -96,22 +99,27 @@ export default function PersonDetailsModal({
                                                relationships,
                                                onClose,
                                                onEditClick,
-                                               onHoverPerson,
+                                               onDelete, // <-- nhận prop
                                            }: PersonDetailsModalProps) {
     const [filteredRelationships, setFilteredRelationships] = useState<
-        Array<{
-            text: string;
-            person: any;
-            type: string;
-            relationshipId?: string;
-            isParent?: boolean;
-        }>
+        Array<{ text: string; person: any; type: string; relationshipId?: string; isParent?: boolean }>
     >([]);
 
-    useEffect(() => {
-        if (!isOpen) onHoverPerson?.(null);
-        return () => onHoverPerson?.(null);
-    }, [isOpen, onHoverPerson]);
+    // state cho modal xoá
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const handleDeleteConfirm = async () => {
+        if (!person?.id) return;
+        try {
+            setDeleting(true);
+            await onDelete?.(person.id);
+            setShowDeleteModal(false);
+            onClose(); // đóng chi tiết sau khi xoá
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     useEffect(() => {
         if (!person?.id || !relationships?.length || !persons?.length) {
@@ -131,7 +139,55 @@ export default function PersonDetailsModal({
                     return true;
                 })
                 .map((rel) => getRelationshipText(rel, person.id, persons))
-                .filter((rel): rel is NonNullable<typeof rel> => rel !== null);
+                .filter((rel): rel is NonNullable<typeof rel> => rel !== null) as Array<{
+                text: string;
+                person: any;
+                type: string;
+                relationshipId?: string;
+                isParent?: boolean;
+            }>;
+
+            try {
+                const parentIds = new Set<string>();
+                for (const r of relationships) {
+                    const t = String(r.type).toUpperCase();
+                    if (t === "PARENT" && r.toPersonId === person.id) parentIds.add(r.fromPersonId);
+                    if (t === "CHILD" && r.fromPersonId === person.id) parentIds.add(r.toPersonId);
+                }
+
+                if (parentIds.size === 1) {
+                    const [onlyParentId] = Array.from(parentIds);
+
+                    const spouseIds = relationships
+                        .filter(
+                            (r) =>
+                                String(r.type).toUpperCase() === "SPOUSE" &&
+                                (r.fromPersonId === onlyParentId || r.toPersonId === onlyParentId)
+                        )
+                        .map((r) => (r.fromPersonId === onlyParentId ? r.toPersonId : r.fromPersonId));
+
+                    for (const spId of spouseIds) {
+                        if (parentIds.has(spId)) continue;
+                        const alreadyListed = allRelationships.some((item) => item.person?.id === spId);
+                        if (alreadyListed) continue;
+
+                        const sp = persons.find((p) => p.id === spId);
+                        if (!sp) continue;
+
+                        const g = String(sp.gender ?? "").toUpperCase();
+                        const text = g === "FEMALE" ? `Mẹ: ${sp.fullName}` : `Bố: ${sp.fullName}`;
+
+                        allRelationships.push({
+                            text,
+                            person: sp,
+                            type: "PARENT",
+                            relationshipId: undefined,
+                            isParent: true,
+                        });
+                        break;
+                    }
+                }
+            } catch {}
 
             const personRelationships = allRelationships.sort((a, b) => {
                 const order = { PARENT: 1, SPOUSE: 2, CHILD: 3 } as const;
@@ -157,14 +213,34 @@ export default function PersonDetailsModal({
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex min-h-screen items-center justify-center p-4">
-                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={() => { onHoverPerson?.(null); onClose(); }}></div>
+                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={() => { onClose(); }}></div>
 
                 <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl">
                     <div className="sticky top-0 bg-white z-20 flex justify-between items-center p-4 border-b">
                         <h2 className="text-xl font-semibold">Thông tin chi tiết</h2>
-                        <button onClick={() => { onHoverPerson?.(null); onClose(); }} className="p-1 rounded-full hover:bg-gray-100">
-                            <X className="h-5 w-5" />
-                        </button>
+
+                        {/* Action icons */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={onEditClick}
+                                className="p-2 rounded-full hover:bg-gray-100 text-gray-700"
+                                aria-label="Chỉnh sửa"
+                                title="Chỉnh sửa"
+                            >
+                                <Pencil className="h-5 w-5" />
+                            </button>
+                            <button
+                                onClick={() => setShowDeleteModal(true)}
+                                className="p-2 rounded-full hover:bg-red-50 text-red-600"
+                                aria-label="Xoá khỏi cây"
+                                title="Xoá khỏi cây"
+                            >
+                                <Trash2 className="h-5 w-5" />
+                            </button>
+                            <button onClick={() => { onClose(); }} className="p-1 rounded-full hover:bg-gray-100" aria-label="Đóng">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="p-6">
@@ -185,14 +261,14 @@ export default function PersonDetailsModal({
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <h1 className="text-2xl font-bold">{person.fullName}</h1>
-                                        <p className="text-gray-600">{person.gender === "male" ? "Nam" : person.gender === "female" ? "Nữ" : "Khác"}</p>
+                                        <p className="text-gray-600">
+                                            {String(person.gender).toUpperCase() === "MALE"
+                                                ? "Nam"
+                                                : String(person.gender).toUpperCase() === "FEMALE"
+                                                    ? "Nữ"
+                                                    : "Khác"}
+                                        </p>
                                     </div>
-                                    <button
-                                        onClick={onEditClick}
-                                        className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                    >
-                                        Chỉnh sửa
-                                    </button>
                                 </div>
 
                                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -238,11 +314,6 @@ export default function PersonDetailsModal({
                                                 <div
                                                     key={`${rel.relationshipId || index}-${rel.type}`}
                                                     className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                                                    onMouseEnter={() => {
-                                                        // chỉ highlight viền mẹ/bố khi hover vào item là PARENT của current
-                                                        if (onHoverPerson) onHoverPerson(rel.isParent ? rel.person?.id ?? null : null);
-                                                    }}
-                                                    onMouseLeave={() => onHoverPerson?.(null)}
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         {rel.person?.avatarUrl ? (
@@ -262,8 +333,7 @@ export default function PersonDetailsModal({
                                                             </div>
                                                         )}
                                                         <div>
-                                                            <p className="font-medium text-gray-800">{rel.person?.fullName || "Không rõ"}</p>
-                                                            <p className="text-sm text-gray-600">{rel.text}</p>
+                                                            <p className="text-sm text-gray-800 font-semibold">{rel.text}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -277,6 +347,24 @@ export default function PersonDetailsModal({
                         </div>
                     </div>
                 </div>
+
+                <PopupModal
+                    show={showDeleteModal}
+                    onClose={() => (!deleting ? setShowDeleteModal(false) : undefined)}
+                    onConfirm={onDelete ? handleDeleteConfirm : undefined}
+                    title="Xoá thành viên khỏi cây"
+                    body={
+                        <div className="space-y-1">
+                            <p>
+                                Bạn có chắc muốn xoá <span className="font-semibold">{person?.fullName}</span> khỏi cây gia phả?
+                            </p>
+                        </div>
+                    }
+                    confirmText="Xoá"
+                    cancelText="Huỷ"
+                    variant="danger"
+                    loading={deleting}
+                />
             </div>
         </div>
     );
