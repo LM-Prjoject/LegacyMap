@@ -12,6 +12,7 @@ import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.AdminService;
+import com.legacymap.backend.service.UserSessionService;  // ✅ ADD THIS IMPORT
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,6 +34,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserRepository userRepository;
     private final FamilyTreeRepository familyTreeRepository;
     private final PersonRepository personRepository;
+    private final UserSessionService userSessionService;  // ✅ ADD THIS FIELD
 
     @Override
     public List<UserListResponse> getAllUsers() {
@@ -81,7 +83,6 @@ public class AdminServiceImpl implements AdminService {
                     return new AppException(ErrorCode.USER_NOT_FOUND);
                 });
 
-        // 🔥 CRITICAL: Kiểm tra không cho phép ban admin
         if ("admin".equalsIgnoreCase(user.getRoleName())) {
             log.error("🚫 Cannot ban admin user: {} ({})", user.getEmail(), userId);
             throw new AppException(ErrorCode.CANNOT_BAN_ADMIN);
@@ -96,16 +97,13 @@ public class AdminServiceImpl implements AdminService {
             throw new AppException(ErrorCode.USER_ALREADY_BANNED);
         }
 
-        // ✅ Tìm tất cả accounts có cùng email
         List<User> allAccountsWithSameEmail = userRepository.findAllByEmail(email);
         log.info("🔍 Found {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
 
         OffsetDateTime banTime = OffsetDateTime.now();
 
-        // ✅ Ban tất cả accounts có cùng email (chỉ những account không phải admin)
         int bannedCount = 0;
         for (User account : allAccountsWithSameEmail) {
-            // 🔥 CRITICAL: Skip admin accounts
             if ("admin".equalsIgnoreCase(account.getRoleName())) {
                 log.warn("⚠️ Skipping admin account: {} (ID: {})", account.getEmail(), account.getId());
                 continue;
@@ -156,11 +154,9 @@ public class AdminServiceImpl implements AdminService {
             throw new AppException(ErrorCode.USER_NOT_BANNED);
         }
 
-        // ✅ Tìm tất cả accounts có cùng email
         List<User> allAccountsWithSameEmail = userRepository.findAllByEmail(email);
         log.info("🔍 Found {} account(s) with email: {}", allAccountsWithSameEmail.size(), email);
 
-        // ✅ Unban tất cả accounts có cùng email
         int unbannedCount = 0;
         for (User account : allAccountsWithSameEmail) {
             if (Boolean.TRUE.equals(account.getIsBanned())) {
@@ -195,12 +191,10 @@ public class AdminServiceImpl implements AdminService {
         log.info("🌳 Admin accessing all family trees");
 
         try {
-            // ✅ Sử dụng method với JOIN FETCH
             List<FamilyTree> familyTrees = familyTreeRepository.findAllWithUserOrderByCreatedAtDesc();
 
             log.info("📊 Found {} family trees in database", familyTrees.size());
 
-            // ✅ DEBUG: Log chi tiết từng tree
             for (FamilyTree tree : familyTrees) {
                 log.info("🌳 Tree ID: {}, Name: {}, CreatedBy: {}",
                         tree.getId(),
@@ -213,7 +207,6 @@ public class AdminServiceImpl implements AdminService {
                         try {
                             FamilyTreeResponse dto = FamilyTreeResponse.fromEntity(tree);
 
-                            // ✅ Count members
                             long memberCount = personRepository.countByFamilyTree_Id(tree.getId());
                             dto.setMemberCount(memberCount);
 
@@ -230,7 +223,6 @@ public class AdminServiceImpl implements AdminService {
 
             log.info("✅ Successfully converted {} family trees to DTOs", response.size());
 
-            // ✅ DEBUG: Log response trước khi return
             if (!response.isEmpty()) {
                 log.info("📦 First tree in response: {}", response.get(0));
             }
@@ -244,34 +236,108 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Map<String, Object> getAdminStats() {
         checkAdminPermission();
+
+        log.info("✅ AdminService: Calculating admin statistics");
 
         Map<String, Object> stats = new HashMap<>();
 
         try {
             List<User> allUsers = userRepository.findAll();
-            List<User> adminUsers = userRepository.findByRoleName("admin");
-            List<User> bannedUsers = userRepository.findByIsBannedTrue();
-            List<FamilyTree> allTrees = familyTreeRepository.findAll();
 
-            long totalMembers = personRepository.countAllPersons();
+            int totalUsers = allUsers.size();
 
-            stats.put("totalUsers", allUsers.size());
-            stats.put("adminUsers", adminUsers.size());
-            stats.put("bannedUsers", bannedUsers.size());
-            stats.put("activeUsers", allUsers.size() - bannedUsers.size());
-            stats.put("totalFamilyTrees", allTrees.size());
+            long bannedUsers = allUsers.stream()
+                    .filter(user -> Boolean.TRUE.equals(user.getIsBanned()))
+                    .count();
+
+            long activeUsers = totalUsers - bannedUsers;
+
+            // ✅ Get real-time online users from session tracking
+            long onlineUsers = userSessionService.countOnlineUsers();
+
+            log.info("📊 Real-time online users: {}", onlineUsers);
+
+            long adminUsers = allUsers.stream()
+                    .filter(u -> "admin".equalsIgnoreCase(u.getRoleName()))
+                    .count();
+
+            long moderatorUsers = allUsers.stream()
+                    .filter(u -> "moderator".equalsIgnoreCase(u.getRoleName()))
+                    .count();
+
+            long regularUsers = totalUsers - adminUsers - moderatorUsers;
+
+            OffsetDateTime firstDayOfMonth = OffsetDateTime.now()
+                    .withDayOfMonth(1)
+                    .withHour(0)
+                    .withMinute(0)
+                    .withSecond(0)
+                    .withNano(0);
+
+            long newUsersThisMonth = allUsers.stream()
+                    .filter(user -> user.getCreatedAt() != null &&
+                            user.getCreatedAt().isAfter(firstDayOfMonth))
+                    .count();
+
+            OffsetDateTime oneDayAgo = OffsetDateTime.now().minusDays(1);
+            OffsetDateTime oneWeekAgo = OffsetDateTime.now().minusDays(7);
+            OffsetDateTime oneMonthAgo = OffsetDateTime.now().minusMonths(1);
+
+            long activeToday = allUsers.stream()
+                    .filter(user -> user.getLastLogin() != null &&
+                            user.getLastLogin().isAfter(oneDayAgo))
+                    .count();
+
+            long activeThisWeek = allUsers.stream()
+                    .filter(user -> user.getLastLogin() != null &&
+                            user.getLastLogin().isAfter(oneWeekAgo))
+                    .count();
+
+            long activeThisMonth = allUsers.stream()
+                    .filter(user -> user.getLastLogin() != null &&
+                            user.getLastLogin().isAfter(oneMonthAgo))
+                    .count();
+
+            long totalFamilyTrees = familyTreeRepository.count();
+            long totalMembers = personRepository.count();
+
+            stats.put("totalUsers", totalUsers);
+            stats.put("activeUsers", activeUsers);
+            stats.put("bannedUsers", bannedUsers);
+            stats.put("onlineUsers", onlineUsers);
+            stats.put("adminUsers", adminUsers);
+            stats.put("moderatorUsers", moderatorUsers);
+            stats.put("regularUsers", regularUsers);
+            stats.put("newUsersThisMonth", newUsersThisMonth);
+            stats.put("totalFamilyTrees", totalFamilyTrees);
             stats.put("totalMembers", totalMembers);
-            stats.put("adminUserEmails", adminUsers.stream().map(User::getEmail).collect(Collectors.toList()));
 
-            log.info("📊 Admin Stats: {}", stats);
+            Map<String, Object> activityStats = new HashMap<>();
+            activityStats.put("loginsToday", activeToday);
+            activityStats.put("loginsThisWeek", activeThisWeek);
+            activityStats.put("loginsThisMonth", activeThisMonth);
+            activityStats.put("newUsersThisMonth", newUsersThisMonth);
+
+            double loginsTodayPercent = totalUsers > 0 ? (activeToday * 100.0 / totalUsers) : 0;
+            double newUsersPercent = totalUsers > 0 ? (newUsersThisMonth * 100.0 / totalUsers) : 0;
+
+            activityStats.put("loginsTodayPercent", Math.round(loginsTodayPercent));
+            activityStats.put("newUsersPercent", Math.round(newUsersPercent));
+
+            stats.put("activityStats", activityStats);
+
+            log.info("📊 Stats calculated: {} total users, {} online (real-time), {} active",
+                    totalUsers, onlineUsers, activeUsers);
+
+            return stats;
+
         } catch (Exception e) {
-            log.error("❌ Error calculating admin stats: {}", e.getMessage());
-            stats.put("error", e.getMessage());
+            log.error("❌ Error calculating admin stats", e);
+            throw new RuntimeException("Failed to calculate admin statistics", e);
         }
-
-        return stats;
     }
 
     private UserListResponse convertToUserListResponse(User user) {
@@ -289,9 +355,6 @@ public class AdminServiceImpl implements AdminService {
                 .build();
     }
 
-    /**
-     * 🔥 CRITICAL: Check if current user has ADMIN role
-     */
     private void checkAdminPermission() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
 

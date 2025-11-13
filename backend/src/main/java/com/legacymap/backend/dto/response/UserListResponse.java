@@ -19,4 +19,6 @@ public class UserListResponse {
     private OffsetDateTime bannedAt;
     private OffsetDateTime lastLogin;
     private OffsetDateTime createdAt;
+    // ✅ THÊM FIELD MỚI
+    private Boolean isOnline;  // Real-time online status from session tracking
 }

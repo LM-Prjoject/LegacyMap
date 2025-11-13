@@ -28,17 +28,31 @@ export interface FamilyTree {
     createdBy: string;
     createdByEmail?: string;
     createdByUsername?: string;
+    memberCount?: number;
     createdAt: string;
     updatedAt?: string;
 }
 
+// ✅ CẬP NHẬT: AdminStats interface đầy đủ
 export interface AdminStats {
     totalUsers: number;
-    adminUsers: number;
-    bannedUsers: number;
     activeUsers: number;
+    bannedUsers: number;
+    onlineUsers: number;
+    adminUsers: number;
+    moderatorUsers: number;
+    regularUsers: number;
+    newUsersThisMonth: number;
     totalFamilyTrees: number;
-    adminUserEmails: string[];
+    totalMembers: number;
+    activityStats: {
+        loginsToday: number;
+        loginsThisWeek: number;
+        loginsThisMonth: number;
+        newUsersThisMonth: number;
+        loginsTodayPercent: number;
+        newUsersPercent: number;
+    };
 }
 
 export interface ApiResponse<T> {
@@ -56,7 +70,7 @@ export const adminApi = {
     // USER MANAGEMENT
     async getAllUsers(): Promise<User[]> {
         try {
-            console.log('📡 Fetching all users...');
+            console.log('🔡 Fetching all users...');
             const response = await http.get<ApiResponse<User[]>>('/admin/users');
 
             console.log('Users response:', response.data);
@@ -76,7 +90,7 @@ export const adminApi = {
 
     async getUserDetail(userId: string): Promise<UserDetail> {
         try {
-            console.log('📡 Fetching user detail:', userId);
+            console.log('🔡 Fetching user detail:', userId);
             const response = await http.get<ApiResponse<UserDetail>>(`/admin/users/${userId}`);
 
             const user = response.data.result || response.data;
@@ -149,17 +163,19 @@ export const adminApi = {
         }
     },
 
-    // STATISTICS
+    // ✅ STATISTICS - Trả về AdminStats đầy đủ
     async getAdminStats(): Promise<AdminStats> {
         try {
-            console.log('Fetching admin stats...');
-            const response = await http.get<ApiResponse<AdminStats>>('/admin/stats');
+            console.log('📊 Fetching admin stats...');
+            const response = await http.get<AdminStats>('/admin/stats');
 
-            const stats = response.data.result || response.data;
-            console.log('Admin stats fetched:', stats);
-            return stats as AdminStats;
+            // Backend trả trực tiếp object, không wrap
+            const stats = response.data;
+
+            console.log('✅ Admin stats fetched:', stats);
+            return stats;
         } catch (error: any) {
-            console.error('Error fetching admin stats:', error.response?.data || error.message);
+            console.error('❌ Error fetching admin stats:', error.response?.data || error.message);
             throw error;
         }
     }
