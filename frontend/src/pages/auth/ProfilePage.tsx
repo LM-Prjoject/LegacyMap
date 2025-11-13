@@ -35,6 +35,14 @@ export default function ProfilePage() {
     const [wards, setWards] = useState<Ward[]>([]);
     const [wardCode, setWardCode] = useState<number | "">("");
 
+    // Add body class management
+    useEffect(() => {
+        document.body.classList.add('page-profile');
+        return () => {
+            document.body.classList.remove('page-profile');
+        };
+    }, []);
+
     useEffect(() => {
         fetchProvinces().then(setProvinces).catch(() => setProvinces([]));
     }, []);

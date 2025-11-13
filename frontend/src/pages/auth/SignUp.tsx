@@ -1,8 +1,9 @@
+// SignUp.tsx - Đã sửa lỗi và cập nhật UI
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, CheckCircle, Mail, Clock, AlertCircle } from 'lucide-react';
+import { X, CheckCircle, Mail, Clock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { authApi } from '@/api/auth';
 import DragonsBackground from '@/components/visual/DragonsBackground';
 
@@ -16,33 +17,46 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) =
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 25%, #4a5970 50%, #3d4a5f 75%, #2a3548 100%)'}}>
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
 
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 md:p-8 animate-scale-in">
+            <div className="relative rounded-3xl shadow-2xl max-w-md w-full p-8 animate-scale-in" style={{
+                background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
+                border: '3px solid rgba(255, 216, 155, 0.6)',
+                boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3), inset 0 0 100px rgba(255, 255, 255, 0.5)'
+            }}>
                 <div className="flex justify-center mb-4">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-12 h-12 text-green-600" />
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{
+                        background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.3) 0%, rgba(255, 230, 190, 0.2) 100%)',
+                        border: '3px solid rgba(255, 216, 155, 0.6)'
+                    }}>
+                        <CheckCircle className="w-12 h-12" style={{color: '#2a3548'}} />
                     </div>
                 </div>
 
-                <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-900 mb-4">
-                    Đăng Ký Thành Công!
+                <h2 className="text-2xl font-black text-center mb-4 tracking-tight" style={{
+                    color: '#2a3548',
+                    textShadow: '0 3px 15px rgba(42, 53, 72, 0.3)'
+                }}>
+                    ĐĂNG KÝ THÀNH CÔNG!
                 </h2>
 
-                <div className="text-center text-gray-600 mb-6 space-y-3">
-                    <p className="flex items-center justify-center gap-2">
-                        <Mail className="w-5 h-5 text-blue-500" />
+                <div className="text-center mb-6 space-y-3" style={{color: '#2a3548'}}>
+                    <p className="flex items-center justify-center gap-2 font-semibold">
+                        <Mail className="w-5 h-5" />
                         <span>Email xác minh đã được gửi đến:</span>
                     </p>
-                    <p className="font-semibold text-blue-600 break-all">{email}</p>
+                    <p className="font-black break-all">{email}</p>
 
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4 text-left">
+                    <div className="rounded-xl p-4 mt-4 text-left" style={{
+                        background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.2) 0%, rgba(255, 230, 190, 0.1) 100%)',
+                        border: '2px solid rgba(255, 216, 155, 0.5)'
+                    }}>
                         <div className="flex items-start gap-3 mb-2">
-                            <Clock className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <Clock className="w-5 h-5 mt-0.5 flex-shrink-0" />
                             <div>
-                                <p className="font-medium text-blue-800">Vui lòng kiểm tra email</p>
-                                <p className="text-sm text-blue-600 mt-1">
+                                <p className="font-bold">VUI LÒNG KIỂM TRA EMAIL</p>
+                                <p className="text-sm mt-1 font-medium">
                                     • Kiểm tra hộp thư đến và thư mục spam<br />
                                     • Link xác minh có hiệu lực trong 5 phút<br />
                                     • Xác minh email để bắt đầu sử dụng
@@ -55,31 +69,28 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) =
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+                        className="flex-1 rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl"
+                        style={{
+                            background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                            color: 'rgb(255, 216, 155)',
+                            border: '2px solid rgba(255, 216, 155, 0.5)'
+                        }}
                     >
-                        Đã hiểu
+                        ĐÃ HIỂU
                     </button>
                     <button
                         onClick={() => window.open('https://mail.google.com', '_blank')}
-                        className="flex-1 border border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold py-3 px-4 rounded-lg transition-colors"
+                        className="flex-1 rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                            border: '2px solid rgba(42, 53, 72, 0.3)',
+                            color: '#2a3548'
+                        }}
                     >
-                        Mở Gmail
+                        Mở GMAIL
                     </button>
                 </div>
-
-                <div className="absolute -top-4 -right-4 w-8 h-8 bg-green-500 rounded-full opacity-20 animate-pulse"></div>
-                <div className="absolute -bottom-4 -left-4 w-6 h-6 bg-blue-500 rounded-full opacity-20 animate-pulse"></div>
             </div>
-
-            <style>{`
-                @keyframes scale-in {
-                    0% { transform: scale(0.8); opacity: 0; }
-                    100% { transform: scale(1); opacity: 1; }
-                }
-                .animate-scale-in {
-                    animation: scale-in 0.3s ease-out;
-                }
-            `}</style>
         </div>
     );
 };
@@ -91,7 +102,7 @@ const signupSchema = z.object({
         .string()
         .min(8, 'Mật khẩu phải có ít nhất 8 ký tự')
         .regex(
-            /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]+$/,
+            /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]+$/,
             'Mật khẩu phải chứa ít nhất 1 chữ cái, 1 số và 1 ký tự đặc biệt'
         ),
     confirmPassword: z.string(),
@@ -115,34 +126,14 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
     const [errorMessage, setErrorMessage] = useState('');
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [registeredEmail, setRegisteredEmail] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
     } = useForm<SignupFormData>({ resolver: zodResolver(signupSchema) });
-
-    // CRITICAL: Disable body scroll when modal opens
-    React.useEffect(() => {
-        // Lưu trạng thái scroll hiện tại
-        const scrollY = window.scrollY;
-        const body = document.body;
-
-        // Lock body scroll
-        body.style.position = 'fixed';
-        body.style.top = `-${scrollY}px`;
-        body.style.width = '100%';
-        body.style.overflow = 'hidden';
-
-        return () => {
-            // Restore body scroll
-            body.style.position = '';
-            body.style.top = '';
-            body.style.width = '';
-            body.style.overflow = '';
-            window.scrollTo(0, scrollY);
-        };
-    }, []);
 
     const onSubmit = async (data: SignupFormData) => {
         setErrorMessage('');
@@ -179,152 +170,222 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
 
     return (
         <>
-            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden pt-20">
-                <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose}></div>
-
-                <div className="relative w-full h-full overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center px-4 py-8">
+            <div className="fixed inset-0 z-50 overflow-y-auto scrollbar-hidden" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(8px)'}}>
+                <div className="min-h-screen flex flex-col items-center justify-start px-4 py-24">
+                    <div className="fixed inset-0 z-0 pointer-events-none flex items-center justify-center">
                         <DragonsBackground
                             size={360}
                             showGrid
                             left={{ enabled: true, flipX: true, delayMs: 0 }}
                             right={{ enabled: true, flipX: false, delayMs: 250 }}
                         />
+                    </div>
 
-                        <div className="relative w-full max-w-md z-10 mx-auto">
-                            <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h1 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Đăng ký</h1>
-                                    <button
-                                        onClick={onClose}
+                    <div className="relative w-full max-w-md z-10 pointer-events-auto">
+                        <div className="relative rounded-3xl shadow-2xl p-8" style={{
+                            background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
+                            border: '3px solid rgba(255, 216, 155, 0.6)',
+                            boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3), inset 0 0 100px rgba(255, 255, 255, 0.5)'
+                        }}>
+                            <div className="flex justify-between items-center mb-6">
+                                <h1 className="text-3xl font-black tracking-tight" style={{
+                                    color: '#2a3548',
+                                    textShadow: '0 3px 15px rgba(42, 53, 72, 0.3)'
+                                }}>ĐĂNG KÝ</h1>
+                                <button
+                                    onClick={onClose}
+                                    disabled={isSubmitting}
+                                    className="p-2 rounded-xl transition-all hover:scale-110 disabled:opacity-50"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                        border: '2px solid rgba(255, 216, 155, 0.5)'
+                                    }}
+                                >
+                                    <X className="h-5 w-5" style={{color: 'rgb(255, 216, 155)'}} />
+                                </button>
+                            </div>
+
+                            {errorMessage && (
+                                <div className="mb-6 p-4 rounded-xl flex items-start gap-3" style={{
+                                    background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.2) 0%, rgba(255, 230, 190, 0.1) 100%)',
+                                    border: '2px solid rgba(255, 216, 155, 0.5)'
+                                }}>
+                                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" style={{color: '#2a3548'}} />
+                                    <div>
+                                        <p className="font-bold" style={{color: '#2a3548'}}>CÓ LỖI XẢY RA</p>
+                                        <p className="text-sm mt-1 font-medium" style={{color: '#2a3548'}}>{errorMessage}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <form className="mt-6 space-y-5" onSubmit={handleSubmit(onSubmit)}>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>USERNAME</label>
+                                    <input
+                                        {...register('username')}
+                                        type="text"
                                         disabled={isSubmitting}
-                                        className="text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-                                    >
-                                        <X className="h-6 w-6" />
-                                    </button>
+                                        className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium disabled:opacity-50"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                            borderColor: 'rgba(42, 53, 72, 0.3)',
+                                            color: '#2a3548'
+                                        }}
+                                        placeholder="Nhập username"
+                                    />
+                                    {errors.username && <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{errors.username.message}</p>}
                                 </div>
 
-                                {errorMessage && (
-                                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                                        <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                            <p className="font-medium text-red-800">Có lỗi xảy ra</p>
-                                            <p className="text-red-600 text-sm mt-1">{errorMessage}</p>
-                                        </div>
-                                    </div>
-                                )}
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>HỌ VÀ TÊN</label>
+                                    <input
+                                        {...register('fullName')}
+                                        type="text"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium disabled:opacity-50"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                            borderColor: 'rgba(42, 53, 72, 0.3)',
+                                            color: '#2a3548'
+                                        }}
+                                        placeholder="Nhập họ và tên"
+                                    />
+                                    {errors.fullName && <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{errors.fullName.message}</p>}
+                                </div>
 
-                                <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
-                                        <input
-                                            {...register('username')}
-                                            type="text"
-                                            disabled={isSubmitting}
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                            placeholder="Nhập username"
-                                        />
-                                        {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>EMAIL</label>
+                                    <input
+                                        {...register('email')}
+                                        type="email"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium disabled:opacity-50"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                            borderColor: 'rgba(42, 53, 72, 0.3)',
+                                            color: '#2a3548'
+                                        }}
+                                        placeholder="Nhập email"
+                                    />
+                                    {errors.email && <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{errors.email.message}</p>}
+                                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Họ và tên</label>
-                                        <input
-                                            {...register('fullName')}
-                                            type="text"
-                                            disabled={isSubmitting}
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                            placeholder="Nhập họ và tên"
-                                        />
-                                        {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                                        <input
-                                            {...register('email')}
-                                            type="email"
-                                            disabled={isSubmitting}
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
-                                            placeholder="Nhập email"
-                                        />
-                                        {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu</label>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>MẬT KHẨU</label>
+                                    <div className="relative">
                                         <input
                                             {...register('password')}
-                                            type="password"
+                                            type={showPassword ? "text" : "password"}
                                             disabled={isSubmitting}
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                            className="w-full rounded-xl border-2 px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium disabled:opacity-50"
+                                            style={{
+                                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                                borderColor: 'rgba(42, 53, 72, 0.3)',
+                                                color: '#2a3548'
+                                            }}
                                             placeholder="Nhập mật khẩu"
                                         />
-                                        {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            disabled={isSubmitting}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                            style={{color: '#2a3548'}}
+                                        >
+                                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                        </button>
                                     </div>
+                                    {errors.password && <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{errors.password.message}</p>}
+                                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Xác nhận mật khẩu</label>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>XÁC NHẬN MẬT KHẨU</label>
+                                    <div className="relative">
                                         <input
                                             {...register('confirmPassword')}
-                                            type="password"
+                                            type={showConfirmPassword ? "text" : "password"}
                                             disabled={isSubmitting}
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50"
+                                            className="w-full rounded-xl border-2 px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium disabled:opacity-50"
+                                            style={{
+                                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                                borderColor: 'rgba(42, 53, 72, 0.3)',
+                                                color: '#2a3548'
+                                            }}
                                             placeholder="Nhập lại mật khẩu"
                                         />
-                                        {errors.confirmPassword && (
-                                            <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
-                                        )}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Giới tính</label>
-                                        <select
-                                            {...register('gender')}
-                                            disabled={isSubmitting}
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7] disabled:opacity-50 bg-white"
-                                            defaultValue=""
-                                        >
-                                            <option value="" disabled>Chọn giới tính</option>
-                                            <option value="MALE">Nam</option>
-                                            <option value="FEMALE">Nữ</option>
-                                            <option value="OTHER">Khác</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
                                         <button
-                                            type="submit"
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                             disabled={isSubmitting}
-                                            className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                            style={{color: '#2a3548'}}
                                         >
-                                            {isSubmitting ? (
-                                                <span className="flex items-center justify-center gap-2">
-                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                            {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                        </button>
+                                    </div>
+                                    {errors.confirmPassword && (
+                                        <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{errors.confirmPassword.message}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>GIỚI TÍNH</label>
+                                    <select
+                                        {...register('gender')}
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium disabled:opacity-50"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                            borderColor: 'rgba(42, 53, 72, 0.3)',
+                                            color: '#2a3548'
+                                        }}
+                                        defaultValue=""
+                                    >
+                                        <option value="" disabled>Chọn giới tính</option>
+                                        <option value="MALE">Nam</option>
+                                        <option value="FEMALE">Nữ</option>
+                                        <option value="OTHER">Khác</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                            color: 'rgb(255, 216, 155)',
+                                            border: '2px solid rgba(255, 216, 155, 0.5)'
+                                        }}
+                                    >
+                                        {isSubmitting ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" style={{color: 'rgb(255, 216, 155)'}}>
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                                 </svg>
-                                                Đang xử lý...
+                                                ĐANG XỬ LÝ...
                                             </span>
-                                            ) : 'Đăng ký'}
-                                        </button>
-                                    </div>
+                                        ) : 'ĐĂNG KÝ'}
+                                    </button>
+                                </div>
 
-                                    <div className="text-center">
-                                        <p className="text-sm text-slate-600">
-                                            Đã có tài khoản?{' '}
-                                            <button
-                                                type="button"
-                                                onClick={onShowSignIn}
-                                                disabled={isSubmitting}
-                                                className="text-[#1e63c7] hover:underline font-semibold disabled:opacity-50"
-                                            >
-                                                Đăng nhập
-                                            </button>
-                                        </p>
-                                    </div>
-                                </form>
-                            </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold" style={{color: '#2a3548'}}>
+                                        ĐÃ CÓ TÀI KHOẢN?{' '}
+                                        <button
+                                            type="button"
+                                            onClick={onShowSignIn}
+                                            disabled={isSubmitting}
+                                            className="hover:underline font-black disabled:opacity-50"
+                                            style={{color: '#2a3548'}}
+                                        >
+                                            ĐĂNG NHẬP
+                                        </button>
+                                    </p>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>

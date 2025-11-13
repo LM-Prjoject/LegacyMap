@@ -1,3 +1,4 @@
+// password-reset.tsx - Đã cập nhật UI với background trong suốt
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,6 +48,16 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         }
     }, [isResetSuccess, onShowSignIn]);
 
+    // FIXED: Quản lý scroll giống như SignUp
+    useEffect(() => {
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
+
     const {
         register: registerForgot,
         handleSubmit: handleForgotSubmit,
@@ -68,7 +79,7 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
             if (res.ok && payload?.success) {
                 setIsEmailSent(true);
             } else {
-                    const msg = payload?.message || 'Gửi email thất bại. Vui lòng thử lại.';
+                const msg = payload?.message || 'Gửi email thất bại. Vui lòng thử lại.';
                 alert(msg);
             }
         } catch (error) {
@@ -114,57 +125,91 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
 
     if (isRecovery) {
         return (
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
+            // FIXED: Background trong suốt giống SignUp
+            <div className="fixed inset-0 z-50 overflow-hidden" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(8px)'}}>
+                <div className="flex min-h-full items-center justify-center p-4">
+                    <DragonsBackground
+                        size={360}
+                        showGrid
+                        left={{ enabled: true, flipX: true, delayMs: 0 }}
+                        right={{ enabled: true, flipX: false, delayMs: 250 }}
+                    />
 
-                <div className="flex min-h-full items-center justify-center p-4 relative">
-                    <DragonsBackground/>
-
-                    <div className="relative w-full max-w-md">
-                        <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
-                            <div className="flex justify-between items-center mb-2">
-                                <h2 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Đặt lại mật khẩu</h2>
-                                <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                    <X className="h-6 w-6" />
+                    {/* FIXED: Container scroll duy nhất giống SignUp */}
+                    <div className="relative w-full max-w-md max-h-[90vh] z-10 mx-auto overflow-y-auto">
+                        <div className="relative rounded-3xl shadow-2xl p-8" style={{
+                            background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
+                            border: '3px solid rgba(255, 216, 155, 0.6)',
+                            boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3), inset 0 0 100px rgba(255, 255, 255, 0.5)'
+                        }}>
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-3xl font-black tracking-tight" style={{
+                                    color: '#2a3548',
+                                    textShadow: '0 3px 15px rgba(42, 53, 72, 0.3)'
+                                }}>ĐẶT LẠI MẬT KHẨU</h2>
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 rounded-xl transition-all hover:scale-110"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                        border: '2px solid rgba(255, 216, 155, 0.5)'
+                                    }}
+                                >
+                                    <X className="h-5 w-5" style={{color: 'rgb(255, 216, 155)'}} />
                                 </button>
                             </div>
 
                             {isResetSuccess ? (
-                                <div className="text-center">
-                                    <div className="text-green-600 mb-4">Đặt lại mật khẩu thành công!</div>
+                                <div className="text-center py-6">
+                                    <div className="font-black text-lg mb-4" style={{color: '#2a3548'}}>ĐẶT LẠI MẬT KHẨU THÀNH CÔNG!</div>
                                     <button
                                         type="button"
                                         onClick={onShowSignIn}
-                                        className="text-indigo-600 hover:text-indigo-500 font-medium"
+                                        className="rounded-xl py-3 px-6 font-semibold transition-all shadow-lg hover:shadow-xl"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                            color: 'rgb(255, 216, 155)',
+                                            border: '2px solid rgba(255, 216, 155, 0.5)'
+                                        }}
                                     >
-                                        Quay lại đăng nhập
+                                        QUAY LẠI ĐĂNG NHẬP
                                     </button>
                                 </div>
                             ) : (
-                                <form className="mt-8 space-y-4" onSubmit={handleResetSubmit(onResetPassword)}>
+                                <form className="mt-6 space-y-5" onSubmit={handleResetSubmit(onResetPassword)}>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Mật khẩu mới</label>
+                                        <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>MẬT KHẨU MỚI</label>
                                         <input
                                             {...registerReset('password')}
                                             type="password"
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                            className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium"
+                                            style={{
+                                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                                borderColor: 'rgba(42, 53, 72, 0.3)',
+                                                color: '#2a3548'
+                                            }}
                                             placeholder="Nhập mật khẩu mới"
                                         />
                                         {resetErrors.password && (
-                                            <p className="text-red-500 text-sm mt-1">{resetErrors.password.message}</p>
+                                            <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{resetErrors.password.message}</p>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Xác nhận mật khẩu</label>
+                                        <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>XÁC NHẬN MẬT KHẨU</label>
                                         <input
                                             {...registerReset('confirmPassword')}
                                             type="password"
-                                            className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                            className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium"
+                                            style={{
+                                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                                borderColor: 'rgba(42, 53, 72, 0.3)',
+                                                color: '#2a3548'
+                                            }}
                                             placeholder="Nhập lại mật khẩu"
                                         />
                                         {resetErrors.confirmPassword && (
-                                            <p className="text-red-500 text-sm mt-1">{resetErrors.confirmPassword.message}</p>
+                                            <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{resetErrors.confirmPassword.message}</p>
                                         )}
                                     </div>
 
@@ -172,9 +217,14 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                                         <button
                                             type="submit"
                                             disabled={isResetting}
-                                            className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60"
+                                            className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-60"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                                color: 'rgb(255, 216, 155)',
+                                                border: '2px solid rgba(255, 216, 155, 0.5)'
+                                            }}
                                         >
-                                            {isResetting ? 'Đang đặt lại…' : 'Đặt lại mật khẩu'}
+                                            {isResetting ? 'ĐANG ĐẶT LẠI…' : 'ĐẶT LẠI MẬT KHẨU'}
                                         </button>
                                     </div>
                                 </form>
@@ -188,51 +238,76 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
 
     // Form nhập email để nhận link đặt lại
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
-
-            <div className="flex min-h-full items-center justify-center p-4 relative">
-                {/* Nền rồng tái sử dụng */}
+        // FIXED: Background trong suốt giống SignUp
+        <div className="fixed inset-0 z-50 overflow-hidden" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(8px)'}}>
+            <div className="flex min-h-full items-center justify-center p-4">
                 <DragonsBackground
-                    // size={380}
-                    // showGrid
+                    size={360}
+                    showGrid
+                    left={{ enabled: true, flipX: true, delayMs: 0 }}
+                    right={{ enabled: true, flipX: false, delayMs: 250 }}
                 />
 
-                <div className="relative w-full max-w-md">
-                    <div className="relative rounded-2xl bg-white shadow-2xl p-6 md:p-8">
-                        <div className="flex justify-between items-center mb-2">
-                            <h2 className="text-2xl md:text-3xl font-bold text-[#0c3a73]">Quên mật khẩu</h2>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <X className="h-6 w-6" />
+                {/* FIXED: Container scroll duy nhất giống SignUp */}
+                <div className="relative w-full max-w-md max-h-[90vh] z-10 mx-auto overflow-y-auto">
+                    <div className="relative rounded-3xl shadow-2xl p-8" style={{
+                        background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
+                        border: '3px solid rgba(255, 216, 155, 0.6)',
+                        boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3), inset 0 0 100px rgba(255, 255, 255, 0.5)'
+                    }}>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-3xl font-black tracking-tight" style={{
+                                color: '#2a3548',
+                                textShadow: '0 3px 15px rgba(42, 53, 72, 0.3)'
+                            }}>QUÊN MẬT KHẨU</h2>
+                            <button
+                                onClick={onClose}
+                                className="p-2 rounded-xl transition-all hover:scale-110"
+                                style={{
+                                    background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                    border: '2px solid rgba(255, 216, 155, 0.5)'
+                                }}
+                            >
+                                <X className="h-5 w-5" style={{color: 'rgb(255, 216, 155)'}} />
                             </button>
                         </div>
 
-                        <p className="text-sm text-slate-600 mb-6">Nhập email để nhận liên kết đặt lại mật khẩu</p>
+                        <p className="text-sm font-semibold mb-6" style={{color: '#2a3548'}}>Nhập email để nhận liên kết đặt lại mật khẩu</p>
 
                         {isEmailSent ? (
-                            <div className="text-center">
-                                <div className="text-green-600 mb-4">Đã gửi email đặt lại mật khẩu!</div>
-                                <p className="text-gray-600 mb-4">Vui lòng kiểm tra hộp thư của bạn và làm theo hướng dẫn.</p>
+                            <div className="text-center py-6">
+                                <div className="font-black text-lg mb-4" style={{color: '#2a3548'}}>ĐÃ GỬI EMAIL ĐẶT LẠI MẬT KHẨU!</div>
+                                <p className="text-sm font-medium mb-6" style={{color: '#2a3548'}}>Vui lòng kiểm tra hộp thư của bạn và làm theo hướng dẫn.</p>
                                 <button
                                     type="button"
                                     onClick={onShowSignIn}
-                                    className="text-indigo-600 hover:text-indigo-500 font-medium"
+                                    className="rounded-xl py-3 px-6 font-semibold transition-all shadow-lg hover:shadow-xl"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                        color: 'rgb(255, 216, 155)',
+                                        border: '2px solid rgba(255, 216, 155, 0.5)'
+                                    }}
                                 >
-                                    Quay lại đăng nhập
+                                    QUAY LẠI ĐĂNG NHẬP
                                 </button>
                             </div>
                         ) : (
-                            <form className="mt-8 space-y-4" onSubmit={handleForgotSubmit(onForgotPassword)}>
+                            <form className="mt-6 space-y-5" onSubmit={handleForgotSubmit(onForgotPassword)}>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                                    <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>EMAIL</label>
                                     <input
                                         {...registerForgot('email')}
                                         type="email"
-                                        className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:ring-2 focus:ring-[#1e63c7]"
+                                        className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                            borderColor: 'rgba(42, 53, 72, 0.3)',
+                                            color: '#2a3548'
+                                        }}
                                         placeholder="Nhập email của bạn"
                                     />
                                     {forgotErrors.email && (
-                                        <p className="text-red-500 text-sm mt-1">{forgotErrors.email.message}</p>
+                                        <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{forgotErrors.email.message}</p>
                                     )}
                                 </div>
 
@@ -240,9 +315,14 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                                     <button
                                         type="submit"
                                         disabled={isSending}
-                                        className="w-full rounded-lg bg-[#1e63c7] hover:bg-[#0c3a73] text-white font-semibold py-2 transition-all disabled:opacity-60"
+                                        className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-60"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                            color: 'rgb(255, 216, 155)',
+                                            border: '2px solid rgba(255, 216, 155, 0.5)'
+                                        }}
                                     >
-                                        {isSending ? 'Đang gửi…' : 'Gửi liên kết đặt lại'}
+                                        {isSending ? 'ĐANG GỬI…' : 'GỬI LIÊN KẾT ĐẶT LẠI'}
                                     </button>
                                 </div>
 
@@ -250,9 +330,10 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                                     <button
                                         type="button"
                                         onClick={onShowSignIn}
-                                        className="text-indigo-600 hover:text-indigo-500 font-medium"
+                                        className="text-sm font-semibold hover:underline"
+                                        style={{color: '#2a3548'}}
                                     >
-                                        Quay lại đăng nhập
+                                        QUAY LẠI ĐĂNG NHẬP
                                     </button>
                                 </div>
                             </form>

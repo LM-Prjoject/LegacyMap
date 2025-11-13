@@ -1,59 +1,72 @@
 // src/pages/admin/AdminDashboard.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { User } from '../../types/ts_user';
 import { useUsers } from '../../hooks/useUsers';
 import { useFamilyTrees } from '../../hooks/useFamilyTrees';
+import { adminApi, AdminStats } from '../../api/ts_admin';  // ✅ Import AdminStats từ ts_admin
 
 const AdminDashboard: React.FC = () => {
     const { users, loading: usersLoading, error: usersError } = useUsers();
     const { familyTrees, loading: treesLoading, error: treesError } = useFamilyTrees();
+    const [stats, setStats] = useState<AdminStats | null>(null);
+    const [statsLoading, setStatsLoading] = useState(true);
 
-    const stats = React.useMemo(() => {
-        if (!users.length) return null;
+    // ✅ Load stats từ backend
+    useEffect(() => {
+        const loadStats = async () => {
+            try {
+                setStatsLoading(true);
+                const data = await adminApi.getAdminStats();
+                console.log('📊 Stats loaded:', data);
+                console.log('📊 ActivityStats:', data.activityStats);
 
-        const totalUsers = users.length;
-        const bannedUsers = users.filter((u: User) => u.isBanned).length;
-        const activeUsers = totalUsers - bannedUsers;
+                // ✅ Validate data structure
+                if (!data.activityStats) {
+                    console.warn('⚠️ activityStats is missing, using defaults');
+                    data.activityStats = {
+                        loginsToday: 0,
+                        loginsThisWeek: 0,
+                        loginsThisMonth: 0,
+                        newUsersThisMonth: 0,
+                        loginsTodayPercent: 0,
+                        newUsersPercent: 0
+                    };
+                }
 
-        const now = new Date();
-        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const newUsersThisMonth = users.filter((u: User) =>
-            new Date(u.createdAt) >= firstDayOfMonth
-        ).length;
-
-        const adminUsers = users.filter((u: User) =>
-            u.roleName === 'admin' || u.role === 'ADMIN'
-        ).length;
-
-        const moderatorUsers = users.filter((u: User) =>
-            u.roleName === 'moderator' || u.role === 'MODERATOR'
-        ).length;
-
-        const totalMembers = familyTrees.reduce((sum, tree) => sum + (tree.memberCount || 0), 0);
-
-        const userGrowth = totalUsers > 0 ? Math.floor((newUsersThisMonth / totalUsers) * 100) : 0;
-        const treeGrowth = Math.floor(Math.random() * 15) + 5;
-        const memberGrowth = Math.floor(Math.random() * 30) + 10;
-        const activityRate = totalUsers > 0 ? Math.floor((activeUsers / totalUsers) * 100) : 0;
-
-        return {
-            totalUsers,
-            activeUsers,
-            bannedUsers,
-            newUsersThisMonth,
-            adminUsers,
-            moderatorUsers,
-            totalFamilyTrees: familyTrees.length,
-            totalMembers,
-            userGrowth,
-            treeGrowth,
-            memberGrowth,
-            activityRate,
+                setStats(data);
+            } catch (error) {
+                console.error('❌ Error loading admin stats:', error);
+                // ✅ Set default stats nếu lỗi
+                setStats({
+                    totalUsers: 0,
+                    activeUsers: 0,
+                    bannedUsers: 0,
+                    onlineUsers: 0,
+                    adminUsers: 0,
+                    moderatorUsers: 0,
+                    regularUsers: 0,
+                    newUsersThisMonth: 0,
+                    totalFamilyTrees: 0,
+                    totalMembers: 0,
+                    activityStats: {
+                        loginsToday: 0,
+                        loginsThisWeek: 0,
+                        loginsThisMonth: 0,
+                        newUsersThisMonth: 0,
+                        loginsTodayPercent: 0,
+                        newUsersPercent: 0
+                    }
+                });
+            } finally {
+                setStatsLoading(false);
+            }
         };
-    }, [users, familyTrees]);
 
-    if (usersLoading || treesLoading) {
+        loadStats();
+    }, []);
+
+    if (usersLoading || treesLoading || statsLoading) {
         return (
             <div className="flex flex-col justify-center items-center h-96">
                 <div className="w-16 h-16 border-4 border-[#d1b98a] border-t-transparent rounded-full animate-spin"></div>
@@ -88,66 +101,96 @@ const AdminDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <StatCard
                     title="Tổng Người Dùng"
-                    value={stats?.totalUsers.toLocaleString() || '0'}
+                    value={(stats?.totalUsers || 0).toLocaleString()}
                     icon="👥"
-                    change={`+${stats?.userGrowth || 0}% từ tháng trước`}
+                    change={`${stats?.newUsersThisMonth || 0} mới tháng này`}
+                />
+                <StatCard
+                    title="Đang Online"
+                    value={(stats?.onlineUsers || 0).toLocaleString()}
+                    icon="🟢"
+                    change={`${stats?.activeUsers || 0} đang hoạt động`}
                 />
                 <StatCard
                     title="Gia Phả Hoạt Động"
-                    value={stats?.totalFamilyTrees.toLocaleString() || '0'}
+                    value={(stats?.totalFamilyTrees || 0).toLocaleString()}
                     icon="🌲"
-                    change={`+${stats?.treeGrowth || 0}% từ tháng trước`}
-                />
-                <StatCard
-                    title="Thành Viên Gia Phả"
-                    value={stats?.totalMembers.toLocaleString() || '0'}
-                    icon="📊"
-                    change={`+${stats?.memberGrowth || 0}% từ tháng trước`}
+                    change={`${stats?.totalMembers || 0} thành viên`}
                 />
                 <StatCard
                     title="Tỷ Lệ Hoạt Động"
-                    value={`${stats?.activityRate || 0}%`}
+                    value={`${stats?.totalUsers && stats?.activeUsers ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}%`}
                     icon="📈"
-                    change={`+${Math.floor(Math.random() * 10)}% từ tháng trước`}
+                    change={`${stats?.bannedUsers || 0} bị khóa`}
                 />
             </div>
 
             {/* Charts & Role Stats */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {/* User Activity */}
+                {/* ✅ User Activity - Lấy số liệu thật từ backend */}
                 <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
                     <h3 className="text-xl font-bold text-[#f4e9c8] mb-6">Hoạt Động Người Dùng</h3>
                     <div className="space-y-4">
-                        <ActivityBar label="Đăng nhập hôm nay" value={85} color="bg-[#d1b98a]" />
-                        <ActivityBar label="Người dùng mới" value={45} color="bg-green-500" />
-                        <ActivityBar label="Đã tạo gia phả" value={62} color="bg-blue-500" />
-                        <ActivityBar label="Đã cập nhật hồ sơ" value={38} color="bg-purple-500" />
+                        <ActivityBar
+                            label="Active hôm nay (24h gần nhất)"
+                            value={stats?.activityStats?.loginsTodayPercent || 0}
+                            count={stats?.activityStats?.loginsToday || 0}
+                            total={stats?.totalUsers || 0}
+                            color="bg-[#d1b98a]"
+                        />
+                        <ActivityBar
+                            label="Người dùng mới tháng này"
+                            value={stats?.activityStats?.newUsersPercent || 0}
+                            count={stats?.activityStats?.newUsersThisMonth || 0}
+                            total={stats?.totalUsers || 0}
+                            color="bg-green-500"
+                        />
+                        <ActivityBar
+                            label="Active tuần này (7 ngày)"
+                            value={stats?.totalUsers ? Math.round((stats.activityStats.loginsThisWeek / stats.totalUsers) * 100) : 0}
+                            count={stats?.activityStats?.loginsThisWeek || 0}
+                            total={stats?.totalUsers || 0}
+                            color="bg-blue-500"
+                        />
+                        <ActivityBar
+                            label="Active tháng này (30 ngày)"
+                            value={stats?.totalUsers ? Math.round((stats.activityStats.loginsThisMonth / stats.totalUsers) * 100) : 0}
+                            count={stats?.activityStats?.loginsThisMonth || 0}
+                            total={stats?.totalUsers || 0}
+                            color="bg-purple-500"
+                        />
                     </div>
                 </div>
 
                 {/* Role Distribution */}
                 <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
                     <h3 className="text-xl font-bold text-[#f4e9c8] mb-6">Phân Loại Vai Trò</h3>
-                    <div className="space-y-4">
-                        <RoleBar
-                            label="Người dùng thông thường"
-                            count={stats?.totalUsers ? stats.totalUsers - stats.adminUsers - stats.moderatorUsers : 0}
-                            total={stats?.totalUsers || 1}
-                            color="bg-blue-500"
-                        />
-                        <RoleBar
-                            label="Kiểm duyệt viên"
-                            count={stats?.moderatorUsers || 0}
-                            total={stats?.totalUsers || 1}
-                            color="bg-purple-500"
-                        />
-                        <RoleBar
-                            label="Quản trị viên"
-                            count={stats?.adminUsers || 0}
-                            total={stats?.totalUsers || 1}
-                            color="bg-[#d1b98a]"
-                        />
-                    </div>
+                    {stats ? (
+                        <div className="space-y-4">
+                            <RoleBar
+                                label="Người dùng thông thường"
+                                count={stats.regularUsers || 0}
+                                total={stats.totalUsers || 1}
+                                color="bg-blue-500"
+                            />
+                            <RoleBar
+                                label="Kiểm duyệt viên"
+                                count={stats.moderatorUsers || 0}
+                                total={stats.totalUsers || 1}
+                                color="bg-purple-500"
+                            />
+                            <RoleBar
+                                label="Quản trị viên"
+                                count={stats.adminUsers || 0}
+                                total={stats.totalUsers || 1}
+                                color="bg-[#d1b98a]"
+                            />
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-400">
+                            <p>Đang tải dữ liệu...</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -168,8 +211,20 @@ const AdminDashboard: React.FC = () => {
                                 className="flex items-center justify-between p-3 bg-[#2e3a57]/40 rounded-lg hover:bg-[#2e3a57]/80 transition-colors"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-[#d1b98a] rounded-lg flex items-center justify-center text-[#20283d] font-bold">
-                                        {user.email?.charAt(0).toUpperCase()}
+                                    <div className="relative">
+                                        <div className="w-10 h-10 bg-[#d1b98a] rounded-lg flex items-center justify-center text-[#20283d] font-bold">
+                                            {user.email?.charAt(0).toUpperCase()}
+                                        </div>
+                                        {/* ✅ Chấm online/offline */}
+                                        {!user.isBanned && user.lastLogin && (
+                                            <div
+                                                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#1b2233] ${
+                                                    new Date().getTime() - new Date(user.lastLogin).getTime() < 5 * 60 * 1000
+                                                        ? 'bg-green-400'
+                                                        : 'bg-gray-500'
+                                                }`}
+                                            />
+                                        )}
                                     </div>
                                     <div>
                                         <p className="font-medium text-[#f4e9c8] text-sm">
@@ -234,7 +289,7 @@ const AdminDashboard: React.FC = () => {
     );
 };
 
-// 🟡 StatCard (chỉ đổi style)
+// StatCard
 interface StatCardProps {
     title: string;
     value: string;
@@ -256,28 +311,32 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change }) => (
     </div>
 );
 
-// 🟡 ActivityBar (chỉ đổi màu nền)
+// ✅ ActivityBar với số liệu thật
 interface ActivityBarProps {
     label: string;
     value: number;
+    count: number;
+    total: number;
     color: string;
 }
-const ActivityBar: React.FC<ActivityBarProps> = ({ label, value, color }) => (
+const ActivityBar: React.FC<ActivityBarProps> = ({ label, value, count, total, color }) => (
     <div>
         <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-300">{label}</span>
-            <span className="text-[#f4e9c8] font-medium">{value}%</span>
+            <span className="text-[#f4e9c8] font-medium">
+                {count}/{total} ({value}%)
+            </span>
         </div>
         <div className="w-full bg-[#2e3a57]/60 rounded-full h-2">
             <div
                 className={`${color} h-2 rounded-full transition-all duration-500`}
-                style={{ width: `${value}%` }}
+                style={{ width: `${Math.min(value, 100)}%` }}
             />
         </div>
     </div>
 );
 
-// 🟡 RoleBar (chỉ đổi style)
+// RoleBar
 interface RoleBarProps {
     label: string;
     count: number;

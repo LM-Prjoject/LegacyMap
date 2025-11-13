@@ -18,6 +18,14 @@ const NotificationsPage = () => {
     const [stats, setStats] = useState({ unreadCount: 0, totalCount: 0 });
     const [newNotificationIds, setNewNotificationIds] = useState<Set<string>>(new Set());
 
+    // Add body class management
+    useEffect(() => {
+        document.body.classList.add('page-notifications');
+        return () => {
+            document.body.classList.remove('page-notifications');
+        };
+    }, []);
+
     const loadNotifications = useCallback(async (pageNum = 0, append = false) => {
         try {
             setLoading(pageNum === 0);

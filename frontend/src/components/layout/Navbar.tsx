@@ -113,7 +113,28 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [showDropdown]);
+    const handleSectionClick = (e: React.MouseEvent, sectionId: string) => {
+        e.preventDefault();
+        setIsOpen(false); // Đóng mobile menu nếu đang mở
 
+        // Nếu đang ở HomePage
+        if (location.pathname === '/') {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else {
+            // Nếu ở trang khác, navigate về home với hash
+            navigate('/#' + sectionId);
+            // Sau khi navigate, scroll đến section
+            setTimeout(() => {
+                const element = document.getElementById(sectionId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 100);
+        }
+    };
     const handleLogout = () => {
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
@@ -159,16 +180,20 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
     return (
         <nav
-            className="w-full border-b transition-colors duration-300 backdrop-blur-xl backdrop-saturate-150 shadow-[0_8px_24px_rgba(0,0,0,0.25)]"
+            className="w-full transition-all duration-300 backdrop-saturate-150"
             style={{
                 position: 'fixed',
                 top: 0,
                 left: 0,
                 right: 0,
                 zIndex: 99999,
-                background: 'linear-gradient(180deg, rgba(32,40,61,0.95) 0%, rgba(46,58,87,0.90) 100%)',
-                borderBottom: '1px solid rgba(212, 185, 138, 0.25)'
+                margin: 0,  // ✅ Thêm dòng này
+                padding: 0, // ✅ Thêm dòng này
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                border: 'none',                 // ✅ bỏ border vàng mờ
+                boxShadow: '0 1px 8px rgba(15,23,42,0.4)',
             }}
+
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-20">
@@ -195,18 +220,34 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                         </div>
                     </a>
 
-                    {/* Desktop menu */}
+                    {/* Menu desktop */}
                     <div className="hidden md:flex items-center gap-12" style={{ position: 'relative', zIndex: 100000 }}>
-                        <a href="#features" className={`${linkColor} no-underline text-[15px] font-medium`}>
+                        <a
+                            href="#features"
+                            onClick={(e) => handleSectionClick(e, 'features')}
+                            className={`${linkColor} no-underline text-[15px] font-medium cursor-pointer`}
+                        >
                             Tính năng
                         </a>
-                        <a href="#about" className={`${linkColor} no-underline text-[15px] font-medium`}>
+                        <a
+                            href="#about"
+                            onClick={(e) => handleSectionClick(e, 'about')}
+                            className={`${linkColor} no-underline text-[15px] font-medium cursor-pointer`}
+                        >
                             Về chúng tôi
                         </a>
-                        <a href="#testimonials" className={`${linkColor} no-underline text-[15px] font-medium`}>
+                        <a
+                            href="#testimonials"
+                            onClick={(e) => handleSectionClick(e, 'testimonials')}
+                            className={`${linkColor} no-underline text-[15px] font-medium cursor-pointer`}
+                        >
                             Khách hàng
                         </a>
-                        <a href="#cta" className={`${linkColor} no-underline text-[15px] font-medium`}>
+                        <a
+                            href="#cta"
+                            onClick={(e) => handleSectionClick(e, 'cta')}
+                            className={`${linkColor} no-underline text-[15px] font-medium cursor-pointer`}
+                        >
                             Liên hệ
                         </a>
                     </div>
@@ -388,16 +429,32 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                 {/* Mobile menu */}
                 {isOpen && (
                     <div className="md:hidden pb-4 space-y-2">
-                        <a href="#features" className="block text-white hover:text-[#d1b98a] py-3 text-[15px]">
+                        <a
+                            href="#features"
+                            onClick={(e) => handleSectionClick(e, 'features')}
+                            className="block text-white hover:text-[#d1b98a] py-3 text-[15px] cursor-pointer"
+                        >
                             Tính năng
                         </a>
-                        <a href="#about" className="block text-white hover:text-[#d1b98a] py-3 text-[15px]">
+                        <a
+                            href="#about"
+                            onClick={(e) => handleSectionClick(e, 'about')}
+                            className="block text-white hover:text-[#d1b98a] py-3 text-[15px] cursor-pointer"
+                        >
                             Về chúng tôi
                         </a>
-                        <a href="#testimonials" className="block text-white hover:text-[#d1b98a] py-3 text-[15px]">
+                        <a
+                            href="#testimonials"
+                            onClick={(e) => handleSectionClick(e, 'testimonials')}
+                            className="block text-white hover:text-[#d1b98a] py-3 text-[15px] cursor-pointer"
+                        >
                             Khách hàng
                         </a>
-                        <a href="#cta" className="block text-white hover:text-[#d1b98a] py-3 text-[15px]">
+                        <a
+                            href="#cta"
+                            onClick={(e) => handleSectionClick(e, 'cta')}
+                            className="block text-white hover:text-[#d1b98a] py-3 text-[15px] cursor-pointer"
+                        >
                             Liên hệ
                         </a>
 
