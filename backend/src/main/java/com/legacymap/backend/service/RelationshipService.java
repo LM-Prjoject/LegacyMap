@@ -108,7 +108,6 @@ public class RelationshipService {
                 .person1(p1)
                 .person2(p2)
                 .relationshipType(type)
-                .notes(req.getNotes())
                 .createdBy(user)
                 .build();
         main = relationshipRepository.save(main);
@@ -128,7 +127,6 @@ public class RelationshipService {
                     .person1(p2)
                     .person2(p1)
                     .relationshipType(reciprocalType)
-                    .notes(req.getNotes())
                     .createdBy(user)
                     .build();
             relationshipRepository.save(reciprocal);

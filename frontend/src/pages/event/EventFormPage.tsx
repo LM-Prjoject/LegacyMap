@@ -38,7 +38,7 @@ const EventFormPage: React.FC = () => {
     const [members, setMembers] = useState<Person[]>([]);
     const [searchMember, setSearchMember] = useState('');
     const [showMemberDropdown, setShowMemberDropdown] = useState(false);
-
+    const [selectAll, setSelectAll] = useState(false);
 
     useEffect(() => {
         if (!isPersonalEvent) {
@@ -80,6 +80,15 @@ const EventFormPage: React.FC = () => {
             setMembers([]);
         }
     }, [selectedTreeId, isPersonalEvent]);
+
+    useEffect(() => {
+        if (selectAll && members.length > 0) {
+            const all = members.map(m => ({ id: m.id, name: m.fullName }));
+            handleInputChange('relatedPersons', all);
+        } else if (!selectAll && formData.relatedPersons?.length === members.length) {
+            handleInputChange('relatedPersons', []);
+        }
+    }, [selectAll, members]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -285,7 +294,7 @@ const EventFormPage: React.FC = () => {
                                 </label>
                             </div>
 
-                            <div className="relative">
+                            <div className="relative mb-4">
                                 <input
                                     type="text"
                                     placeholder="Tìm và chọn người..."
@@ -330,25 +339,28 @@ const EventFormPage: React.FC = () => {
                                 )}
                             </div>
 
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={selectAll}
+                                    onChange={e => setSelectAll(e.target.checked)}
+                                    className="w-4 h-4"
+                                    style={{ accentColor: 'rgb(255, 216, 155)' }}
+                                />
+                                <span className="text-white/90">Chọn tất cả thành viên trong cây</span>
+                            </label>
+
                             {formData.relatedPersons && formData.relatedPersons.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                    {formData.relatedPersons.map((person, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                                            style={{
-                                                background: 'rgba(255, 216, 155, 0.15)',
-                                                color: 'rgb(255, 216, 155)'
-                                            }}
-                                        >
-                                            {person.name}
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    handleInputChange('relatedPersons', formData.relatedPersons!.filter((_, i) => i !== idx));
-                                                }}
-                                                className="ml-1 hover:text-white"
-                                            >
+                                    {formData.relatedPersons.map((p, i) => (
+                                        <div key={i} className="px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                                             style={{ background: 'rgba(255,216,155,0.15)', color: 'rgb(255,216,155)' }}>
+                                            {p.name}
+                                            <button type="button" onClick={() => {
+                                                const newList = formData.relatedPersons!.filter((_, idx) => idx !== i);
+                                                handleInputChange('relatedPersons', newList);
+                                                if (newList.length < members.length) setSelectAll(false);
+                                            }}>
                                                 <X className="w-3 h-3" />
                                             </button>
                                         </div>

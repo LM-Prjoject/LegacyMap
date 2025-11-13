@@ -29,11 +29,6 @@ interface Props {
     onNodeClick?: (id: string) => void;
     selectedNodeId?: string | null;
     onEmptyClick?: () => void;
-    highlightNodeIds?: string[];
-    highlightEdges?: string[];
-    onHoverNode?: (id: string | null) => void;
-    highlightCoupleIds?: string[];
-    focusChildId?: string | null;
 }
 
 type XY = { x: number; y: number };
@@ -52,32 +47,16 @@ const toRawAttrs = (a: Partial<CustomNodeAttributes>): Record<string, string | n
     life: String(a.life ?? ""),
 });
 
-export default function TreeGraph({
-                                      persons,
-                                      relationships,
-                                      onNodeClick,
-                                      selectedNodeId,
-                                      onEmptyClick,
-                                      highlightNodeIds = [],
-                                      highlightEdges = [],
-                                      onHoverNode,
-                                      highlightCoupleIds = [],
-                                      focusChildId = null
-                                  }: Props) {
+const COLOR_FATHER = "#3b82f6";
+const COLOR_MOTHER = "#ec4899";
 
-    const highlightNodes = useMemo(() => new Set(highlightNodeIds), [highlightNodeIds]);
-    const highlightEdgeSet = useMemo(() => new Set(highlightEdges), [highlightEdges]);
-    const highlightCoupleSet = useMemo(() => new Set(highlightCoupleIds), [highlightCoupleIds]);
-    const shouldDim = (id: string) =>
-        (highlightNodes.size > 0 || !!focusChildId) &&
-        !highlightNodes.has(id) &&
-        id !== focusChildId;
+export default function TreeGraph({ persons, relationships, onNodeClick, selectedNodeId, onEmptyClick }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [translate] = useState<{ x: number; y: number }>({ x: 500, y: 100 });
-
+    const [translate] = useState<{ x: number; y: number }>({ x: 500, y: 120 });
     const [nodePos, setNodePos] = useState<Record<string, XY>>({});
     const posRef = useRef<Record<string, XY>>({});
     const rafRef = useRef<number | null>(null);
+    const [hoveredId, setHoveredId] = useState<string | null>(null);
 
     const recordPos = useCallback((id: string, xy: XY) => {
         const prev = posRef.current[id];
@@ -98,6 +77,64 @@ export default function TreeGraph({
         };
     }, []);
 
+    const genderOf = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const p of persons) m.set(p.id, String(p.gender ?? "").toUpperCase());
+        return m;
+    }, [persons]);
+
+    const parentsByChild = useMemo(() => {
+        const out = new Map<string, { fathers: Set<string>; mothers: Set<string> }>();
+        const ensure = (id: string) => {
+            if (!out.has(id)) out.set(id, { fathers: new Set(), mothers: new Set() });
+            return out.get(id)!;
+        };
+        for (const r of relationships) {
+            const t = String(r.type).toUpperCase();
+            if (t !== "PARENT") continue;
+            const parentId = r.fromPersonId;
+            const childId = r.toPersonId;
+            const g = genderOf.get(parentId);
+            const bucket = ensure(childId);
+            if (g === "MALE") bucket.fathers.add(parentId);
+            else if (g === "FEMALE") bucket.mothers.add(parentId);
+        }
+        return out;
+    }, [relationships, genderOf]);
+
+    const highlightSets = useMemo(() => {
+        if (!hoveredId) return { fathers: new Set<string>(), mothers: new Set<string>() };
+        return parentsByChild.get(hoveredId) ?? { fathers: new Set(), mothers: new Set() };
+    }, [hoveredId, parentsByChild]);
+
+    const colorForNode = useCallback(
+        (id: string): string | null => {
+            if (!id) return null;
+            if (id === hoveredId) {
+                const g = genderOf.get(id);
+                return g === "FEMALE" ? COLOR_MOTHER : g === "MALE" ? COLOR_FATHER : null;
+            }
+            if (highlightSets.fathers.has(id)) return COLOR_FATHER;
+            if (highlightSets.mothers.has(id)) return COLOR_MOTHER;
+            return null;
+        },
+        [hoveredId, genderOf, highlightSets]
+    );
+
+    const HighlightBox = ({ color }: { color: string }) => (
+        <rect
+            x={-43}
+            y={-66}
+            width={85}
+            height={118}
+            rx={5}
+            ry={5}
+            fill={`${color}`}
+            stroke={color}
+            strokeWidth={3}
+        />
+    );
+
     const data = useMemo<CustomNodeDatum[]>(() => {
         if (!persons.length) return [{ name: "(trống)", attributes: { id: "" }, children: [] }];
 
@@ -113,13 +150,9 @@ export default function TreeGraph({
 
         relationships.forEach((r) => {
             const type = String(r.type).toUpperCase();
-
             if (type === "PARENT") {
                 children.get(r.fromPersonId)?.add(r.toPersonId);
                 parentMap.get(r.toPersonId)?.add(r.fromPersonId);
-            } else if (type === "CHILD") {
-                children.get(r.toPersonId)?.add(r.fromPersonId);
-                parentMap.get(r.fromPersonId)?.add(r.toPersonId);
             } else if (type === "SPOUSE") {
                 spouseMap.set(r.fromPersonId, r.toPersonId);
                 spouseMap.set(r.toPersonId, r.fromPersonId);
@@ -191,71 +224,58 @@ export default function TreeGraph({
     const EmptyCard: RenderCustomNodeElementFn = () => (
         <g onClick={onEmptyClick} style={{ cursor: onEmptyClick ? "pointer" : "default" }}>
             <rect x={-60} y={-80} width={120} height={160} rx={10} ry={10} fill="#e5e7eb" stroke="#cbd5e1" strokeWidth={1.5} />
-            <text x={0} y={0} textAnchor="middle" fontSize={14} fill="#111827">Trống</text>
+            <text x={0} y={0} textAnchor="middle" fontSize={14} fill="#111827">
+                Trống
+            </text>
         </g>
     );
 
-    const renderNode: RenderCustomNodeElementFn = (rd3tNode) => {
+    const renderNode: RenderCustomNodeElementFn = (rd3tNode: CustomNodeElementProps) => {
         const nodeDatum = rd3tNode.nodeDatum as unknown as { attributes?: CustomNodeAttributes };
         const attrs = (nodeDatum.attributes ?? { id: "" }) as CustomNodeAttributes;
         const id = attrs.id;
         if (!id) return EmptyCard(rd3tNode);
 
         recordPos(id, { x: rd3tNode.hierarchyPointNode.x, y: rd3tNode.hierarchyPointNode.y });
-        const isSelected = id === selectedNodeId;
+        const color = colorForNode(id);
 
         if (attrs.couple && Array.isArray(attrs.avatars) && attrs.avatars.length === 2) {
-            const [husbandName = "", wifeName = ""] = attrs.names || [];
+            const [husbandName, wifeName] = attrs.names || ["", ""];
             const [husbandAvatar, wifeAvatar] = attrs.avatars;
-            const [husbandLife = "—", wifeLife = "—"] = attrs.lifes || [];
+            const [husbandLife, wifeLife] = attrs.lifes || ["—", "—"];
             const husbandId = attrs.husbandId || "";
             const wifeId = attrs.wifeId || "";
-
-            const showCoupleOutline =
-                highlightCoupleSet.has(husbandId) && highlightCoupleSet.has(wifeId);
 
             return (
                 <g>
                     <g
                         transform="translate(-45,-40)"
-                        opacity={shouldDim(husbandId) ? 0.25 : 1}
-                        onMouseEnter={() => onHoverNode?.(husbandId)}
-                        onMouseLeave={() => onHoverNode?.(null)}
+                        onMouseEnter={() => setHoveredId(husbandId)}
+                        onMouseLeave={() => setHoveredId(null)}
                     >
-                        {showCoupleOutline && (
-                            <rect
-                                x={-52} y={-74} width={104} height={148} rx={12}
-                                fill="none" stroke="#6366f1" strokeWidth={3}
-                            />
-                        )}
+                        {colorForNode(husbandId) && <HighlightBox color={colorForNode(husbandId)!} />}
                         {MemberCard(onNodeClick, selectedNodeId === husbandId)({
                             ...rd3tNode,
                             nodeDatum: {
                                 ...rd3tNode.nodeDatum,
                                 name: husbandName,
-                                attributes: toRawAttrs({ id: husbandId, avatar: husbandAvatar || avtFallback, life: husbandLife }),
+                                attributes: toRawAttrs({ id: husbandId, avatar: husbandAvatar, life: husbandLife }),
                             } as RawNodeDatum,
                         } as CustomNodeElementProps)}
                     </g>
 
                     <g
                         transform="translate(45,-40)"
-                        opacity={shouldDim(wifeId) ? 0.25 : 1}
-                        onMouseEnter={() => onHoverNode?.(wifeId)}
-                        onMouseLeave={() => onHoverNode?.(null)}
+                        onMouseEnter={() => setHoveredId(wifeId)}
+                        onMouseLeave={() => setHoveredId(null)}
                     >
-                        {showCoupleOutline && (
-                            <rect
-                                x={-52} y={-74} width={104} height={148} rx={12}
-                                fill="none" stroke="#0ea5e9" strokeWidth={3}
-                            />
-                        )}
+                        {colorForNode(wifeId) && <HighlightBox color={colorForNode(wifeId)!} />}
                         {MemberCard(onNodeClick, selectedNodeId === wifeId)({
                             ...rd3tNode,
                             nodeDatum: {
                                 ...rd3tNode.nodeDatum,
                                 name: wifeName,
-                                attributes: toRawAttrs({ id: wifeId, avatar: wifeAvatar || avtFallback, life: wifeLife }),
+                                attributes: toRawAttrs({ id: wifeId, avatar: wifeAvatar, life: wifeLife }),
                             } as RawNodeDatum,
                         } as CustomNodeElementProps)}
                     </g>
@@ -263,22 +283,14 @@ export default function TreeGraph({
             );
         }
 
-        const dimSingle = shouldDim(id);
         return (
-            <g
-                opacity={dimSingle ? 0.25 : 1}
-                onMouseEnter={() => onHoverNode?.(id)}
-                onMouseLeave={() => onHoverNode?.(null)}
-            >
-                {MemberCard(onNodeClick, isSelected)({
+            <g onMouseEnter={() => setHoveredId(id)} onMouseLeave={() => setHoveredId(null)}>
+                {color && <HighlightBox color={color} />}
+                {MemberCard(onNodeClick, selectedNodeId === id)({
                     ...rd3tNode,
                     nodeDatum: {
                         ...rd3tNode.nodeDatum,
-                        attributes: toRawAttrs({
-                            id,
-                            avatar: (attrs.avatar as string) || avtFallback,
-                            life: (attrs.life as string) || "—",
-                        }),
+                        attributes: toRawAttrs({ id, avatar: (attrs.avatar as string) || avtFallback, life: (attrs.life as string) || "—" }),
                     } as RawNodeDatum,
                 } as CustomNodeElementProps)}
             </g>
@@ -286,38 +298,56 @@ export default function TreeGraph({
     };
 
     const hasEdges = useMemo(
-        () => relationships.some((r) => {
-            const t = String(r.type).toUpperCase();
-            return t === "PARENT" || t === "CHILD";
-        }),
+        () => relationships.some((r) => ["PARENT", "CHILD"].includes(String(r.type).toUpperCase())),
         [relationships]
     );
 
-    const [viewport, setViewport] = useState<{ k: number; x: number; y: number }>({ k: 1, x: translate.x, y: translate.y });
-    const lastViewport = useRef<{ k: number; x: number; y: number }>(viewport);
+    const [viewport, setViewport] = useState<{ k: number; x: number; y: number }>({
+        k: 1,
+        x: translate.x,
+        y: translate.y,
+    });
+    const lastViewport = useRef(viewport);
 
-    const handleUpdate = useCallback((state: any) => {
-        const k = state.zoom ?? state.scale ?? 1;
-        const tr = state.translate ?? {};
-        const next = { k, x: tr.x ?? translate.x, y: tr.y ?? translate.y };
-        const prev = lastViewport.current;
-        if (prev.k === next.k && prev.x === next.x && prev.y === next.y) return;
-        lastViewport.current = next;
-        setViewport(next);
-    }, [translate.x, translate.y]);
+    const handleUpdate = useCallback(
+        (state: any) => {
+            const k = state.zoom ?? state.scale ?? 1;
+            const tr = state.translate ?? {};
+            const next = { k, x: tr.x ?? translate.x, y: tr.y ?? translate.y };
+            const prev = lastViewport.current;
+            if (prev.k === next.k && prev.x === next.x && prev.y === next.y) return;
+            lastViewport.current = next;
+            setViewport(next);
+        },
+        [translate.x, translate.y]
+    );
 
     const lines = useMemo(() => {
-        if (!hasEdges) return null as any;
+        if (!hasEdges) return null;
         return relationships
             .map((r) => {
                 const type = String(r.type).toUpperCase();
                 if (type !== "PARENT" && type !== "CHILD") return null;
-                const a = nodePos[r.fromPersonId];
-                const b = nodePos[r.toPersonId];
+
+                const parentId = type === "PARENT" ? r.fromPersonId : r.toPersonId;
+                const childId = type === "PARENT" ? r.toPersonId : r.fromPersonId;
+
+                const a = nodePos[parentId];
+                const b = nodePos[childId];
                 if (!a || !b) return null;
                 const p1 = { x: a.y, y: a.x };
                 const p2 = { x: b.y, y: b.x };
-                const isHighlighted = highlightEdgeSet.has(`${r.fromPersonId}->${r.toPersonId}`);
+
+                let stroke = "#222";
+                let strokeWidth = 2;
+
+                if (hoveredId && hoveredId === childId) {
+                    const g = genderOf.get(parentId);
+                    if (g === "MALE") stroke = COLOR_FATHER;
+                    else if (g === "FEMALE") stroke = COLOR_MOTHER;
+                    strokeWidth = 3.5;
+                }
+
                 return (
                     <line
                         key={`${r.fromPersonId}-${r.toPersonId}-${r.type}`}
@@ -325,17 +355,20 @@ export default function TreeGraph({
                         y1={p1.y}
                         x2={p2.x}
                         y2={p2.y}
-                        stroke={isHighlighted ? "#d97706" : "#9ca3af"}
-                        strokeWidth={isHighlighted ? 4 : 2}
-                        opacity={isHighlighted ? 1 : 0.25}
+                        stroke={stroke}
+                        strokeWidth={strokeWidth}
                     />
                 );
             })
             .filter(Boolean);
-    }, [nodePos, relationships, hasEdges, highlightEdgeSet]);
+    }, [nodePos, relationships, hasEdges, hoveredId, genderOf]);
 
     return (
-        <div ref={containerRef} className="relative w-full h-[70vh] bg-white rounded-xl shadow-inner overflow-hidden">
+        <div
+            ref={containerRef}
+            className="relative w-full h-[70vh] bg-white rounded-xl shadow-inner overflow-hidden"
+            onMouseLeave={() => setHoveredId(null)}
+        >
             {hasEdges && (
                 <svg className="absolute inset-0 w-full h-full pointer-events-none">
                     <g transform={`translate(${viewport.x},${viewport.y}) scale(${viewport.k})`}>{lines}</g>

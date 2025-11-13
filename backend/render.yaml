@@ -4,17 +4,18 @@ services:
     env: docker
     plan: free
     autoDeploy: true
-    region: singapore
+    region: frankfurt            # ✅ chuyển sang EU (gần London eu-west-2)
+
     envVars:
-      # === DATABASE CONFIG ===
+      # === DATABASE (khớp Supabase eu-west-2) ===
       - key: DB_URL
-        sync: false
+        value: jdbc:postgresql://aws-1-eu-west-2.pooler.supabase.com:5432/postgres?sslmode=require
       - key: DB_USERNAME
-        sync: false
+        value: postgres.ygwvctvwonegiyrhjjdp
       - key: DB_PASSWORD
         sync: false
 
-      # === MAIL CONFIG (Mailtrap) ===
+      # === MAIL ===
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -22,9 +23,9 @@ services:
       - key: SMTP_USERNAME
         sync: false
       - key: SMTP_PASSWORD
-        sync: false      # password mailtrap
+        sync: false
       - key: MAIL_FROM
-        sync: false      # ví dụ: legacymap180@gmail.com
+        sync: false
 
       # === GOOGLE OAUTH ===
       - key: GOOGLE_CLIENT_ID
@@ -32,12 +33,18 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
 
-      # === JWT & FRONTEND ===
+      # === JWT & FE URL ===
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
-        value: "https://legacy-map-ebon.vercel.app"
+        value: https://legacy-map-ebon.vercel.app
 
-      # === JVM NETWORK FIX ===
+      # === Cookie (nếu FE khác domain và cần gửi cookie) ===
+      - key: COOKIE_SAMESITE
+        value: None
+      - key: COOKIE_SECURE
+        value: "true"
+
+      # === JVM: ưu tiên IPv4 ===
       - key: JAVA_TOOL_OPTIONS
-        value: "-Djava.net.preferIPv4Stack=true"
+        value: -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false

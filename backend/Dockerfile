@@ -1,39 +1,31 @@
 # ============================
-# STEP 1: Build the application
+# STEP 1: Build
 # ============================
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 
-# Sao chép Maven Wrapper và pom.xml trước (để cache dependency)
+# Copy Maven Wrapper + pom.xml
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
 
-# Cài quyền thực thi cho mvnw
 RUN chmod +x mvnw
 
-# Tải trước dependencies để tăng tốc build
-RUN ./mvnw dependency:go-offline -B
+# BỎ DÒNG NÀY ĐỂ TRÁNH LỖI
+# RUN ./mvnw dependency:go-offline -B
 
-# Sau đó mới copy source code (để tận dụng cache Docker)
+# Copy source
 COPY src ./src
 
-# Build ứng dụng (bỏ qua test)
-RUN ./mvnw clean package -DskipTests
+# Build app (tự tải dependencies nếu cần)
+RUN ./mvnw clean package -DskipTests -B
 
 # ============================
-# STEP 2: Run the application
+# STEP 2: Run
 # ============================
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-
-# Copy file jar đã build từ bước builder
 COPY --from=builder /app/target/*.jar app.jar
 
-# ✅ Ép container chỉ dùng IPv4 (fix lỗi DNS)
 ENV JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Stack=true"
-
-# Render sẽ tự dùng cổng 8080, em chỉ cần expose
-EXPOSE 8080
-
-# Chạy ứng dụng
-ENTRYPOINT ["java", "-jar", "app.jar"]
+EXPOSE ${PORT:-8080}
+ENTRYPOINT ["java", "-jar", "app.jar", "--server.port=${PORT:-8080}"]

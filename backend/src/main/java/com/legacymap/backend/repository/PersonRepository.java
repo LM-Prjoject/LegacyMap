@@ -10,10 +10,10 @@ import java.util.UUID;
 public interface PersonRepository extends JpaRepository<Person, UUID> {
     List<Person> findAllByFamilyTree_Id(UUID familyTreeId);
 
-    // ✅ NEW: Count persons by family tree
+    // NEW: Count persons by family tree
     long countByFamilyTree_Id(UUID familyTreeId);
 
-    // ✅ NEW: Count all persons across all family trees
+    // NEW: Count all persons across all family trees
     @Query("SELECT COUNT(p) FROM Person p")
     long countAllPersons();
 }

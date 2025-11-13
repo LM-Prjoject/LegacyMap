@@ -82,7 +82,7 @@ export default function RelationshipModal({
                     <h3 className="text-lg font-semibold">
                         Xác nhận mối quan hệ cho <span className="text-emerald-700">{source.fullName}</span>
                     </h3>
-                    <button onClick={close} className="px-3 py-1 rounded hover:bg-gray-100">Đóng</button>
+                    <button onClick={cancel} className="px-3 py-1 rounded hover:bg-gray-100">Đóng</button>
                 </div>
 
                 <div className="p-4 space-y-4">
