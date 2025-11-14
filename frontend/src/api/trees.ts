@@ -79,6 +79,8 @@ export interface Person {
   deathPlace?: string;
   biography?: string;
   avatarUrl?: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface PersonCreateRequest extends Omit<Person, "id"> {}
