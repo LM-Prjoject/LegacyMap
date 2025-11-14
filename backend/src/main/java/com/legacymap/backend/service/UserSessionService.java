@@ -20,7 +20,7 @@ public class UserSessionService {
 
     private final UserSessionRepository sessionRepository;
 
-    // ✅ Thời gian timeout (5 phút không activity = offline)
+    // Thời gian timeout (5 phút không activity = offline)
     private static final int ACTIVITY_TIMEOUT_MINUTES = 5;
 
     /**
@@ -108,13 +108,13 @@ public class UserSessionService {
     }
 
     /**
-     * ✅ Scheduled task: Tự động cleanup sessions cũ (chạy mỗi 15 phút)
+     * Scheduled task: Tự động cleanup sessions cũ (chạy mỗi 15 phút)
      */
     @Scheduled(fixedDelay = 900000) // 15 minutes
     @Transactional
     public void cleanupInactiveSessions() {
         try {
-            log.info("🧹 Starting session cleanup...");
+            log.info("Starting session cleanup...");
 
             // Mark sessions inactive after 5 minutes
             OffsetDateTime inactivityCutoff = OffsetDateTime.now().minusMinutes(ACTIVITY_TIMEOUT_MINUTES);
@@ -124,10 +124,10 @@ public class UserSessionService {
             OffsetDateTime deletionCutoff = OffsetDateTime.now().minusDays(30);
             int deleted = sessionRepository.deleteOldSessions(deletionCutoff);
 
-            log.info("✅ Session cleanup complete: {} marked inactive, {} deleted",
+            log.info("Session cleanup complete: {} marked inactive, {} deleted",
                     markedInactive, deleted);
         } catch (Exception e) {
-            log.error("❌ Error during session cleanup: {}", e.getMessage(), e);
+            log.error("Error during session cleanup: {}", e.getMessage(), e);
         }
     }
 

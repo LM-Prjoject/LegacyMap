@@ -1,10 +1,115 @@
 import { useState, useEffect, useCallback} from 'react';
-import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter} from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter, AlertCircle, X} from 'lucide-react';
 import { notificationApi } from "@/api/notificationApi";
 import { sseService } from "@/api/sseService";
 import type { NotificationResponse } from '@/types/notification';
 import {useCurrentUser} from "@/hooks/useCurrentUser";
 import Navbar from "@/components/layout/Navbar.tsx";
+
+interface ConfirmModalProps {
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+}
+
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }: ConfirmModalProps) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{background: 'rgba(42, 53, 72, 0.5)', backdropFilter: 'blur(8px)'}}>
+            <div className="relative w-full max-w-md mx-4">
+                <div className="rounded-3xl shadow-2xl p-6" style={{
+                    background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 50%, rgba(255, 245, 220, 0.95) 100%)',
+                    border: '3px solid rgba(255, 216, 155, 0.6)',
+                    boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3)'
+                }}>
+                    <div className="flex items-start gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{
+                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%)',
+                            border: '2px solid rgba(239, 68, 68, 0.3)'
+                        }}>
+                            <AlertCircle className="w-5 h-5" style={{color: '#dc2626'}} />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-xl font-black mb-2" style={{color: '#2a3548'}}>{title}</h3>
+                            <p className="text-sm" style={{color: '#2a3548'}}>{message}</p>
+                        </div>
+                        <button
+                            onClick={onCancel}
+                            className="p-1 rounded-lg transition-all hover:bg-black/5"
+                        >
+                            <X className="w-5 h-5" style={{color: '#2a3548'}} />
+                        </button>
+                    </div>
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={onCancel}
+                            className="flex-1 rounded-xl py-2.5 font-semibold transition-all border-2"
+                            style={{
+                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                borderColor: 'rgba(42, 53, 72, 0.3)',
+                                color: '#2a3548'
+                            }}
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            onClick={() => {
+                                onConfirm();
+                                onCancel();
+                            }}
+                            className="flex-1 rounded-xl py-2.5 font-semibold transition-all shadow-lg hover:brightness-110"
+                            style={{
+                                background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                                color: 'white',
+                                border: '2px solid rgba(220, 38, 38, 0.5)'
+                            }}
+                        >
+                            Xác nhận
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+interface ToastProps {
+    isOpen: boolean;
+    message: string;
+    type: 'error' | 'success';
+    onClose: () => void;
+}
+
+const Toast = ({ isOpen, message, type, onClose }: ToastProps) => {
+    useEffect(() => {
+        if (isOpen) {
+            const timer = setTimeout(onClose, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, onClose]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed top-24 right-4 z-50 animate-slide-in">
+            <div className="rounded-xl shadow-2xl p-4 flex items-center gap-3 min-w-[300px]" style={{
+                background: type === 'error'
+                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.95) 100%)'
+                    : 'linear-gradient(135deg, rgba(34, 197, 94, 0.95) 0%, rgba(22, 163, 74, 0.95) 100%)',
+                border: type === 'error' ? '2px solid rgba(239, 68, 68, 0.5)' : '2px solid rgba(34, 197, 94, 0.5)'
+            }}>
+                <AlertCircle className="w-5 h-5 text-white flex-shrink-0" />
+                <p className="text-white font-medium flex-1">{message}</p>
+                <button onClick={onClose} className="p-1 hover:bg-white/20 rounded transition-all">
+                    <X className="w-4 h-4 text-white" />
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const NotificationsPage = () => {
     const { userId, loading: userLoading } = useCurrentUser();
@@ -17,6 +122,27 @@ const NotificationsPage = () => {
     const [hasMore, setHasMore] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
     const [newNotificationIds, setNewNotificationIds] = useState<Set<string>>(new Set());
+
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {}
+    });
+
+    const [toast, setToast] = useState<{ isOpen: boolean; message: string; type: 'error' | 'success'; }>({
+        isOpen: false,
+        message: '',
+        type: 'success'
+    });
+
+    const showToast = (message: string, type: 'error' | 'success') => {
+        setToast({ isOpen: true, message, type });
+    };
+
+    const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm });
+    };
 
     // Add body class management
     useEffect(() => {
@@ -166,7 +292,7 @@ const NotificationsPage = () => {
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (err) {
-            alert('Không thể đánh dấu đã đọc');
+            showToast('Không thể đánh dấu đã đọc', 'error');
         }
     };
 
@@ -176,33 +302,43 @@ const NotificationsPage = () => {
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
             setUnreadCount(0);
         } catch (err) {
-            alert('Không thể đánh dấu tất cả');
+            showToast('Không thể đánh dấu tất cả', 'error');
         }
     };
 
     const deleteNotification = async (id: string) => {
-        if (!confirm('Xóa thông báo này?')) return;
-        try {
-            await notificationApi.deleteNotification(id);
-            const wasUnread = notifications.find(n => n.id === id)?.isRead === false;
-            setNotifications(prev => prev.filter(n => n.id !== id));
-            if (wasUnread) {
-                setUnreadCount(prev => Math.max(0, prev - 1));
+        showConfirm(
+            'Xóa thông báo',
+            'Bạn có chắc chắn muốn xóa thông báo này không?',
+        async () => {
+            try {
+                await notificationApi.deleteNotification(id);
+                const wasUnread = notifications.find(n => n.id === id)?.isRead === false;
+                setNotifications(prev => prev.filter(n => n.id !== id));
+                if (wasUnread) {
+                    setUnreadCount(prev => Math.max(0, prev - 1));
+                }
+            } catch (err) {
+                showToast('Không thể xóa thông báo', 'error');
             }
-        } catch (err) {
-            alert('Không thể xóa');
         }
+        );
     };
 
     const deleteAllRead = async () => {
-        if (!confirm('Xóa tất cả thông báo đã đọc?')) return;
-        const readIds = notifications.filter(n => n.isRead).map(n => n.id);
-        for (const id of readIds) {
-            try {
-                await notificationApi.deleteNotification(id);
-            } catch (err) { /* ignore */ }
-        }
-        setNotifications(prev => prev.filter(n => !n.isRead));
+        showConfirm(
+            'Xóa tất cả thông báo đã đọc',
+            'Bạn có chắc chắn muốn xóa tất cả thông báo đã đọc không? Hành động này không thể hoàn tác.',
+            async () => {
+                const readIds = notifications.filter(n => n.isRead).map(n => n.id);
+                for (const id of readIds) {
+                    try {
+                        await notificationApi.deleteNotification(id);
+                    } catch (err) { /* ignore */ }
+                }
+                setNotifications(prev => prev.filter(n => !n.isRead));
+            }
+        );
     };
 
     const filteredNotifications = notifications.filter(n => {
@@ -213,7 +349,7 @@ const NotificationsPage = () => {
     });
 
     return (
-        <div className="min-h-screen pt-16 pb-12 px-4" style={{ backgroundColor: '#2a3548' }}>
+        <div className="min-h-screen pt-8 pb-12 px-4" style={{ backgroundColor: '#2a3548' }}>
             <Navbar />
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
@@ -390,6 +526,38 @@ const NotificationsPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Modals */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+            />
+
+            <Toast
+                isOpen={toast.isOpen}
+                message={toast.message}
+                type={toast.type}
+                onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
+            />
+
+            <style>{`
+                @keyframes slide-in {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                .animate-slide-in {
+                    animation: slide-in 0.3s ease-out;
+                }
+            `}</style>
         </div>
     );
 };
