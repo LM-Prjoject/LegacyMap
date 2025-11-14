@@ -85,6 +85,8 @@ public class FamilyTreeService {
                 .deathPlace(req.getDeathPlace())
                 .biography(req.getBiography())
                 .avatarUrl(req.getAvatarUrl())
+                .email(req.getEmail())
+                .phone(req.getPhone())
                 .createdBy(creator)
                 .build();
         return personRepository.save(p);
@@ -118,6 +120,8 @@ public class FamilyTreeService {
         if (req.getDeathPlace() != null) p.setDeathPlace(req.getDeathPlace());
         if (req.getBiography() != null) p.setBiography(req.getBiography());
         if (req.getAvatarUrl() != null) p.setAvatarUrl(req.getAvatarUrl());
+        if (req.getEmail() != null) p.setEmail(req.getEmail());
+        if (req.getPhone() != null) p.setPhone(req.getPhone());
         return personRepository.save(p);
     }
 

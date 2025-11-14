@@ -294,6 +294,20 @@ export default function PersonDetailsModal({
                                             <p>{person.deathPlace}</p>
                                         </div>
                                     )}
+
+                                    {person.phone && (
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Số điện thoại</p>
+                                            <p className="text-slate-500">{person.phone}</p>
+                                        </div>
+                                    )}
+
+                                    {person.email && (
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-500">Email</p>
+                                            <p className="text-slate-500">{person.email}</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {person.biography && (

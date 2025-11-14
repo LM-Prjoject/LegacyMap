@@ -12,6 +12,8 @@ export type MemberFormValues = {
     biography?: string;
     avatarUrl?: string;
     avatarFile?: File | null;
+    phone?: string;
+    email?: string;
 };
 
 type Props = {
@@ -226,6 +228,28 @@ export default function MemberModal({
                                     className="border rounded-lg px-3 py-2"
                                     value={form.birthPlace || ""}
                                     onChange={(e) => setForm((f) => ({ ...f, birthPlace: e.target.value || undefined }))}
+                                />
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
+                            <label className="flex flex-col gap-1">
+                                <span className="text-sm text-slate-600">Số điện thoại</span>
+                                <input
+                                    className="border rounded-lg px-3 py-2"
+                                    value={form.phone || ""}
+                                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value || undefined }))}
+                                    placeholder="0901234567"
+                                />
+                            </label>
+                            <label className="flex flex-col gap-1">
+                                <span className="text-sm text-slate-600">Email</span>
+                                <input
+                                    type="email"
+                                    className="border rounded-lg px-3 py-2"
+                                    value={form.email || ""}
+                                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value || undefined }))}
+                                    placeholder="ten@example.com"
                                 />
                             </label>
                         </div>

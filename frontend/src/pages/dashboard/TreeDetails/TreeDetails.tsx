@@ -135,6 +135,8 @@ export default function TreeDetails() {
                 deathPlace: values.deathPlace || undefined,
                 biography: values.biography || undefined,
                 avatarUrl: avatarUrl || undefined,
+                phone: values.phone || undefined,
+                email: values.email || undefined,
             });
 
             const updatedPersons = [...persons, created];
@@ -190,6 +192,8 @@ export default function TreeDetails() {
                 deathPlace: values.deathPlace || undefined,
                 biography: values.biography || undefined,
                 avatarUrl: avatarUrl || undefined,
+                phone: values.phone || undefined,
+                email: values.email || undefined,
             });
             setPersons(persons.map((p) => (p.id === updated.id ? updated : p)));
             showToast.success("Cập nhật thông tin thành công");
@@ -729,6 +733,8 @@ export default function TreeDetails() {
                             deathPlace: selectedPerson.deathPlace,
                             biography: selectedPerson.biography,
                             avatarUrl: selectedPerson.avatarUrl,
+                            phone: selectedPerson.phone,
+                            email: selectedPerson.email,
                         }
                         : undefined
                 }
