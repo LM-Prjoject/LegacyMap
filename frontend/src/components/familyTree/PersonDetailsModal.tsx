@@ -210,13 +210,11 @@ export default function PersonDetailsModal({
     if (!isOpen || !person) return null;
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex min-h-screen items-center justify-center p-4">
-                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={() => { onClose(); }}></div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/50 transition-opacity" onClick={() => { onClose(); }}></div>
                 <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl">
                     <div className="sticky top-0 bg-white z-20 flex justify-between items-center p-4 border-b">
-                        <h2 className="text-xl font-semibold">Thông tin chi tiết</h2>
+                        <h2 className="text-xl font-semibold text-black">Thông tin chi tiết</h2>
 
                         <div className="flex items-center gap-2">
                             <button
@@ -236,7 +234,7 @@ export default function PersonDetailsModal({
                                 <Trash2 className="h-5 w-5" />
                             </button>
                             <button onClick={() => { onClose(); }} className="p-1 rounded-full hover:bg-gray-100" aria-label="Đóng">
-                                <X className="h-5 w-5" />
+                                <X className="h-5 w-5 text-black" />
                             </button>
                         </div>
                     </div>
@@ -273,7 +271,7 @@ export default function PersonDetailsModal({
                                 <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <p className="text-sm font-medium text-gray-500">Ngày sinh</p>
-                                        <p>{formatDate(person.birthDate)}</p>
+                                        <p className="text-slate-500">{formatDate(person.birthDate)}</p>
                                     </div>
 
                                     {person.deathDate && (
@@ -364,7 +362,6 @@ export default function PersonDetailsModal({
                     variant="danger"
                     loading={deleting}
                 />
-            </div>
         </div>
     );
 }

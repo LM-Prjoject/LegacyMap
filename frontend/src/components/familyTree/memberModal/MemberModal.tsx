@@ -66,7 +66,12 @@ export default function MemberModal({
 
     const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
     const nameError = form.fullName.trim().length === 0 ? "Vui lòng nhập họ và tên." : "";
-    const birthDateError = !form.birthDate ? "Vui lòng chọn ngày sinh." : "";
+    const birthDateError =
+        !form.birthDate
+            ? "Vui lòng chọn ngày sinh."
+            : form.birthDate > today
+                ? "Ngày sinh không hợp lệ."
+                : "";
     const genderError = !form.gender ? "Vui lòng chọn giới tính." : "";
 
     const deathDateError = (() => {
@@ -137,7 +142,7 @@ export default function MemberModal({
             role="dialog"
             aria-modal="true"
         >
-            <div className="w-full max-w-2xl bg-white text-slate-900 rounded-2xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="w-full max-w-2xl bg-white text-slate-900 rounded-2xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col mt-auto">
                 <div className="flex items-center justify-between px-5 py-4 border-b">
                     <h3 className="text-lg font-semibold">{title}</h3>
                     <button aria-label="Đóng" onClick={onClose} className="p-2 rounded-full hover:bg-slate-100">
@@ -342,7 +347,7 @@ export default function MemberModal({
                 </div>
 
                 <div className="px-5 py-4 border-t flex justify-end gap-2">
-                    <button className="px-4 py-2 rounded-xl hover:bg-slate-100" onClick={onClose}>
+                    <button className="px-4 py-2 rounded-xl hover:bg-slate-100 border " onClick={onClose}>
                         Hủy
                     </button>
                     <button
