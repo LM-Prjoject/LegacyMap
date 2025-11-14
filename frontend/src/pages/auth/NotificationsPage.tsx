@@ -290,7 +290,11 @@ const NotificationsPage = () => {
         try {
             await notificationApi.markAsRead(id);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-            setUnreadCount(prev => Math.max(0, prev - 1));
+
+            const newCount = notifications.filter(n => !n.isRead && n.id !== id).length;
+            setUnreadCount(newCount);
+
+            window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
         } catch (err) {
             showToast('Không thể đánh dấu đã đọc', 'error');
         }
@@ -301,6 +305,8 @@ const NotificationsPage = () => {
             await notificationApi.markAllAsRead();
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
             setUnreadCount(0);
+
+            window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: 0 }));
         } catch (err) {
             showToast('Không thể đánh dấu tất cả', 'error');
         }
@@ -310,18 +316,21 @@ const NotificationsPage = () => {
         showConfirm(
             'Xóa thông báo',
             'Bạn có chắc chắn muốn xóa thông báo này không?',
-        async () => {
-            try {
-                await notificationApi.deleteNotification(id);
-                const wasUnread = notifications.find(n => n.id === id)?.isRead === false;
-                setNotifications(prev => prev.filter(n => n.id !== id));
-                if (wasUnread) {
-                    setUnreadCount(prev => Math.max(0, prev - 1));
+            async () => {
+                try {
+                    await notificationApi.deleteNotification(id);
+                    const wasUnread = notifications.find(n => n.id === id)?.isRead === false;
+                    setNotifications(prev => prev.filter(n => n.id !== id));
+
+                    if (wasUnread) {
+                        const newCount = Math.max(0, unreadCount - 1);
+                        setUnreadCount(newCount);
+                        window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
+                    }
+                } catch (err) {
+                    showToast('Không thể xóa thông báo', 'error');
                 }
-            } catch (err) {
-                showToast('Không thể xóa thông báo', 'error');
             }
-        }
         );
     };
 

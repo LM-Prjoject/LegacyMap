@@ -227,6 +227,21 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         return isAdmin() ? '/admin/dashboard' : '/dashboard';
     };
 
+    useEffect(() => {
+        const handleCountChange = (e: Event) => {
+            const customEvent = e as CustomEvent<number>;
+            const newCount = customEvent.detail ?? 0;
+            setUnreadCount(newCount);
+            localStorage.setItem(UNREAD_COUNT_KEY, newCount.toString());
+        };
+
+        window.addEventListener('unreadCountChanged', handleCountChange);
+
+        return () => {
+            window.removeEventListener('unreadCountChanged', handleCountChange);
+        };
+    }, []);
+
     return (
         <nav
             className="w-full transition-all duration-300 backdrop-saturate-150"
