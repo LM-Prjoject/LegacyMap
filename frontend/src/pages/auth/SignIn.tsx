@@ -1,4 +1,3 @@
-// SignIn.tsx - Đã sửa thông báo lỗi nhỏ gọn hơn
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -311,7 +310,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                             className="text-sm font-semibold hover:underline"
                                             style={{color: '#2a3548'}}
                                         >
-                                            QUÊN MẬT KHẨU?
+                                            Quên mật khẩu?
                                         </button>
                                     </div>
 
@@ -329,14 +328,10 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     </button>
                                 </form>
 
-                                <div className="relative my-6">
-                                    <div style={{borderColor: 'rgba(42, 53, 72, 0.3)'}} className="border-t" />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="px-3 text-sm font-semibold" style={{
-                                            background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 100%)',
-                                            color: '#2a3548'
-                                        }}>HOẶC</span>
-                                    </div>
+                                <div className="flex items-center gap-4 my-6">
+                                    <div className="flex-1 border-t" style={{borderColor: 'rgba(42, 53, 72, 0.3)'}} />
+                                    <span className="text-m font-semibold" style={{color: '#2a3548'}}>Hoặc</span>
+                                    <div className="flex-1 border-t" style={{borderColor: 'rgba(42, 53, 72, 0.3)'}} />
                                 </div>
 
                                 <button
@@ -349,11 +344,11 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     }}
                                 >
                                     <FcGoogle size={20} />
-                                    <span>ĐĂNG NHẬP BẰNG GOOGLE</span>
+                                    <span>Đăng nhập bằng Google</span>
                                 </button>
 
                                 <p className="mt-6 text-sm text-center font-semibold" style={{color: '#2a3548'}}>
-                                    CHƯA CÓ TÀI KHOẢN?{' '}
+                                    Chưa có tài khoản?{' '}
                                     <button
                                         onClick={onShowSignUp}
                                         className="hover:underline font-black"

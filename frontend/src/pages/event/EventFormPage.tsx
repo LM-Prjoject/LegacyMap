@@ -11,6 +11,8 @@ import Navbar from "@/components/layout/Navbar.tsx";
 const EventFormPage: React.FC = () => {
     const navigate = useNavigate();
     const {triggerEventsUpdate} = useEventContext();
+    const now = new Date();
+    const minDateTime = now.toISOString().slice(0, 16);
     const [formData, setFormData] = useState<EventCreateRequest>({
         title: '',
         description: '',
@@ -479,6 +481,7 @@ const EventFormPage: React.FC = () => {
                                     type="datetime-local"
                                     value={formData.startDate}
                                     onChange={(e) => handleInputChange('startDate', e.target.value)}
+                                    min={minDateTime}
                                     className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
                                     style={{
                                         background: 'rgba(255, 255, 255, 0.05)',
@@ -496,6 +499,7 @@ const EventFormPage: React.FC = () => {
                                     type="datetime-local"
                                     value={formData.endDate}
                                     onChange={(e) => handleInputChange('endDate', e.target.value)}
+                                    min={formData.startDate || minDateTime}
                                     className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
                                     style={{
                                         background: 'rgba(255, 255, 255, 0.05)',

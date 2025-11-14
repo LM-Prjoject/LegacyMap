@@ -1,4 +1,3 @@
-// SignUp.tsx - Đã sửa lỗi và cập nhật UI
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -373,7 +372,7 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
 
                                 <div className="text-center">
                                     <p className="text-sm font-semibold" style={{color: '#2a3548'}}>
-                                        ĐÃ CÓ TÀI KHOẢN?{' '}
+                                        Đã có tài khoản?{' '}
                                         <button
                                             type="button"
                                             onClick={onShowSignIn}
