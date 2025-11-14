@@ -6,9 +6,13 @@ import '../index.css'
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Toaster } from 'react-hot-toast'
 import { EventProvider } from '@/contexts/EventContext'
+import { useUserActivity } from './hooks/useUserActivity'  // ✅ THÊM DÒNG NÀY
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
+
+// ✅ Wrapper component để sử dụng hook
+function AppWithHeartbeat() {
+    useUserActivity();  // ✅ Gọi heartbeat hook
+    return (
         <EventProvider>
             <RouterProvider router={router} />
             <Toaster
@@ -24,5 +28,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 }}
             />
         </EventProvider>
+    );
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+        <AppWithHeartbeat />  {/* ✅ ĐỔI TỪ <EventProvider> */}
     </React.StrictMode>,
 )

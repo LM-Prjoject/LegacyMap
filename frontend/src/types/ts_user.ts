@@ -148,9 +148,8 @@ export const isUserOnline = (user: User | null): boolean => {
 
     const lastLoginTime = new Date(user.lastLogin).getTime();
     const now = new Date().getTime();
-    const oneMinute = 1 * 60 * 1000; // 1 phút
-
-    return (now - lastLoginTime) < oneMinute;
+    const fiveMinutes = 5 * 60 * 1000; // ✅ 5 PHÚT
+    return (now - lastLoginTime) < fiveMinutes;
 };
 
 /**
@@ -180,7 +179,7 @@ export const getLastLoginText = (user: User | null): string => {
     const now = new Date().getTime();
     const diffMinutes = Math.floor((now - lastLoginTime) / (60 * 1000));
 
-    if (diffMinutes < 5) return '🟢 Đang online';
+    if (diffMinutes < 5) return ' Đang online';
     if (diffMinutes < 60) return `${diffMinutes} phút trước`;
 
     const diffHours = Math.floor(diffMinutes / 60);
