@@ -99,13 +99,12 @@ export default function PersonDetailsModal({
                                                relationships,
                                                onClose,
                                                onEditClick,
-                                               onDelete, // <-- nhận prop
+                                               onDelete,
                                            }: PersonDetailsModalProps) {
     const [filteredRelationships, setFilteredRelationships] = useState<
         Array<{ text: string; person: any; type: string; relationshipId?: string; isParent?: boolean }>
     >([]);
 
-    // state cho modal xoá
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
@@ -115,7 +114,7 @@ export default function PersonDetailsModal({
             setDeleting(true);
             await onDelete?.(person.id);
             setShowDeleteModal(false);
-            onClose(); // đóng chi tiết sau khi xoá
+            onClose();
         } finally {
             setDeleting(false);
         }
@@ -219,7 +218,6 @@ export default function PersonDetailsModal({
                     <div className="sticky top-0 bg-white z-20 flex justify-between items-center p-4 border-b">
                         <h2 className="text-xl font-semibold">Thông tin chi tiết</h2>
 
-                        {/* Action icons */}
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={onEditClick}
@@ -262,6 +260,7 @@ export default function PersonDetailsModal({
                                     <div>
                                         <h1 className="text-2xl font-bold">{person.fullName}</h1>
                                         <p className="text-gray-600">
+                                            <span className="font-bold">Giới tính: </span>
                                             {String(person.gender).toUpperCase() === "MALE"
                                                 ? "Nam"
                                                 : String(person.gender).toUpperCase() === "FEMALE"

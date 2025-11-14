@@ -49,6 +49,7 @@ const toRawAttrs = (a: Partial<CustomNodeAttributes>): Record<string, string | n
 
 const COLOR_FATHER = "#3b82f6";
 const COLOR_MOTHER = "#ec4899";
+const COLOR_OTHER  = "#cc33ff";
 
 export default function TreeGraph({ persons, relationships, onNodeClick, selectedNodeId, onEmptyClick }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -84,9 +85,9 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
     }, [persons]);
 
     const parentsByChild = useMemo(() => {
-        const out = new Map<string, { fathers: Set<string>; mothers: Set<string> }>();
+        const out = new Map<string, { fathers: Set<string>; mothers: Set<string>; others: Set<string> }>();
         const ensure = (id: string) => {
-            if (!out.has(id)) out.set(id, { fathers: new Set(), mothers: new Set() });
+            if (!out.has(id)) out.set(id, { fathers: new Set(), mothers: new Set(), others: new Set() });
             return out.get(id)!;
         };
         for (const r of relationships) {
@@ -98,13 +99,14 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             const bucket = ensure(childId);
             if (g === "MALE") bucket.fathers.add(parentId);
             else if (g === "FEMALE") bucket.mothers.add(parentId);
+            else if (g === "OTHER") bucket.mothers.add(parentId);
         }
         return out;
     }, [relationships, genderOf]);
 
     const highlightSets = useMemo(() => {
-        if (!hoveredId) return { fathers: new Set<string>(), mothers: new Set<string>() };
-        return parentsByChild.get(hoveredId) ?? { fathers: new Set(), mothers: new Set() };
+        if (!hoveredId) return { fathers: new Set<string>(), mothers: new Set<string>(), others: new Set<string>() };
+        return parentsByChild.get(hoveredId) ?? { fathers: new Set(), mothers: new Set(), others: new Set() };
     }, [hoveredId, parentsByChild]);
 
     const colorForNode = useCallback(
@@ -112,10 +114,11 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             if (!id) return null;
             if (id === hoveredId) {
                 const g = genderOf.get(id);
-                return g === "FEMALE" ? COLOR_MOTHER : g === "MALE" ? COLOR_FATHER : null;
+                return g === "FEMALE" ? COLOR_MOTHER : g === "MALE" ? COLOR_FATHER : g === "OTHER" ? COLOR_OTHER :null;
             }
             if (highlightSets.fathers.has(id)) return COLOR_FATHER;
             if (highlightSets.mothers.has(id)) return COLOR_MOTHER;
+            if (highlightSets.others.has(id))  return COLOR_OTHER;
             return null;
         },
         [hoveredId, genderOf, highlightSets]
@@ -123,7 +126,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
 
     const HighlightBox = ({ color }: { color: string }) => (
         <rect
-            x={-43}
+            x={-42.5}
             y={-66}
             width={85}
             height={118}
