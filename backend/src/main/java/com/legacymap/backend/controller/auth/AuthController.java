@@ -20,6 +20,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.time.OffsetDateTime;
@@ -172,5 +174,24 @@ public class AuthController {
     @PostMapping(value = "/change-password", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         return authenticationService.changePassword(request);
+    }
+    @PostMapping("/heartbeat")
+    public ResponseEntity<Void> heartbeat() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()) {
+                return ResponseEntity.status(401).build();
+            }
+
+            String email = auth.getName();
+            authenticationService.updateUserActivity(email);
+
+            log.debug("💓 Heartbeat received from: {}", email);
+            return ResponseEntity.ok().build();
+
+        } catch (Exception e) {
+            log.error("❌ Heartbeat error: {}", e.getMessage());
+            return ResponseEntity.status(500).build();
+        }
     }
 }

@@ -256,9 +256,15 @@ public class AdminServiceImpl implements AdminService {
             long activeUsers = totalUsers - bannedUsers;
 
             // ✅ Get real-time online users from session tracking
-            long onlineUsers = userSessionService.countOnlineUsers();
+// ✅ Count online users (last login < 5 minutes ago)
+            OffsetDateTime fiveMinutesAgo = OffsetDateTime.now().minusMinutes(5);
+            long onlineUsers = allUsers.stream()
+                    .filter(user -> !Boolean.TRUE.equals(user.getIsBanned()))
+                    .filter(user -> user.getLastLogin() != null &&
+                            user.getLastLogin().isAfter(fiveMinutesAgo))
+                    .count();
 
-            log.info("📊 Real-time online users: {}", onlineUsers);
+            log.info("📊 Online users (active in last 5 min): {}", onlineUsers);
 
             long adminUsers = allUsers.stream()
                     .filter(u -> "admin".equalsIgnoreCase(u.getRoleName()))

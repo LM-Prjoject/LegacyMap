@@ -1,58 +1,62 @@
 // src/hooks/useUserActivity.ts
 import { useEffect, useRef } from 'react';
-import { http } from '../api/http';
+
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV
+        ? 'http://localhost:8080/legacy/api'
+        : 'https://legacymap.onrender.com/legacy/api');
 
 /**
  * ✅ Hook tự động gửi heartbeat để track user activity
- * Gọi API mỗi 30 giây khi user đang active
+ * Gọi API /auth/heartbeat mỗi 2 phút
  */
 export const useUserActivity = () => {
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
-    const lastActivityRef = useRef<number>(Date.now());
 
     useEffect(() => {
+        const token = localStorage.getItem('authToken');
+
+        if (!token) {
+            console.log('⚠️ No auth token, skipping heartbeat');
+            return;
+        }
+
+        console.log('💓 Starting heartbeat service');
+
         const sendHeartbeat = async () => {
             try {
-                await http.post('/user/heartbeat');
-                console.log('💓 Heartbeat sent');
+                const response = await fetch(`${API_BASE_URL}/auth/heartbeat`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    console.log('💓 Heartbeat sent successfully at', new Date().toLocaleTimeString());
+                } else {
+                    console.error('❌ Heartbeat failed:', response.status);
+                }
             } catch (error) {
-                console.error('❌ Heartbeat failed:', error);
+                console.error('❌ Heartbeat error:', error);
             }
         };
 
-        // Track user activity (mouse, keyboard, touch)
-        const updateActivity = () => {
-            lastActivityRef.current = Date.now();
-        };
-
-        // Event listeners
-        const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-        events.forEach(event => {
-            window.addEventListener(event, updateActivity);
-        });
-
-        // ✅ Gửi heartbeat mỗi 30 giây
-        intervalRef.current = setInterval(() => {
-            const now = Date.now();
-            const timeSinceLastActivity = now - lastActivityRef.current;
-
-            // Chỉ gửi nếu user có activity trong 2 phút gần đây
-            if (timeSinceLastActivity < 2 * 60 * 1000) {
-                sendHeartbeat();
-            }
-        }, 30000); // 30 seconds
-
-        // Gửi heartbeat ngay khi mount
+        // ✅ Gửi heartbeat ngay khi mount
         sendHeartbeat();
 
-        // Cleanup
+        // ✅ Gửi heartbeat mỗi 2 phút (120000ms)
+        intervalRef.current = setInterval(sendHeartbeat, 2 * 60 * 1000);
+
+        // Cleanup khi unmount
         return () => {
+            console.log('🛑 Stopping heartbeat service');
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
-            events.forEach(event => {
-                window.removeEventListener(event, updateActivity);
-            });
         };
     }, []);
 };

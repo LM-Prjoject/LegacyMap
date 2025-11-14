@@ -25,7 +25,9 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;  // ✅ THÊM IMPORT NÀY
 
+@Slf4j
 @Service
 public class AuthenticationService {
 
@@ -210,5 +212,15 @@ public class AuthenticationService {
         } catch (IllegalArgumentException e) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
+    }
+    @Transactional
+    public void updateUserActivity(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        user.setLastLogin(OffsetDateTime.now());
+        userRepository.save(user);
+
+        log.debug("🔄 Updated lastLogin for user: {}", email);
     }
 }
