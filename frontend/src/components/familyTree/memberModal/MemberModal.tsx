@@ -65,10 +65,9 @@ export default function MemberModal({
     }, [form.avatarFile]);
 
     const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
     const nameError = form.fullName.trim().length === 0 ? "Vui lòng nhập họ và tên." : "";
-
     const birthDateError = !form.birthDate ? "Vui lòng chọn ngày sinh." : "";
+    const genderError = !form.gender ? "Vui lòng chọn giới tính." : "";
 
     const deathDateError = (() => {
         if (!isDeceased) return "";
@@ -78,7 +77,7 @@ export default function MemberModal({
         return "";
     })();
 
-    const canSubmitAll = !nameError && !birthDateError && !deathDateError;
+    const canSubmitAll = !nameError && !birthDateError && !deathDateError && !genderError;
 
     const handlePickFile = (file?: File) => {
         if (!file) return;
@@ -124,6 +123,7 @@ export default function MemberModal({
             if (nameError) showToast.error(nameError);
             else if (birthDateError) showToast.error(birthDateError);
             else if (deathDateError) showToast.error(deathDateError);
+            else if (genderError) showToast.error(genderError);
             return;
         }
         onSubmit({ ...form, gender: (form.gender || "") as any });
@@ -148,7 +148,9 @@ export default function MemberModal({
                 <div className="px-5 py-4 overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <label className="flex flex-col gap-1">
-                            <span className="text-sm text-slate-600">Họ và tên *</span>
+                            <span className="text-sm text-slate-600">Họ và tên
+                                <span className="text-red-600">*</span>
+                            </span>
                             <input
                                 className={`border rounded-lg px-3 py-2 ${
                                     submitted && nameError ? "border-red-500 focus-visible:outline-red-500" : ""
@@ -168,22 +170,32 @@ export default function MemberModal({
                         </label>
 
                         <label className="flex flex-col gap-1">
-                            <span className="text-sm text-slate-600">Giới tính</span>
+                            <span className="text-sm text-slate-600">Giới tính
+                                <span className="text-red-600">*</span>
+                            </span>
                             <select
-                                className="border rounded-lg px-3 py-2"
+                                className={`border rounded-lg px-3 py-2 ${submitted && genderError ? "border-red-500 focus-visible:outline-red-500" : ""}`}
                                 value={form.gender || ""}
                                 onChange={(e) => setForm((f) => ({ ...f, gender: (e.target.value as any) || "" }))}
+                                required
+                                aria-invalid={submitted && !!genderError}
+                                aria-describedby={submitted && genderError ? "gender-error" : undefined}
                             >
                                 <option value="">—</option>
                                 <option value="male">Nam</option>
                                 <option value="female">Nữ</option>
                                 <option value="other">Khác</option>
                             </select>
+                            {submitted && genderError && (
+                                <span id="gender-error" className="text-xs text-red-600 mt-1">{genderError}</span>
+                            )}
                         </label>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
                             <label className="flex flex-col gap-1">
-                                <span className="text-sm text-slate-600">Ngày sinh *</span>
+                                <span className="text-sm text-slate-600">Ngày sinh
+                                    <span className="text-red-600">*</span>
+                                </span>
                                 <input
                                     type="date"
                                     className={`border rounded-lg px-3 py-2 ${
@@ -228,7 +240,9 @@ export default function MemberModal({
                         {isDeceased && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
                                 <label className="flex flex-col gap-1">
-                                    <span className="text-sm text-slate-600">Ngày mất *</span>
+                                    <span className="text-sm text-slate-600">Ngày mất
+                                        <span className="text-red-600">*</span>
+                                    </span>
                                     <input
                                         type="date"
                                         className={`border rounded-lg px-3 py-2 ${
