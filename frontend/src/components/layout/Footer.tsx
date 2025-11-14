@@ -50,8 +50,8 @@ export default function Footer() {
                 })}
             </div>
 
-            <div className="relative max-w-7xl mx-auto px-6 py-16 z-10">
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12 items-start">
+            <div className="relative max-w-7xl mx-auto px-6 py-10 z-10">
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8 items-start">
                     {/* Brand */}
                     <div>
                         <div className="flex items-center gap-2 mb-4">
@@ -69,7 +69,7 @@ export default function Footer() {
                             </div>
                             <div>
                                 <div className="font-bold text-xl text-white">Cây Gia Phả</div>
-                                <div className="text-sm text-gray-300">Con Rồng Châu Tiên</div>
+                                <div className="text-sm text-gray-300">Con Rồng Cháu Tiên</div>
                             </div>
                         </div>
                         <p className="text-gray-300 leading-relaxed mb-6" style={{
@@ -103,7 +103,7 @@ export default function Footer() {
                                 Sản phẩm
                             </span>
                         </h3>
-                        <ul className="space-y-3">
+                        <ul className="space-y-3 list-none pl-0">
                             {productLinks.map((link) => (
                                 <li key={link.label}>
                                     <a href={link.href} className="text-gray-300 hover:text-[#f4d88a] transition-all duration-300 no-underline hover:translate-x-1 hover:underline underline-offset-4 block" style={{
@@ -125,7 +125,7 @@ export default function Footer() {
                                 Hỗ trợ
                             </span>
                         </h3>
-                        <ul className="space-y-3">
+                        <ul className="space-y-3 list-none pl-0">
                             {supportLinks.map((link) => (
                                 <li key={link.label}>
                                     <a href={link.href} className="text-gray-300 hover:text-[#f4d88a] transition-all duration-300 no-underline hover:translate-x-1 hover:underline underline-offset-4 block" style={{
@@ -147,7 +147,7 @@ export default function Footer() {
                                 Liên hệ
                             </span>
                         </h3>
-                        <ul className="space-y-3">
+                        <ul className="space-y-3 list-none pl-0">
                             <li className="flex items-start gap-3 text-gray-300 group hover:text-[#f4d88a] transition-colors duration-300" style={{
                                 textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                             }}>

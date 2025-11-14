@@ -16,3 +16,13 @@ export interface NotificationStatsResponse {
     unreadCount: number;
     lastNotificationTime: string | null;
 }
+
+export interface NotificationPageResponse {
+    content: NotificationResponse[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    last: boolean;
+    unreadCount: number;
+}

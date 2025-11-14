@@ -28,6 +28,7 @@ export default function ProfilePage() {
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [loading, setLoading] = useState(true);
     const fileRef = useRef<HTMLInputElement | null>(null);
 
     const [provinces, setProvinces] = useState<Province[]>([]);
@@ -41,23 +42,28 @@ export default function ProfilePage() {
 
     useEffect(() => {
         (async () => {
-            const u = await authApi.getMe();
-            setMe(u);
-            const a = (u.profile?.address || {}) as Address;
-            const dob = (u.profile?.dob || "").split("T")[0] || "";
-            setForm({
-                fullName: u.profile?.fullName || "",
-                clanName: u.profile?.clanName || "",
-                gender: (u.profile?.gender as Form["gender"]) || "",
-                phone: u.profile?.phone || "",
-                dob,
-                avatarUrl: u.profile?.avatarUrl || "",
-                address: {
-                    houseNumber: a?.houseNumber || "",
-                    ward: a?.ward || "",
-                    city: a?.city || "",
-                },
-            });
+            try {
+                setLoading(true);
+                const u = await authApi.getMe();
+                setMe(u);
+                const a = (u.profile?.address || {}) as Address;
+                const dob = (u.profile?.dob || "").split("T")[0] || "";
+                setForm({
+                    fullName: u.profile?.fullName || "",
+                    clanName: u.profile?.clanName || "",
+                    gender: (u.profile?.gender as Form["gender"]) || "",
+                    phone: u.profile?.phone || "",
+                    dob,
+                    avatarUrl: u.profile?.avatarUrl || "",
+                    address: {
+                        houseNumber: a?.houseNumber || "",
+                        ward: a?.ward || "",
+                        city: a?.city || "",
+                    },
+                });
+            } finally {
+                setLoading(false);
+            }
         })();
     }, []);
 
@@ -180,10 +186,13 @@ export default function ProfilePage() {
     const provinceOptions: Option[] = provinces.map((p) => ({ value: p.code, label: p.name }));
     const wardOptions: Option[] = wards.map((w) => ({ value: w.code, label: w.name }));
 
-    if (!me) {
+    if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center text-white/80 bg-gradient-to-br from-[#0f1419] via-[#1e2a3a] to-[#0f1419]">
-                Đang tải hồ sơ...
+            <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
+                    <p style={{color: 'rgb(255, 216, 155)'}}>Đang tải hồ sơ...</p>
+                </div>
             </div>
         );
     }
@@ -267,7 +276,7 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div className="space-y-8 mt-6 sm:mt-0">
-                                    <LabeledText label="Email" value={me.email} />
+                                    <LabeledText label="Email" value={me?.email || "—"} />
                                     <LabeledText label="Số điện thoại" value={form.phone || "—"} />
                                     <LabeledText
                                         label="Địa chỉ"
@@ -307,7 +316,7 @@ export default function ProfilePage() {
                                         </span>
                                     </span>
                                 </h1>
-                                <div className="text-lg text-white/80 mt-2 font-medium">@{me.username}</div>
+                                <div className="text-lg text-white/80 mt-2 font-medium">@{me?.username}</div>
                             </div>
 
                             <div className="relative mt-4 group">
@@ -324,7 +333,7 @@ export default function ProfilePage() {
                                                 color: '#ffd89b',
                                                 textShadow: '0 0 25px rgba(255,216,155,0.5), 0 0 12px rgba(255,216,155,0.3)'
                                             }}>
-                                                {(form.fullName || me.username || "U").charAt(0).toUpperCase()}
+                                                {(form.fullName || me?.username || "U").charAt(0).toUpperCase()}
                                             </span>
                                         </div>
                                     )}
@@ -342,13 +351,13 @@ export default function ProfilePage() {
                             </div>
                         </section>
                     </div>
-                    {isLocal && <AccountSecuritySection me={me} onChanged={(u) => setMe(u)} />}
+                    {isLocal && me && <AccountSecuritySection me={me} onChanged={(u) => setMe(u)} />}
                 </div>
             </div>
 
             {editing && (
                 <ProfileEditModal
-                    me={me}
+                    me={me!}
                     form={form}
                     saving={saving}
                     uploadingAvatar={uploadingAvatar}

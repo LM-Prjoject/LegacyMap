@@ -1,9 +1,9 @@
 import {http} from '@/api/http';
-import type {NotificationStatsResponse } from '@/types/notification';
+import type {NotificationResponse, NotificationPageResponse } from '@/types/notification';
 
 export const notificationApi = {
     // Lấy danh sách thông báo (phân trang)
-    getNotifications: async (page = 0, size = 10) => {
+    getNotifications: async (page = 0, size = 10): Promise<NotificationPageResponse> => {
         const response = await http.get('/notifications', {
             params: { page, size, sort: 'createdAt,desc' }
         });
@@ -11,14 +11,8 @@ export const notificationApi = {
     },
 
     // Lấy thông báo chưa đọc
-    getUnreadNotifications: async () => {
+    getUnreadNotifications: async (): Promise<NotificationResponse[]> => {
         const response = await http.get('/notifications/unread');
-        return response.data;
-    },
-
-    // Lấy thống kê
-    getStats: async (): Promise<NotificationStatsResponse> => {
-        const response = await http.get('/notifications/stats');
         return response.data;
     },
 

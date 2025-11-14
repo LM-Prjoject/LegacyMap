@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, User, Album, TreePine, Menu, CalendarFold, Bell } from 'lucide-react';
 import Button from './Button';
@@ -15,6 +15,13 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const navigate = useNavigate();
     const isHomePage = !!onLoginClick && !!onSignupClick;
+
+    useEffect(() => {
+        document.body.style.paddingTop = '80px';
+        return () => {
+            document.body.style.paddingTop = '0';
+        };
+    }, []);
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<any>(null);
@@ -35,52 +42,39 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         ? 'text-white hover:text-[#d1b98a]'
         : 'text-white hover:text-[#d1b98a]';
 
-    const loadStats = async () => {
-        try {
-            const data = await notificationApi.getStats();
-            const count = data.unreadCount || 0;
-            setUnreadCount(count);
-            localStorage.setItem('unreadCount', count.toString());
-        } catch (err) {
-            console.error('Failed to load notification stats', err);
-        }
-    };
+    const checkAuth = useCallback(() => {
+        const token = localStorage.getItem('authToken');
+        const userStr = localStorage.getItem('user');
+        const savedCount = localStorage.getItem('unreadCount');
 
-    useEffect(() => {
-        const checkAuth = () => {
-            const token = localStorage.getItem('authToken');
-            const userStr = localStorage.getItem('user');
-            const savedUnread = localStorage.getItem('unreadCount');
-
-            if (token && userStr) {
-                try {
-                    const userData = JSON.parse(userStr);
-                    setUser(userData);
-                    setIsAuthenticated(true);
-
-                    if (savedUnread) {
-                        setUnreadCount(parseInt(savedUnread, 10));
-                    }
-
-                    loadStats();
-                } catch {
-                    setIsAuthenticated(false);
-                }
-            } else {
+        if (token && userStr) {
+            try {
+                const userData = JSON.parse(userStr);
+                setUser(userData);
+                setIsAuthenticated(true);
+                setUnreadCount(savedCount ? parseInt(savedCount, 10) : 0);
+            } catch {
                 setIsAuthenticated(false);
                 setUser(null);
                 setUnreadCount(0);
             }
-        };
-
-        checkAuth();
-        window.addEventListener('storage', checkAuth);
-        return () => window.removeEventListener('storage', checkAuth);
+        } else {
+            setIsAuthenticated(false);
+            setUser(null);
+            setUnreadCount(0);
+            localStorage.removeItem('unreadCount');
+        }
     }, []);
 
-    useEffect(() => {
-        if (user?.userId) {
-            loadStats();
+    const loadUnreadCount = useCallback(async () => {
+        if (!user?.userId) return;
+        try {
+            const data = await notificationApi.getNotifications(0, 1);
+            const count = data.unreadCount || 0;
+            setUnreadCount(count);
+            localStorage.setItem('unreadCount', count.toString());
+        } catch (err) {
+            console.error('Failed to load unread count', err);
         }
     }, [user?.userId]);
 
@@ -88,15 +82,27 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         if (!user?.userId) return;
 
         const eventSource = sseService.connect(user.userId, (notif) => {
-            console.log('notif', notif);
-            setUnreadCount(prev => prev + 1);
-            localStorage.setItem('unreadCount', (parseInt(localStorage.getItem('unreadCount') || '0') + 1).toString());
-            setTimeout(loadStats, 1000);
+            if (notif.isRead) return;
+
+            const newCount = unreadCount + 1;
+            setUnreadCount(newCount);
+            localStorage.setItem('unreadCount', newCount.toString());
         });
 
         return () => sseService.disconnect(eventSource);
-    }, [user?.userId]);
+    }, [user?.userId, unreadCount]);
 
+    useEffect(() => {
+        checkAuth();
+        window.addEventListener('storage', checkAuth);
+        return () => window.removeEventListener('storage', checkAuth);
+    }, [checkAuth]);
+
+    useEffect(() => {
+        if (user?.userId) {
+            loadUnreadCount();
+        }
+    }, [user?.userId, loadUnreadCount]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
