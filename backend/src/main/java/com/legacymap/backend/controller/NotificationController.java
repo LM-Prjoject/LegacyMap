@@ -1,5 +1,6 @@
 package com.legacymap.backend.controller;
 
+import com.legacymap.backend.dto.response.NotificationPageResponse;
 import com.legacymap.backend.dto.response.NotificationResponse;
 import com.legacymap.backend.dto.response.NotificationStatsResponse;
 import com.legacymap.backend.service.NotificationService;
@@ -29,8 +30,9 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<NotificationResponse>> getNotifications(Pageable pageable) {
-        return ResponseEntity.ok(notificationService.getUserNotifications(getCurrentUserId(), pageable));
+    public ResponseEntity<NotificationPageResponse> getNotifications(Pageable pageable) {
+        UUID userId = getCurrentUserId();
+        return ResponseEntity.ok(notificationService.getUserNotificationsWithStats(userId, pageable));
     }
 
     @GetMapping("/unread")

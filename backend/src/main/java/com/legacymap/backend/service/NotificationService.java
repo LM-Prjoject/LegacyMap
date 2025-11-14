@@ -2,6 +2,7 @@ package com.legacymap.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legacymap.backend.dto.request.NotificationCreateRequest;
+import com.legacymap.backend.dto.response.NotificationPageResponse;
 import com.legacymap.backend.dto.response.NotificationResponse;
 import com.legacymap.backend.dto.response.NotificationStatsResponse;
 import com.legacymap.backend.entity.Notification;
@@ -98,6 +99,23 @@ public class NotificationService {
         User user = loadUserOrThrow(userId);
         return notificationRepository.findByUserOrderByCreatedAtDesc(user, pageable)
                 .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationPageResponse getUserNotificationsWithStats(UUID userId, Pageable pageable) {
+        User user = loadUserOrThrow(userId);
+        Page<Notification> page = notificationRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+        Long unreadCount = notificationRepository.countUnreadByUser(user);
+
+        return NotificationPageResponse.builder()
+                .content(page.map(this::mapToResponse).getContent())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getNumberOfElements())
+                .last(page.isLast())
+                .unreadCount(unreadCount)
+                .build();
     }
 
     @Transactional(readOnly = true)

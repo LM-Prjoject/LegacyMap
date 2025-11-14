@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback} from 'react';
-import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter, Loader2} from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter} from 'lucide-react';
 import { notificationApi } from "@/api/notificationApi";
 import { sseService } from "@/api/sseService";
-import type { NotificationResponse, NotificationStatsResponse } from '@/types/notification';
+import type { NotificationResponse } from '@/types/notification';
 import {useCurrentUser} from "@/hooks/useCurrentUser";
 import Navbar from "@/components/layout/Navbar.tsx";
 
@@ -15,7 +15,7 @@ const NotificationsPage = () => {
     const [selectedType, setSelectedType] = useState<string>('all');
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
-    const [stats, setStats] = useState({ unreadCount: 0, totalCount: 0 });
+    const [unreadCount, setUnreadCount] = useState(0);
     const [newNotificationIds, setNewNotificationIds] = useState<Set<string>>(new Set());
 
     // Add body class management
@@ -27,31 +27,24 @@ const NotificationsPage = () => {
     }, []);
 
     const loadNotifications = useCallback(async (pageNum = 0, append = false) => {
+        if (!userId) return;
+
         try {
             setLoading(pageNum === 0);
+            setError(null);
+
             const data = await notificationApi.getNotifications(pageNum, 15);
-            const newNotifs = data.content || [];
-            setNotifications(prev => append ? [...prev, ...newNotifs] : newNotifs);
+
+            setNotifications(prev => append ? [...prev, ...data.content] : data.content);
             setHasMore(!data.last);
             setPage(pageNum);
+            setUnreadCount(data.unreadCount);
         } catch (err: any) {
             setError(err.message || 'Không thể tải thông báo');
         } finally {
             setLoading(false);
         }
-    }, []);
-
-    const loadStats = useCallback(async () => {
-        try {
-            const data: NotificationStatsResponse = await notificationApi.getStats();
-            setStats({
-                unreadCount: data.unreadCount || 0,
-                totalCount: data.totalCount || 0
-            });
-        } catch (err) {
-            console.error('Failed to load stats', err);
-        }
-    }, []);
+    }, [userId]);
 
     useEffect(() => {
         if (!userId || userLoading) return;
@@ -59,8 +52,12 @@ const NotificationsPage = () => {
         let eventSource: EventSource | null = null;
 
         const connectSSE = async () => {
-            eventSource = sseService.connect(userId, (notif) => {
-                setNotifications(prev => [notif, ...prev]);
+            eventSource = sseService.connect(userId, (notif: NotificationResponse) => {
+                setNotifications(prev => {
+                    if (prev.some(n => n.id === notif.id)) return prev;
+                    return [notif, ...prev];
+                });
+
                 const id = notif.id;
                 setNewNotificationIds(prev => new Set(prev).add(id));
                 setTimeout(() => {
@@ -70,7 +67,10 @@ const NotificationsPage = () => {
                         return next;
                     });
                 }, 3000);
-                loadStats();
+
+                if (!notif.isRead) {
+                    setUnreadCount(prev => prev + 1);
+                }
             });
         };
 
@@ -81,37 +81,45 @@ const NotificationsPage = () => {
                 sseService.disconnect(eventSource);
             }
         };
-    }, [userId, userLoading, loadStats]);
+    }, [userId, userLoading]);
 
     useEffect(() => {
         if (userId && !userLoading) {
             loadNotifications(0, false);
-            loadStats();
         }
-    }, [userId, userLoading, loadNotifications, loadStats]);
+    }, [userId, userLoading, loadNotifications]);
 
-    // Nếu đang load user
-    if (userLoading) {
+    // Nếu đang load user hoặc notifications lần đầu
+    if (userLoading || (loading && notifications.length === 0)) {
         return (
-            <div className="flex justify-center items-center min-h-screen">
-                <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'rgb(255, 216, 155)' }} />
-            </div>
+            <>
+                <Navbar />
+                <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
+                        <p style={{color: 'rgb(255, 216, 155)'}}>Đang tải thông báo...</p>
+                    </div>
+                </div>
+            </>
         );
     }
 
     // Nếu không có user
     if (!userId) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen text-white">
-                <Bell className="w-16 h-16 mb-4 opacity-30" />
-                <p>Vui lòng đăng nhập để xem thông báo</p>
-                <button
-                    onClick={() => window.location.href = '/login'}
-                    className="mt-4 px-4 py-2 bg-gradient-to-r from-[#b49e7b] to-[#d1b98a] text-[#2a3548] rounded-lg"
-                >
-                    Đăng nhập
-                </button>
-            </div>
+            <>
+                <Navbar />
+                <div className="flex flex-col items-center justify-center min-h-screen text-white" style={{backgroundColor: '#2a3548'}}>
+                    <Bell className="w-16 h-16 mb-4 opacity-30" />
+                    <p>Vui lòng đăng nhập để xem thông báo</p>
+                    <button
+                        onClick={() => window.location.href = '/login'}
+                        className="mt-4 px-4 py-2 bg-gradient-to-r from-[#b49e7b] to-[#d1b98a] text-[#2a3548] rounded-lg"
+                    >
+                        Đăng nhập
+                    </button>
+                </div>
+            </>
         );
     }
 
@@ -156,7 +164,7 @@ const NotificationsPage = () => {
         try {
             await notificationApi.markAsRead(id);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-            loadStats();
+            setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (err) {
             alert('Không thể đánh dấu đã đọc');
         }
@@ -166,7 +174,7 @@ const NotificationsPage = () => {
         try {
             await notificationApi.markAllAsRead();
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-            loadStats();
+            setUnreadCount(0);
         } catch (err) {
             alert('Không thể đánh dấu tất cả');
         }
@@ -176,8 +184,11 @@ const NotificationsPage = () => {
         if (!confirm('Xóa thông báo này?')) return;
         try {
             await notificationApi.deleteNotification(id);
+            const wasUnread = notifications.find(n => n.id === id)?.isRead === false;
             setNotifications(prev => prev.filter(n => n.id !== id));
-            loadStats();
+            if (wasUnread) {
+                setUnreadCount(prev => Math.max(0, prev - 1));
+            }
         } catch (err) {
             alert('Không thể xóa');
         }
@@ -192,7 +203,6 @@ const NotificationsPage = () => {
             } catch (err) { /* ignore */ }
         }
         setNotifications(prev => prev.filter(n => !n.isRead));
-        loadStats();
     };
 
     const filteredNotifications = notifications.filter(n => {
@@ -202,10 +212,8 @@ const NotificationsPage = () => {
         return true;
     });
 
-    const unreadCount = stats.unreadCount;
-
     return (
-        <div className="min-h-screen pt-20 pb-12 px-4" style={{ backgroundColor: '#2a3548' }}>
+        <div className="min-h-screen pt-16 pb-12 px-4" style={{ backgroundColor: '#2a3548' }}>
             <Navbar />
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
@@ -286,13 +294,7 @@ const NotificationsPage = () => {
                     )}
                 </div>
 
-                {/* Loading & Error */}
-                {loading && (
-                    <div className="flex justify-center py-8">
-                        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'rgb(255, 216, 155)' }} />
-                    </div>
-                )}
-
+                {/* Error */}
                 {error && (
                     <div className="text-center py-8 text-red-300">
                         {error}
@@ -378,6 +380,13 @@ const NotificationsPage = () => {
                         >
                             Xem thêm
                         </button>
+                    </div>
+                )}
+
+                {/* Loading more indicator */}
+                {loading && notifications.length > 0 && (
+                    <div className="flex justify-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
                     </div>
                 )}
             </div>
