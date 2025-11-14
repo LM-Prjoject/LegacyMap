@@ -7,6 +7,8 @@ import { useAutoLogout } from '@/hooks/useAutoLogout';
 import { notificationApi } from "@/api/notificationApi";
 import { sseService } from "@/api/sseService";
 
+const UNREAD_COUNT_KEY = 'navbar_unread_count';
+
 interface NavbarProps {
     onLoginClick?: () => void;
     onSignupClick?: () => void;
@@ -14,18 +16,9 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const navigate = useNavigate();
-    const isHomePage = !!onLoginClick && !!onSignupClick;
-
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user, setUser] = useState<any>(null);
-    const [showDropdown, setShowDropdown] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
     const location = useLocation();
     const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useAutoLogout(30);
-
+    const isHomePage = !!onLoginClick && !!onSignupClick;
     const isDashboard =
         location.pathname.startsWith('/dashboard') ||
         location.pathname.startsWith('/trees') ||
@@ -35,55 +28,62 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         ? 'text-white hover:text-[#d1b98a]'
         : 'text-white hover:text-[#d1b98a]';
 
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState<any>(null);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const eventSourceRef = useRef<EventSource | null>(null);
+
+    useAutoLogout(30);
+
     const checkAuth = useCallback(() => {
         const token = localStorage.getItem('authToken');
         const userStr = localStorage.getItem('user');
-        const savedCount = localStorage.getItem('unreadCount');
 
         if (token && userStr) {
             try {
                 const userData = JSON.parse(userStr);
+                //console.log('USER LOADED:', userData);
                 setUser(userData);
                 setIsAuthenticated(true);
-                setUnreadCount(savedCount ? parseInt(savedCount, 10) : 0);
             } catch {
                 setIsAuthenticated(false);
                 setUser(null);
-                setUnreadCount(0);
             }
         } else {
             setIsAuthenticated(false);
             setUser(null);
-            setUnreadCount(0);
-            localStorage.removeItem('unreadCount');
         }
     }, []);
 
-    const loadUnreadCount = useCallback(async () => {
-        if (!user?.userId) return;
-        try {
-            const data = await notificationApi.getNotifications(0, 1);
-            const count = data.unreadCount || 0;
-            setUnreadCount(count);
-            localStorage.setItem('unreadCount', count.toString());
-        } catch (err) {
-            console.error('Failed to load unread count', err);
+    const logout = () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem(UNREAD_COUNT_KEY);
+        setIsAuthenticated(false);
+        setUser(null);
+        setShowDropdown(false);
+        setUnreadCount(0);
+        if (eventSourceRef.current) {
+            sseService.disconnect(eventSourceRef.current);
+            eventSourceRef.current = null;
         }
-    }, [user?.userId]);
+    };
 
     useEffect(() => {
-        if (!user?.userId) return;
-
-        const eventSource = sseService.connect(user.userId, (notif) => {
-            if (notif.isRead) return;
-
-            const newCount = unreadCount + 1;
-            setUnreadCount(newCount);
-            localStorage.setItem('unreadCount', newCount.toString());
-        });
-
-        return () => sseService.disconnect(eventSource);
-    }, [user?.userId, unreadCount]);
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setShowDropdown(false);
+            }
+        };
+        if (showDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showDropdown]);
 
     useEffect(() => {
         checkAuth();
@@ -92,26 +92,86 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     }, [checkAuth]);
 
     useEffect(() => {
-        if (user?.userId) {
-            loadUnreadCount();
+        if (!isAuthenticated || !user?.id) {
+            if (eventSourceRef.current) {
+                sseService.disconnect(eventSourceRef.current);
+                eventSourceRef.current = null;
+            }
+            return;
         }
-    }, [user?.userId, loadUnreadCount]);
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setShowDropdown(false);
+        const loadCount = async () => {
+            const cached = localStorage.getItem(UNREAD_COUNT_KEY);
+            if (cached) {
+                setUnreadCount(parseInt(cached, 10));
+            }
+            try {
+                const data = await notificationApi.getNotifications(0, 1);
+                const count = data.unreadCount || 0;
+                setUnreadCount(count);
+                localStorage.setItem(UNREAD_COUNT_KEY, count.toString());
+            } catch (err) {
+                console.error('Failed to load unread count', err);
             }
         };
 
-        if (showDropdown) {
-            document.addEventListener('mousedown', handleClickOutside);
+        loadCount();
+
+        if (!eventSourceRef.current) {
+            eventSourceRef.current = sseService.connect(user.id, (notif) => {
+                if (notif.isRead) return;
+                setUnreadCount(prev => {
+                    const newCount = prev + 1;
+                    localStorage.setItem(UNREAD_COUNT_KEY, newCount.toString());
+                    return newCount;
+                });
+            });
         }
 
         return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
+            if (eventSourceRef.current) {
+                sseService.disconnect(eventSourceRef.current);
+                eventSourceRef.current = null;
+            }
         };
-    }, [showDropdown]);
+    }, [isAuthenticated, user?.id]);
+
+    useEffect(() => {
+        let timeout: NodeJS.Timeout;
+
+        const onFocus = () => {
+            if (!isAuthenticated || !user?.id) return;
+
+            const cached = localStorage.getItem(UNREAD_COUNT_KEY);
+            if (cached) {
+                setUnreadCount(parseInt(cached, 10));
+            }
+
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                notificationApi.getNotifications(0, 1)
+                    .then(data => {
+                        const count = data.unreadCount || 0;
+                        setUnreadCount(count);
+                        localStorage.setItem(UNREAD_COUNT_KEY, count.toString());
+                    })
+                    .catch(() => {});
+            }, 1000);
+        };
+
+        window.addEventListener('focus', onFocus);
+        return () => {
+            window.removeEventListener('focus', onFocus);
+            clearTimeout(timeout);
+        };
+    }, [isAuthenticated, user?.id]);
+
+    const handleLogoClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        navigate('/');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const handleSectionClick = (e: React.MouseEvent, sectionId: string) => {
         e.preventDefault();
         setIsOpen(false); // Đóng mobile menu nếu đang mở
@@ -134,20 +194,10 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
             }, 100);
         }
     };
-    const handleLogout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        localStorage.removeItem('unreadCount');
-        setIsAuthenticated(false);
-        setUser(null);
-        setShowDropdown(false);
-        window.location.href = '/';
-    };
 
-    const handleLogoClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        navigate('/');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    const handleLogout = () => {
+        logout();
+        window.location.href = '/';
     };
 
     const getDisplayName = () => {
@@ -186,10 +236,10 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                 left: 0,
                 right: 0,
                 zIndex: 99999,
-                margin: 0,  // ✅ Thêm dòng này
-                padding: 0, // ✅ Thêm dòng này
+                margin: 0,
+                padding: 0,
                 background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                border: 'none',                 // ✅ bỏ border vàng mờ
+                border: 'none',
                 boxShadow: '0 1px 8px rgba(15,23,42,0.4)',
             }}
 
