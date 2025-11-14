@@ -16,13 +16,6 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const navigate = useNavigate();
     const isHomePage = !!onLoginClick && !!onSignupClick;
 
-    useEffect(() => {
-        document.body.style.paddingTop = '80px';
-        return () => {
-            document.body.style.paddingTop = '0';
-        };
-    }, []);
-
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [showDropdown, setShowDropdown] = useState(false);

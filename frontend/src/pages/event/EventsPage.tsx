@@ -42,6 +42,26 @@ const EventsPage: React.FC = () => {
     const today = useMemo(() => currentTime, [currentTime]);
     const todayLunar = useMemo(() => getLunarInfo(today), [today]);
 
+    const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
+        const now = new Date();
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay() + 1);
+        start.setHours(0, 0, 0, 0);
+        return start;
+    });
+
+    const getISOWeek = (date: Date): number => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        // Thứ 5 của tuần hiện tại
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        // Thứ 5 của tuần 1 năm
+        const week1 = new Date(d.getFullYear(), 0, 4);
+        week1.setDate(week1.getDate() + 3 - (week1.getDay() + 6) % 7);
+        // Tính số tuần
+        return Math.round(((d.getTime() - week1.getTime()) / 86400000) / 7) + 1;
+    };
+
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
         const month = date.getMonth();
@@ -52,32 +72,44 @@ const EventsPage: React.FC = () => {
         return { daysInMonth, startingDayOfWeek };
     };
 
-    const getWeekDays = (date: Date) => {
-        const start = new Date(date);
-        start.setDate(date.getDate() - date.getDay() + 1);
+    const getWeekDays = (startDate: Date) => {
         return Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(start);
-            d.setDate(start.getDate() + i);
+            const d = new Date(startDate);
+            d.setDate(startDate.getDate() + i);
             return d;
         });
     };
 
+    useEffect(() => {
+        if (calendarView === 'week') {
+            setCurrentDate(new Date(currentWeekStart));
+        }
+    }, [calendarView, currentWeekStart]);
+
     const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
-    const weekDays = getWeekDays(currentDate);
+    const weekDays = getWeekDays(currentWeekStart);
 
     const previousPeriod = () => {
         if (calendarView === 'month') {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+            setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1));
         } else {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 7));
+            setCurrentWeekStart(prev => {
+                const newStart = new Date(prev);
+                newStart.setDate(prev.getDate() - 7);
+                return newStart;
+            });
         }
     };
 
     const nextPeriod = () => {
         if (calendarView === 'month') {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+            setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1));
         } else {
-            setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 7));
+            setCurrentWeekStart(prev => {
+                const newStart = new Date(prev);
+                newStart.setDate(prev.getDate() + 7);
+                return newStart;
+            });
         }
     };
 
@@ -141,17 +173,10 @@ const EventsPage: React.FC = () => {
 
         try {
             const dayEvents = await eventsApi.getEventsInDateRange(familyTreeId, start, end);
-            if (dayEvents.length === 1) {
-                // Nếu chỉ có 1 sự kiện → mở luôn modal chi tiết
-                setSelectedEventId(dayEvents[0].id);
-                setIsDetailModalOpen(true);
-            } else if (dayEvents.length > 1) {
-                // Nếu có nhiều → có thể mở danh sách nhỏ (tùy chọn)
-                // Hoặc chọn 1 cái đầu tiên
+            if (dayEvents.length >= 1) {
                 setSelectedEventId(dayEvents[0].id);
                 setIsDetailModalOpen(true);
             }
-            // Nếu không có → không làm gì
         } catch (err) {
             console.error('Lỗi lấy sự kiện theo ngày:', err);
         }
@@ -199,11 +224,10 @@ const EventsPage: React.FC = () => {
             <Navbar />
             {/* Header */}
 
-            <div className="px-6 pb-6 pt-20 shadow-2xl relative overflow-hidden" style={{
+            <div className="px-6 pb-6 pt-8 shadow-2xl relative overflow-hidden" style={{
                 background: 'linear-gradient(135deg, #2a3548 0%, #1f2937 50%, #2a3548 100%)',
                 borderBottom: '3px solid rgba(255, 216, 155, 0.3)'
             }}>
-
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="flex justify-between items-center mb-8">
                         <h1 className="text-4xl font-black tracking-tight" style={{
@@ -280,7 +304,7 @@ const EventsPage: React.FC = () => {
                             }}>
                                 {calendarView === 'month'
                                     ? `${monthNames[currentDate.getMonth()]} / ${currentDate.getFullYear()}`
-                                    : `Tuần ${Math.ceil(currentDate.getDate() / 7)} / ${currentDate.getFullYear()}`
+                                    : `Tuần ${getISOWeek(currentWeekStart)} / ${currentWeekStart.getFullYear()}`
                                 }
                             </h2>
                             <button
