@@ -67,7 +67,7 @@ export default function RelationshipModal({
         }));
     }, [picked.candidateId, suggestions]);
 
-    const close  = onClose;
+    // const close  = onClose;
     const cancel = onCancel ?? onClose;
 
     const effectiveRelation = picked.relation || selected?.relation || "";
@@ -76,10 +76,10 @@ export default function RelationshipModal({
 
     return (
         <div className={`fixed inset-0 z-50 ${isOpen ? "" : "hidden"}`}>
-            <div className="absolute inset-0 bg-black/40" onClick={close} />
+            <div className="absolute inset-0 bg-black/40" onClick={() => {cancel();}}/>
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] max-w-[95vw] rounded-2xl bg-white shadow-xl">
                 <div className="p-4 border-b flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
+                    <h3 className="text-lg font-semibold text-gray-700">
                         Xác nhận mối quan hệ cho <span className="text-emerald-700">{source.fullName}</span>
                     </h3>
                     <button onClick={cancel} className="px-3 py-1 rounded hover:bg-gray-100">Đóng</button>
@@ -95,11 +95,11 @@ export default function RelationshipModal({
                                 <div className="p-3 rounded-xl border bg-gray-50">
                                     <div className="text-sm text-gray-600">Gợi ý tốt nhất</div>
                                     <div className="mt-1 flex items-center justify-between">
-                                        <div className="text-base">
+                                        <div className="text-base text-black">
                                             <b>{RELATION_LABEL[selected.relation]}</b> với{" "}
                                             <b>{candidatesMap.get(selected.candidateId)?.fullName || "(???)"}</b>
                                         </div>
-                                        <div className="text-xs px-2 py-0.5 rounded-full bg-gray-200">
+                                        <div className="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-black">
                                             độ tin cậy {(selected.confidence * 100).toFixed(0)}%
                                         </div>
                                     </div>
@@ -108,7 +108,7 @@ export default function RelationshipModal({
                                 <div className="text-sm text-gray-600">Không có gợi ý.</div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-3 text-black">
                                 <div>
                                     <label className="text-sm font-medium">Chọn người liên hệ</label>
                                     <select
@@ -116,7 +116,7 @@ export default function RelationshipModal({
                                         value={picked.candidateId || selected?.candidateId || ""}
                                         onChange={(e) => setPicked((s) => ({ ...s, candidateId: e.target.value }))}
                                     >
-                                        <option value="">-- Chọn một người --</option>
+                                        <option value="" >-- Chọn một người --</option>
                                         {persons
                                             .filter((p) => p.id !== source.id)
                                             .map((p) => (
@@ -146,7 +146,7 @@ export default function RelationshipModal({
                 </div>
 
                 <div className="p-4 border-t flex items-center justify-end gap-2">
-                    <button className="px-3 py-2 rounded-lg border" onClick={cancel}>Hủy</button>
+                    <button className="px-3 py-2 rounded-lg border text-black" onClick={cancel}>Hủy</button>
                     <button
                         className="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
                         disabled={!canConfirm}
