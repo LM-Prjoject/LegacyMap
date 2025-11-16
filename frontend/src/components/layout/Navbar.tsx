@@ -250,7 +250,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                 top: 0,
                 left: 0,
                 right: 0,
-                zIndex: 99999,
+                zIndex: 1000,
                 margin: 0,
                 padding: 0,
                 background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
@@ -266,7 +266,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                         href="/"
                         onClick={handleLogoClick}
                         className="flex items-center gap-3 no-underline hover:opacity-90 transition-opacity cursor-pointer"
-                        style={{ position: 'relative', zIndex: 100000 }}
+                        style={{ position: 'relative', zIndex: 1010 }}
                     >
                         <img
                             src={logoImg}

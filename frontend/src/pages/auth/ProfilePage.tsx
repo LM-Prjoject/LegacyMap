@@ -196,12 +196,15 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
-                    <p style={{color: 'rgb(255, 216, 155)'}}>Đang tải hồ sơ...</p>
+            <>
+                <Navbar />
+                <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
+                        <p style={{color: 'rgb(255, 216, 155)'}}>Đang tải hồ sơ...</p>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 

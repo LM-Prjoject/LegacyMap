@@ -8,22 +8,28 @@ interface EventDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
     onDelete?: () => void;
-    onUpdate?: () => void;
+    onUpdate?: (updatedEvent?: Event) => void;
 }
 
-const EventDetailModal: React.FC<EventDetailModalProps> = ({
-                                                               eventId,
-                                                               isOpen,
-                                                               onClose,
-                                                               onDelete,
-                                                               onUpdate
-                                                           }) => {
+const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, onClose, onDelete, onUpdate }) => {
     const [event, setEvent] = useState<Event | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editedEvent, setEditedEvent] = useState<Partial<Event>>({});
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Lock scroll
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen && eventId) {
@@ -37,7 +43,11 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({
         try {
             const eventData = await eventsApi.getEvent(eventId);
             setEvent(eventData);
-            setEditedEvent(eventData);
+            setEditedEvent({
+                ...eventData,
+                startDate: isoToLocalInput(eventData.startDate, eventData.isFullDay),
+                endDate: isoToLocalInput(eventData.endDate, eventData.isFullDay),
+            });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch event');
         } finally {
@@ -57,10 +67,17 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
     const handleSave = async () => {
         try {
-            await eventsApi.updateEvent(eventId, editedEvent);
-            setEvent({ ...event, ...editedEvent } as Event);
+            const payload = {
+                ...editedEvent,
+                startDate: editedEvent.startDate ? localInputToIso(editedEvent.startDate, event?.isFullDay) : undefined,
+                endDate: editedEvent.endDate ? localInputToIso(editedEvent.endDate, event?.isFullDay) : undefined,
+            };
+            await eventsApi.updateEvent(eventId, payload);
+
+            const updatedEvent = { ...event, ...payload } as Event;
+            setEvent(updatedEvent);
+            onUpdate?.(updatedEvent);
             setIsEditing(false);
-            onUpdate?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update event');
         }
@@ -103,331 +120,317 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({
         });
     };
 
+    const isoToLocalInput = (isoString?: string, isFullDay = false): string => {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const y = date.getFullYear();
+        const m = pad(date.getMonth() + 1);
+        const d = pad(date.getDate());
+        if (isFullDay) return `${y}-${m}-${d}`;
+        const hh = pad(date.getHours());
+        const mm = pad(date.getMinutes());
+        return `${y}-${m}-${d}T${hh}:${mm}`;
+    };
+
+    const localInputToIso = (localString: string, isFullDay = false): string => {
+        if (!localString) return '';
+        if (!isFullDay) {
+            const d = new Date(localString);
+            return d.toISOString();
+        }
+        const [y, m, day] = localString.split('-').map(Number);
+        const localMidnight = new Date(y, m - 1, day, 0, 0, 0);
+        return localMidnight.toISOString();
+    };
+
+    const getMinDateTime = () => {
+        const now = new Date();
+        now.setSeconds(0, 0);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const y = now.getFullYear();
+        const m = pad(now.getMonth() + 1);
+        const d = pad(now.getDate());
+        const hh = pad(now.getHours());
+        const mm = pad(now.getMinutes());
+        return `${y}-${m}-${d}T${hh}:${mm}`;
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-6">
-            <div className="bg-[#2a3548] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div
+                className="absolute inset-0 bg-gradient-to-br from-[#000000]/70 via-[#1b2233]/80 to-[#2e3a57]/90 backdrop-blur-md"
+                onClick={() => !loading && onClose()}
+            />
+            {/* Modal Content */}
+            <div className="relative z-[100002] w-full max-w-3xl max-h-[90vh] rounded-3xl bg-gradient-to-br from-[#1b2233] to-[#2e3a57] border-2 border-[#D1B066]/40 shadow-[0_0_50px_rgba(209,176,102,0.3)] flex flex-col overflow-hidden">
+                {/* Decorative corner accents */}
+                <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-[#D1B066]/20 to-transparent rounded-br-[100px] pointer-events-none" />
+                <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-[#D1B066]/20 to-transparent rounded-tl-[100px] pointer-events-none" />
+
                 {/* Header */}
-                <div className="bg-[#2a3548] px-6 py-4 flex justify-between items-center border-b border-[#ffd89b]/20">
-                    <h2 className="text-xl font-bold text-[#ffd89b]">
+                <div className="px-6 py-4 border-b border-[#D1B066]/30 flex items-center justify-between bg-[#2e3a57]/40 backdrop-blur-sm">
+                    <h3 className="text-2xl font-bold bg-gradient-to-r from-[#EEDC9A] to-[#D1B066] bg-clip-text text-transparent">
                         {isEditing ? 'Chỉnh sửa sự kiện' : 'Chi tiết sự kiện'}
-                    </h2>
+                    </h3>
                     <div className="flex items-center gap-2">
                         {!isEditing && (
                             <button
                                 onClick={handleShare}
-                                className="p-2 hover:bg-[#ffd89b]/10 rounded-lg transition-colors text-[#ffd89b]"
+                                className="p-2 rounded-lg hover:bg-[#D1B066]/10 transition text-[#D1B066]"
                                 title="Chia sẻ"
                             >
                                 <Share2 className="w-5 h-5" />
                             </button>
                         )}
                         <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-[#ffd89b]/10 rounded-lg transition-colors text-[#ffd89b]"
+                            onClick={() => !loading && onClose()}
+                            className="p-2 rounded-lg hover:bg-[#D1B066]/10 transition"
+                            title="Đóng"
                         >
-                            <X className="w-6 h-6" />
+                            <X className="w-5 h-5 text-[#D1B066]" />
                         </button>
                     </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto bg-[#f0e6d2]">
+                {/* Body */}
+                <div className="relative px-8 py-6 flex-1 overflow-y-auto">
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
                             <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2a3548] mx-auto mb-4"></div>
-                                <p className="text-[#2a3548] font-medium">Đang tải...</p>
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D1B066] mx-auto mb-4"></div>
+                                <p className="text-[#D1B066] font-medium">Đang tải...</p>
                             </div>
                         </div>
                     ) : error || !event ? (
                         <div className="text-center py-20">
-                            <p className="text-red-600 font-medium">Lỗi: {error || 'Event not found'}</p>
+                            <p className="text-red-400 font-semibold text-lg">Lỗi: {error || 'Không tìm thấy sự kiện'}</p>
                         </div>
                     ) : (
-                        <div className="p-8 space-y-6">
+                        <div className="space-y-8">
                             {/* Title */}
-                            <div>
-                                {isEditing ? (
-                                    <input
-                                        type="text"
-                                        value={editedEvent.title || ''}
-                                        onChange={(e) => setEditedEvent({ ...editedEvent, title: e.target.value })}
-                                        className="w-full text-3xl font-bold text-[#2a3548] bg-white/60 border-2 border-[#ffd89b] rounded-xl px-4 py-3 focus:outline-none focus:border-[#2a3548] focus:bg-white"
-                                        placeholder="Tiêu đề sự kiện"
-                                    />
-                                ) : (
-                                    <h3 className="text-3xl font-bold text-[#2a3548]">{event.title}</h3>
-                                )}
-                            </div>
-
-                            {/* Main Content Card */}
-                            <div className="bg-white/60 backdrop-blur rounded-xl p-6 space-y-5 border border-[#ffd89b]/50">
-                                {/* Date & Time Section */}
+                            {isEditing ? (
                                 <div className="flex gap-4">
-                                    <div className="flex-shrink-0">
-                                        <div className="bg-[#2a3548] p-3 rounded-lg">
-                                            <Calendar className="w-6 h-6 text-[#ffd89b]" />
-                                        </div>
+                                    <Edit2 className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                    <div>
+                                        <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Tiêu đề</div>
+                                        <input
+                                            type="text"
+                                            value={editedEvent.title || ''}
+                                            onChange={(e) => setEditedEvent({ ...editedEvent, title: e.target.value })}
+                                            className="w-full bg-transparent border-b border-white/30 text-white outline-none"
+                                            placeholder="Nhập tiêu đề sự kiện..."
+                                        />
                                     </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-semibold text-[#2a3548] mb-2 text-sm uppercase tracking-wide">Ngày & Giờ</h4>
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <h3 className="text-3xl font-bold bg-gradient-to-r from-[#EEDC9A] to-[#D1B066] bg-clip-text text-transparent">
+                                        {event.title}
+                                    </h3>
+                                </div>
+                            )}
+
+                            {/* Main Content */}
+                            <div className="space-y-6">
+                                {/* Date & Time */}
+                                <div className="flex gap-4">
+                                    <Calendar className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                    <div>
+                                        <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Ngày & Giờ</div>
                                         {isEditing ? (
                                             <div className="space-y-3">
-                                                <div>
-                                                    <label className="block text-sm text-[#2a3548]/70 mb-1">Bắt đầu</label>
-                                                    <input
-                                                        type="datetime-local"
-                                                        value={editedEvent.startDate?.slice(0, 16) || ''}
-                                                        onChange={(e) => setEditedEvent({ ...editedEvent, startDate: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#ffd89b] focus:border-[#2a3548] focus:outline-none bg-white"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm text-[#2a3548]/70 mb-1">Kết thúc</label>
-                                                    <input
-                                                        type="datetime-local"
-                                                        value={editedEvent.endDate?.slice(0, 16) || ''}
-                                                        onChange={(e) => setEditedEvent({ ...editedEvent, endDate: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#ffd89b] focus:border-[#2a3548] focus:outline-none bg-white"
-                                                    />
-                                                </div>
+                                                <input
+                                                    type="datetime-local"
+                                                    min={getMinDateTime()}
+                                                    value={editedEvent.startDate || ''}
+                                                    onChange={e => setEditedEvent({...editedEvent, startDate: e.target.value})}
+                                                    className="w-full bg-[#1b2233]/50 border-2 border-[#D1B066]/30 focus:border-[#D1B066] rounded-xl px-4 py-3 text-white outline-none transition-all duration-300"
+                                                />
+                                                <input
+                                                    type="datetime-local"
+                                                    min={getMinDateTime()}
+                                                    value={editedEvent.endDate || ''}
+                                                    onChange={e => setEditedEvent({...editedEvent, endDate: e.target.value})}
+                                                    className="w-full bg-[#1b2233]/50 border-2 border-[#D1B066]/30 focus:border-[#D1B066] rounded-xl px-4 py-3 text-white outline-none transition-all duration-300"
+                                                />
                                             </div>
                                         ) : (
-                                            <div>
-                                                <p className="text-[#2a3548] font-medium text-lg">
-                                                    {formatDateTime(event.startDate)}
-                                                </p>
-                                                {event.endDate && (
-                                                    <p className="text-[#2a3548]/70 mt-1">
-                                                        đến {formatDateTime(event.endDate)}
-                                                    </p>
-                                                )}
-                                                <div className="flex gap-2 mt-3">
-                                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                                                        event.calendarType === CalendarType.LUNAR
-                                                            ? 'bg-[#ffd89b] text-[#2a3548]'
-                                                            : 'bg-[#2a3548] text-[#ffd89b]'
-                                                    }`}>
+                                            <>
+                                                <p className="font-semibold text-white text-lg">{formatDateTime(event.startDate)}</p>
+                                                {event.endDate && <p className="text-sm text-white/70 mt-1">đến {formatDateTime(event.endDate)}</p>}
+                                                <div className="flex flex-wrap gap-2 mt-3">
+                                                    <span className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#EEDC9A] to-[#D1B066] text-[#1b2233] shadow-lg">
                                                         {getCalendarTypeLabel(event.calendarType)}
                                                     </span>
                                                     {event.isFullDay && (
-                                                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                                        <span className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg">
                                                             Cả ngày
                                                         </span>
                                                     )}
                                                 </div>
-                                            </div>
+                                            </>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="border-t border-[#ffd89b]/30"></div>
-
-                                {/* Event Type Section */}
+                                {/* Event Type */}
                                 <div className="flex gap-4">
-                                    <div className="flex-shrink-0">
-                                        <div className="bg-[#ffd89b] p-3 rounded-lg">
-                                            <Bell className="w-6 h-6 text-[#2a3548]" />
-                                        </div>
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-semibold text-[#2a3548] mb-2 text-sm uppercase tracking-wide">Loại sự kiện</h4>
+                                    <Bell className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                    <div>
+                                        <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Loại sự kiện</div>
                                         {isEditing ? (
                                             <select
                                                 value={editedEvent.eventType || ''}
                                                 onChange={(e) => setEditedEvent({ ...editedEvent, eventType: e.target.value as EventType })}
-                                                className="w-full px-3 py-2 rounded-lg border border-[#ffd89b] focus:border-[#2a3548] focus:outline-none bg-white"
+                                                className="w-full bg-transparent border-b border-white/30 text-white outline-none"
                                             >
                                                 {Object.values(EventType).map((type) => (
-                                                    <option key={type} value={type}>
+                                                    <option key={type} value={type} className="bg-[#2e3a57] text-white">
                                                         {getEventTypeLabel(type)}
                                                     </option>
                                                 ))}
                                             </select>
                                         ) : (
-                                            <div>
-                                                <p className="text-[#2a3548] font-medium text-lg mb-2">
-                                                    {getEventTypeLabel(event.eventType)}
-                                                </p>
-                                                {event.reminder && (
-                                                    <p className="text-[#2a3548]/70 text-sm">
-                                                        Nhắc nhở {event.reminder.daysBefore} ngày trước
-                                                    </p>
-                                                )}
+                                            <>
+                                                <p className="font-semibold text-white text-m">{getEventTypeLabel(event.eventType)}</p>
+                                                {event.reminder && <p className="text-sm text-white/70 mt-1">Nhắc nhở {event.reminder.daysBefore} ngày trước</p>}
                                                 <div className="flex gap-2 mt-3">
-                                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                                                    <span className={`px-4 py-2 rounded-xl text-xs font-bold shadow-lg ${
                                                         event.isPublic
-                                                            ? 'bg-green-100 text-green-700'
-                                                            : 'bg-gray-200 text-gray-700'
+                                                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white'
+                                                            : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white'
                                                     }`}>
                                                         {event.isPublic ? 'Công khai' : 'Riêng tư'}
                                                     </span>
-                                                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                                                        event.status === 'active'
-                                                            ? 'bg-[#2a3548] text-[#ffd89b]'
-                                                            : event.status === 'completed'
-                                                                ? 'bg-green-100 text-green-700'
-                                                                : 'bg-red-100 text-red-700'
-                                                    }`}>
-                                                        {event.status === 'active' && 'Đang hoạt động'}
-                                                        {event.status === 'completed' && 'Đã hoàn thành'}
-                                                        {event.status === 'cancelled' && 'Đã hủy'}
-                                                    </span>
                                                 </div>
-                                            </div>
+                                            </>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* Location Section */}
+                                {/* Location */}
                                 {(event.location || isEditing) && (
-                                    <>
-                                        <div className="border-t border-[#ffd89b]/30"></div>
-                                        <div className="flex gap-4">
-                                            <div className="flex-shrink-0">
-                                                <div className="bg-[#2a3548] p-3 rounded-lg">
-                                                    <MapPin className="w-6 h-6 text-[#ffd89b]" />
-                                                </div>
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-semibold text-[#2a3548] mb-2 text-sm uppercase tracking-wide">Địa điểm</h4>
-                                                {isEditing ? (
-                                                    <input
-                                                        type="text"
-                                                        value={editedEvent.location || ''}
-                                                        onChange={(e) => setEditedEvent({ ...editedEvent, location: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#ffd89b] focus:border-[#2a3548] focus:outline-none bg-white"
-                                                        placeholder="Nhập địa điểm..."
-                                                    />
-                                                ) : (
-                                                    <p className="text-[#2a3548] font-medium">{event.location}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* Description Section */}
-                                {(event.description || isEditing) && (
-                                    <>
-                                        <div className="border-t border-[#ffd89b]/30"></div>
-                                        <div className="flex gap-4">
-                                            <div className="flex-shrink-0">
-                                                <div className="bg-[#ffd89b] p-3 rounded-lg">
-                                                    <FileText className="w-6 h-6 text-[#2a3548]" />
-                                                </div>
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-semibold text-[#2a3548] mb-2 text-sm uppercase tracking-wide">Mô tả</h4>
-                                                {isEditing ? (
-                                                    <textarea
-                                                        value={editedEvent.description || ''}
-                                                        onChange={(e) => setEditedEvent({ ...editedEvent, description: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-lg border border-[#ffd89b] focus:border-[#2a3548] focus:outline-none min-h-[100px] bg-white"
-                                                        placeholder="Nhập mô tả..."
-                                                    />
-                                                ) : (
-                                                    <p className="text-[#2a3548] leading-relaxed whitespace-pre-wrap">
-                                                        {event.description}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* Related Persons */}
-                                {event.relatedPersons && event.relatedPersons.length > 0 && (
-                                    <>
-                                        <div className="border-t border-[#ffd89b]/30"></div>
+                                    <div className="flex gap-4">
+                                        <MapPin className="w-6 h-6 text-[#EEDC9A] mt-1" />
                                         <div>
-                                            <h4 className="font-semibold text-[#2a3548] mb-3 text-sm uppercase tracking-wide">Người liên quan</h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {event.relatedPersons.map((person, index) => (
-                                                    <span key={index} className="bg-[#2a3548] text-[#ffd89b] px-4 py-2 rounded-lg text-sm font-medium">
-                                                        {person.name}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                            <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Địa điểm</div>
+                                            {isEditing ? (
+                                                <input
+                                                    type="text"
+                                                    value={editedEvent.location || ''}
+                                                    onChange={(e) => setEditedEvent({ ...editedEvent, location: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-white/30 text-white outline-none"
+                                                    placeholder="Nhập địa điểm..."
+                                                />
+                                            ) : (
+                                                <p className="font-semibold text-white text-m">{event.location}</p>
+                                            )}
                                         </div>
-                                    </>
+                                    </div>
+                                )}
+
+                                {/* Description */}
+                                {(event.description || isEditing) && (
+                                    <div className="flex gap-4">
+                                        <FileText className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                        <div>
+                                            <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Mô tả</div>
+                                            {isEditing ? (
+                                                <input
+                                                    type="text"
+                                                    value={editedEvent.description || ''}
+                                                    onChange={(e) => setEditedEvent({ ...editedEvent, description: e.target.value })}
+                                                    className="w-full bg-transparent border-b border-white/30 text-white outline-none"
+                                                    placeholder="Nhập mô tả..."
+                                                />
+                                            ) : (
+                                                <p className="text-white/90 whitespace-pre-wrap leading-relaxed">{event.description}</p>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Footer Actions */}
-                {!loading && event && (
-                    <div className="bg-[#2a3548] px-6 py-4 border-t border-[#ffd89b]/20">
+                {/* Footer */}
+                <div className="relative px-8 py-3 border-t border-[#D1B066]/30 bg-gradient-to-r from-[#2e3a57]/60 to-[#1b2233]/60 backdrop-blur-xl">
+                    <div className="flex items-center justify-end gap-3">
                         {isEditing ? (
-                            <div className="flex gap-3">
+                            <>
                                 <button
                                     onClick={() => {
                                         setIsEditing(false);
-                                        setEditedEvent(event);
+                                        setEditedEvent(event!);
                                     }}
-                                    className="flex-1 bg-[#f0e6d2] text-[#2a3548] py-3 rounded-lg font-semibold hover:bg-[#ffd89b] transition-all"
+                                    className="px-6 h-12 rounded-xl border-2 border-[#D1B066]/50 text-[#EEDC9A] font-semibold hover:bg-[#D1B066]/10 hover:border-[#D1B066] transition-all duration-300 hover:scale-105"
                                 >
                                     Hủy
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    className="flex-1 bg-[#ffd89b] text-[#2a3548] py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-[#ffd89b]/90 transition-all"
+                                    className="relative flex items-center gap-2 px-8 h-12 rounded-xl font-bold text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-[0_0_20px_rgba(209,176,102,0.5)] hover:shadow-[0_0_30px_rgba(209,176,102,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
                                 >
                                     <Save className="w-5 h-5" />
-                                    Lưu thay đổi
+                                    Lưu
                                 </button>
-                            </div>
+                            </>
                         ) : (
-                            <div className="flex gap-3">
+                            <>
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="flex-1 bg-[#ffd89b] text-[#2a3548] py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-[#ffd89b]/90 transition-all"
+                                    className="relative flex items-center gap-2 px-8 h-12 rounded-xl font-bold text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-[0_0_20px_rgba(209,176,102,0.5)] hover:shadow-[0_0_30px_rgba(209,176,102,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
                                 >
                                     <Edit2 className="w-5 h-5" />
                                     Chỉnh sửa
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-200%] hover:translate-x-[200%] transition-transform duration-700" />
                                 </button>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-red-700 transition-all"
+                                    className="relative flex items-center gap-2 px-8 h-12 rounded-xl font-bold text-white bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_20px_rgba(239,68,68,0.5)] hover:shadow-[0_0_30px_rgba(239,68,68,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
                                 >
-                                    <Trash2 className="w-5 h-5" />
-                                    Xóa sự kiện
+                                    <Trash2 className="w-5 h-5 inline mr-1" />
+                                    Xóa
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-200%] hover:translate-x-[200%] transition-transform duration-700" />
                                 </button>
-                            </div>
+                            </>
                         )}
                     </div>
-                )}
+                </div>
             </div>
 
-            {/* Delete Confirmation Modal */}
+            {/* Delete Confirm Modal */}
             {showDeleteModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
-                    <div className="bg-[#f0e6d2] rounded-xl shadow-2xl max-w-md w-full p-8 border-2 border-[#ffd89b]">
-                        <div className="text-center mb-6">
-                            <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Trash2 className="w-8 h-8 text-red-600" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-[#2a3548] mb-2">Xóa sự kiện?</h3>
-                            <p className="text-[#2a3548]/70">
-                                Bạn có chắc chắn muốn xóa sự kiện "<span className="font-semibold">{event?.title}</span>"? Hành động này không thể hoàn tác.
+                <div className="absolute inset-0 z-[100003] flex items-center justify-center bg-black/50">
+                    <div className="relative bg-gradient-to-br from-[#2e3a57] to-[#1b2233] rounded-2xl p-8 max-w-md w-full mx-4 shadow-[0_0_50px_rgba(239,68,68,0.4)] border-2 border-red-500/50 animate-scale-in">
+                        <div className="text-center mt-6 mb-6">
+                            <h3 className="text-2xl font-bold bg-gradient-to-r from-red-400 to-red-500 bg-clip-text text-transparent mb-3">
+                                Xác nhận xóa sự kiện?
+                            </h3>
+                            <p className="text-white/80 leading-relaxed">
+                                Sự kiện <span className="font-bold text-[#EEDC9A]">"{event?.title}"</span> sẽ bị xóa vĩnh viễn.
+                            </p>
+                            <p className="text-red-400 text-sm mt-2 font-semibold">
+                                Hành động này không thể hoàn tác!
                             </p>
                         </div>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowDeleteModal(false)}
-                                className="flex-1 bg-gray-300 text-[#2a3548] py-3 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
+                                className="flex-1 h-12 rounded-xl border-2 border-[#D1B066]/50 text-[#EEDC9A] font-semibold hover:bg-[#D1B066]/10 hover:border-[#D1B066] transition-all duration-300 hover:scale-105"
                             >
-                                Hủy
+                                Hủy bỏ
                             </button>
                             <button
                                 onClick={handleDelete}
-                                className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-all"
+                                className="relative flex-1 h-12 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-[0_0_20px_rgba(239,68,68,0.5)] hover:shadow-[0_0_30px_rgba(239,68,68,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
                             >
-                                Xóa
+                                Xóa ngay
+                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 translate-x-[-200%] hover:translate-x-[200%] transition-transform duration-700" />
                             </button>
                         </div>
                     </div>

@@ -197,36 +197,43 @@ const EventsPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
-                    <p style={{color: 'rgb(255, 216, 155)'}}>Đang tải sự kiện...</p>
+            <>
+                <Navbar />
+                <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: 'rgb(255, 216, 155)'}}></div>
+                        <p style={{color: 'rgb(255, 216, 155)'}}>Đang tải sự kiện...</p>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 
     if (error) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
-                <div className="text-center">
-                    <p className="text-red-600">Lỗi: {error}</p>
-                    <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 rounded-lg transition-colors" style={{backgroundColor: 'rgb(255, 216, 155)', color: '#2a3548'}}>
-                        Thử lại
-                    </button>
+            <>
+                <Navbar />
+                <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#2a3548'}}>
+                    <div className="text-center">
+                        <p className="text-red-600">Lỗi: {error}</p>
+                        <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 rounded-lg transition-colors" style={{backgroundColor: 'rgb(255, 216, 155)', color: '#2a3548'}}>
+                            Thử lại
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </>
         );
     }
 
     return (
-        <div className="min-h-screen" style={{background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 25%, #4a5970 50%, #3d4a5f 75%, #2a3548 100%)'}}>
+        <div className="min-h-screen " style={{background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 25%, #4a5970 50%, #3d4a5f 75%, #2a3548 100%)'}}>
             <Navbar />
             {/* Header */}
 
             <div className="px-6 pb-6 pt-8 shadow-2xl relative overflow-hidden" style={{
                 background: 'linear-gradient(135deg, #2a3548 0%, #1f2937 50%, #2a3548 100%)',
-                borderBottom: '3px solid rgba(255, 216, 155, 0.3)'
+                borderBottom: '3px solid rgba(255, 216, 155, 0.3)',
+                position: 'relative',
             }}>
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="flex justify-between items-center mb-8">
@@ -281,7 +288,7 @@ const EventsPage: React.FC = () => {
             </div>
 
             {/* Calendar */}
-            <div className="max-w-7xl mx-auto px-6 py-10">
+            <div className="max-w-7xl mx-auto px-6 py-10" style={{ position: 'relative' }}>
                 <div className="rounded-3xl shadow-2xl p-10 mb-10" style={{
                     background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
                     border: '3px solid rgba(255, 216, 155, 0.6)',

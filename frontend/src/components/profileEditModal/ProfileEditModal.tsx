@@ -63,7 +63,7 @@ export default function ProfileEditModal({
     const invalidDob = !!(form.dob && form.dob > today);
 
     return (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
             {/* Overlay với gradient vàng đen */}
             <div
                 className="absolute inset-0 bg-gradient-to-br from-[#000000]/70 via-[#1b2233]/80 to-[#2e3a57]/90 backdrop-blur-sm"
@@ -71,11 +71,11 @@ export default function ProfileEditModal({
             />
 
             {/* Modal */}
-            <div className="relative z-[121] w-full max-w-3xl h-[85vh] rounded-2xl bg-[#1b2233]/95 border border-[#D1B066]/30 shadow-2xl flex flex-col overflow-hidden animate-fade-in-up">
+            <div className="relative z-[10000] w-full max-w-3xl h-[85vh] rounded-2xl bg-[#1b2233]/95 border border-[#D1B066]/30 shadow-2xl flex flex-col overflow-hidden animate-fade-in-up">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-[#D1B066]/30 flex items-center justify-between bg-[#2e3a57]/40 backdrop-blur-sm">
                     <h3 className="text-lg font-bold text-[#D1B066] tracking-wide">
-                        ✏️ Chỉnh sửa thông tin
+                        Chỉnh sửa thông tin
                     </h3>
                     <button
                         onClick={() => !saving && onCancel()}
@@ -239,7 +239,7 @@ export default function ProfileEditModal({
                     {invalidDob && (
                         <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
                             <p className="text-red-300 text-sm">
-                                ⚠️ Ngày sinh không thể lớn hơn ngày hiện tại
+                                Ngày sinh không thể lớn hơn ngày hiện tại
                             </p>
                         </div>
                     )}
