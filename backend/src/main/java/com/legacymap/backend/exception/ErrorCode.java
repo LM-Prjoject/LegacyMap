@@ -19,6 +19,7 @@ public enum ErrorCode {
     INVALID_PURPOSE("Mục đích của mã xác thực không hợp lệ", 1013),
     INVALID_PASSWORD("Mật khẩu không đúng", 1024),
     BAD_REQUEST("Yêu cầu không hợp lệ", 1025),
+    NOT_FOUND("Không tìm thấy tài nguyên", 1026),
 
     // Authentication & Authorization
     UNAUTHENTICATED("Bạn chưa đăng nhập", 1014),
