@@ -94,7 +94,10 @@ export const useUpcomingEvents = (familyTreeId?: string, daysAhead = 30) => {
             setError(null);
 
             const now = new Date();
-            const start = formatISO(now);
+            const startOfDay = new Date(now);
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const start = formatISO(startOfDay);
             const end = formatISO(addDays(now, daysAhead));
 
             const data = familyTreeId
