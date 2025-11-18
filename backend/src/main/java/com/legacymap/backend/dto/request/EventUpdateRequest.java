@@ -22,7 +22,6 @@ public class EventUpdateRequest {
     private String location;
     private Map<String, Object> locationCoordinates;
     private EventCreateRequest.ReminderConfig reminder;
-    private Boolean isPublic;
     private Event.EventStatus status;
     private UUID personalOwnerId;
 }

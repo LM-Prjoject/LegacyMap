@@ -26,7 +26,6 @@ public class EventResponse {
     private String location;
     private Map<String, Object> locationCoordinates;
     private ReminderConfig reminder;
-    private Boolean isPublic;
     private Event.EventStatus status;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;

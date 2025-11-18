@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, ChevronDown, Users, FileText, Lock, MapPin, Calendar, Bell, X, ContactRound, ListTree } from 'lucide-react';
+import { ArrowLeft, Save, ChevronDown, Users, FileText, MapPin, Calendar, Bell, X, ContactRound, ListTree } from 'lucide-react';
 import { eventsApi } from '@/api/eventApi';
 import api, {FamilyTree, Person} from '@/api/trees';
 import { EventCreateRequest, EventType, CalendarType, RecurrenceRule } from '@/types/event';
@@ -30,7 +30,7 @@ const EventFormPage: React.FC = () => {
             daysBefore: 3,
             methods: ['notification'] as ('notification' | 'email')[]
         },
-        isPublic: true
+        
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -693,36 +693,6 @@ const EventFormPage: React.FC = () => {
                                 color: 'white'
                             }}
                         />
-                    </div>
-
-                    {/* Privacy */}
-                    <div className="group rounded-3xl p-6 transition-all duration-300 hover:scale-[1.01]" style={{
-                        background: 'linear-gradient(135deg, rgba(42, 53, 72, 0.8) 0%, rgba(42, 53, 72, 0.6) 100%)',
-                        border: '1px solid rgba(255, 216, 155, 0.2)',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-                    }}>
-                        <div className="flex items-center gap-2 mb-4">
-                            <Lock className="w-5 h-5 text-[rgb(255,216,155)]" />
-                            <label className="text-lg font-bold text-[rgb(255,216,155)]">
-                                Quyền riêng tư
-                            </label>
-                        </div>
-                        <div className="relative">
-                            <select
-                                value={formData.isPublic ? 'public' : 'private'}
-                                onChange={(e) => handleInputChange('isPublic', e.target.value === 'public')}
-                                className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
-                                style={{
-                                    background: 'rgba(255, 255, 255, 0.05)',
-                                    border: '1px solid rgba(255, 216, 155, 0.2)',
-                                    color: 'white'
-                                }}
-                            >
-                                <option value="public" className="bg-[#2a3548]">Công khai</option>
-                                <option value="private" className="bg-[#2a3548]">Riêng tư</option>
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[rgb(255,216,155)] pointer-events-none" />
-                        </div>
                     </div>
 
                     {/* Submit Button */}
