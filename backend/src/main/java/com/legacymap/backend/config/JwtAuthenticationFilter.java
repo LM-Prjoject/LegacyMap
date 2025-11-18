@@ -1,13 +1,10 @@
 package com.legacymap.backend.config;
 
-import com.legacymap.backend.repository.UserRepository;
-import com.legacymap.backend.service.JwtUtil;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,10 +12,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.service.JwtUtil;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -129,11 +131,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         )) return true;
 
         if ("GET".equalsIgnoreCase(method) && (
-                path.startsWith("/api/auth/verify") ||
-                        path.startsWith("/api/trees") ||
-                        path.startsWith("/v3/api-docs") ||
-                        path.startsWith("/swagger-ui") ||
-                        path.startsWith("/actuator")
+            path.startsWith("/api/auth/verify") ||
+                path.startsWith("/api/trees") ||
+                path.equals("/api/notifications/stream") ||
+                path.startsWith("/v3/api-docs") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/actuator")
         )) return true;
 
         if (path.equals("/") ||
