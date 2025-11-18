@@ -215,7 +215,6 @@ export default function TreeDetails() {
                 setIsEditing(false);
                 setModalOpen(true);
             } else {
-                showToast.success("Cập nhật thông tin thành công");
                 closeEditModals();
             }
         } catch (e: any) {

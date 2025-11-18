@@ -26,6 +26,7 @@ type Props = {
 };
 
 const MAX_SIZE = 5 * 1024 * 1024;
+const email_regrex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9-]+\.[a-zA-Z.]{2,}$/;
 
 export default function MemberModal({
                                         open,
@@ -84,7 +85,17 @@ export default function MemberModal({
         return "";
     })();
 
-    const canSubmitAll = !nameError && !birthDateError && !deathDateError && !genderError;
+    const emailError = (() => {
+        if (!form.email) return "";
+        const value = form.email.trim();
+        if (!value) return "";
+        if (!email_regrex.test(value)) {
+            return "Email không đúng định dạng.";
+        }
+        return "";
+    })();
+
+    const canSubmitAll = !nameError && !birthDateError && !deathDateError && !genderError && !emailError;
 
     const handlePickFile = (file?: File) => {
         if (!file) return;
@@ -251,6 +262,11 @@ export default function MemberModal({
                                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value || undefined }))}
                                     placeholder="ten@example.com"
                                 />
+                                {submitted && emailError && (
+                                    <span id="birth-error" className="text-xs text-red-600 mt-1">
+                    {emailError}
+                  </span>
+                                )}
                             </label>
                         </div>
 
