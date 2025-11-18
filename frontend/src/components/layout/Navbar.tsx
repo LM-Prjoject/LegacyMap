@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Album, TreePine, Menu, CalendarFold, Bell } from 'lucide-react';
+import { LogOut, User, Album, TreePine, Menu, CalendarFold, Bell, MessageCircle } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
 import { notificationApi } from "@/api/notificationApi";
 import { sseService } from "@/api/sseService";
+import { useChat } from '@/contexts/ChatContext';
 
 const UNREAD_COUNT_KEY = 'navbar_unread_count';
 
@@ -35,6 +36,8 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const [unreadCount, setUnreadCount] = useState(0);
     const eventSourceRef = useRef<EventSource | null>(null);
 
+    const { openWidget } = useChat();
+
     useAutoLogout(30);
 
     const checkAuth = useCallback(() => {
@@ -44,7 +47,6 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         if (token && userStr) {
             try {
                 const userData = JSON.parse(userStr);
-                //console.log('USER LOADED:', userData);
                 setUser(userData);
                 setIsAuthenticated(true);
             } catch {
@@ -174,18 +176,15 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
     const handleSectionClick = (e: React.MouseEvent, sectionId: string) => {
         e.preventDefault();
-        setIsOpen(false); // Đóng mobile menu nếu đang mở
+        setIsOpen(false);
 
-        // Nếu đang ở HomePage
         if (location.pathname === '/') {
             const element = document.getElementById(sectionId);
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth' });
             }
         } else {
-            // Nếu ở trang khác, navigate về home với hash
             navigate('/#' + sectionId);
-            // Sau khi navigate, scroll đến section
             setTimeout(() => {
                 const element = document.getElementById(sectionId);
                 if (element) {
@@ -445,6 +444,15 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                             {unreadCount > 99 ? '99+' : unreadCount}
                                         </span>
                                     )}
+                                </button>
+
+                                {/* Messenger */}
+                                <button
+                                    onClick={openWidget}
+                                    className="relative p-2.5 rounded-full hover:bg-white/10 transition-all"
+                                    title="Tin nhắn"
+                                >
+                                    <MessageCircle className="w-6 h-6 text-white" />
                                 </button>
                             </>
                         ) : isHomePage ? (

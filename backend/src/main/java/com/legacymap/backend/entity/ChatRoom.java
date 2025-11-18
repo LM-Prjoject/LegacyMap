@@ -1,5 +1,6 @@
 package com.legacymap.backend.entity;
 
+import com.legacymap.backend.entity.ChatRoomTypeConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -31,7 +32,7 @@ public class ChatRoom {
     @Column(columnDefinition = "text")
     private String description;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ChatRoomTypeConverter.class)
     @Column(name = "room_type", nullable = false, length = 20)
     private ChatRoomType roomType;
 
