@@ -56,9 +56,12 @@ public class EventReminderService {
         List<String> methods = reminderCfg.getMethods();
         if (daysBefore == null || methods == null || methods.isEmpty()) return;
 
-        OffsetDateTime reminderTimeUtc = daysBefore == 0
-                ? OffsetDateTime.now(ZoneOffset.UTC)
-                : event.getStartDate().minusDays(daysBefore);
+        OffsetDateTime reminderTimeUtc;
+        if (daysBefore == 0) {
+            reminderTimeUtc = event.getStartDate();
+        } else {
+            reminderTimeUtc = event.getStartDate().minusDays(daysBefore);
+        }
 
         createReminderForRecipient(event, EventReminder.RecipientType.user, event.getCreatedBy().getId(), methods, reminderTimeUtc);
 
@@ -112,7 +115,10 @@ public class EventReminderService {
     public void processPendingReminders() {
         OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
 
-        List<EventReminder> pending = eventReminderRepository.findPendingReminders(nowUtc);
+        OffsetDateTime nowPlusBuffer = nowUtc.plusSeconds(30);
+        OffsetDateTime ninetySecondsAgo = nowUtc.minusSeconds(90);
+
+        List<EventReminder> pending = eventReminderRepository.findPendingReminders(nowPlusBuffer, ninetySecondsAgo);
 
         if (pending.isEmpty()) return;
 

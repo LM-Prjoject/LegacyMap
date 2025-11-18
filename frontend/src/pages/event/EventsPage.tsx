@@ -159,8 +159,12 @@ const EventsPage: React.FC = () => {
 
     const getUpcomingEvents = () => {
         const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStart = startOfDay(tomorrow);
+
         return events
-            .filter(e => parseISO(e.startDate) > now)
+            .filter(e => parseISO(e.startDate) >= tomorrowStart)
             .sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime())
             .slice(0, 5);
     };
