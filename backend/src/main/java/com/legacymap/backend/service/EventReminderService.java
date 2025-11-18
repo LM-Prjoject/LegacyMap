@@ -207,7 +207,7 @@ public class EventReminderService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new AppException(ErrorCode.EVENT_NOT_FOUND));
 
-        if (!event.getCreatedBy().getId().equals(userId) && !event.getIsPublic()) {
+        if (!event.getCreatedBy().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 

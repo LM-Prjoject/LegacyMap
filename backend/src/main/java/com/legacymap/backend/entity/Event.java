@@ -81,9 +81,6 @@ public class Event {
     @Column(name = "reminder", columnDefinition = "jsonb")
     private JsonNode reminder;
 
-    @Column(name = "is_public")
-    private Boolean isPublic = true;
-
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private EventStatus status = EventStatus.active;
