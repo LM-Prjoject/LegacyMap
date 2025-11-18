@@ -256,7 +256,7 @@ export default function PersonDetailsModal({
                             <div className="flex-1">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h1 className="text-2xl font-bold">{person.fullName}</h1>
+                                        <h1 className="text-2xl font-bold text-gray-700">{person.fullName}</h1>
                                         <p className="text-gray-600">
                                             <span className="font-bold">Giới tính: </span>
                                             {String(person.gender).toUpperCase() === "MALE"
@@ -268,7 +268,7 @@ export default function PersonDetailsModal({
                                     </div>
                                 </div>
 
-                                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <p className="text-sm font-medium text-gray-500">Ngày sinh</p>
                                         <p className="text-slate-500">{formatDate(person.birthDate)}</p>
@@ -277,21 +277,21 @@ export default function PersonDetailsModal({
                                     {person.deathDate && (
                                         <div>
                                             <p className="text-sm font-medium text-gray-500">Ngày mất</p>
-                                            <p>{formatDate(person.deathDate)}</p>
+                                            <p className="text-slate-500">{formatDate(person.deathDate)}</p>
                                         </div>
                                     )}
 
                                     {person.birthPlace && (
                                         <div>
                                             <p className="text-sm font-medium text-gray-500">Nơi sinh</p>
-                                            <p>{person.birthPlace}</p>
+                                            <p className="text-slate-500">{person.birthPlace}</p>
                                         </div>
                                     )}
 
                                     {person.deathPlace && (
                                         <div>
                                             <p className="text-sm font-medium text-gray-500">Nơi mất</p>
-                                            <p>{person.deathPlace}</p>
+                                            <p className="text-slate-500">{person.deathPlace}</p>
                                         </div>
                                     )}
 
