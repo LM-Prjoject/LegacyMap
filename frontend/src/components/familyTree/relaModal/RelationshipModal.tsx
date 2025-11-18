@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Person } from "@/api/trees";
+import {ArrowLeft} from "lucide-react"
 
 export type RelationUpper = "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
 export interface PairSuggestion {
@@ -12,6 +13,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     onCancel?: () => void;
+    onBack: ()=> void;
     source: Person;
     persons: Person[];
     fetchSuggestions: (sourceId: string) => Promise<PairSuggestion[]>;
@@ -29,6 +31,7 @@ export default function RelationshipModal({
                                               isOpen,
                                               onClose,
                                               onCancel,
+                                              onBack,
                                               source,
                                               persons,
                                               fetchSuggestions,
@@ -145,23 +148,32 @@ export default function RelationshipModal({
                     )}
                 </div>
 
-                <div className="p-4 border-t flex items-center justify-end gap-2">
-                    <button className="px-3 py-2 rounded-lg border text-black" onClick={cancel}>Hủy</button>
-                    <button
-                        className="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
-                        disabled={!canConfirm}
-                        onClick={async () => {
-                            if (!canConfirm) return;
-                            setError("");
-                            await onConfirm({
-                                relation: effectiveRelation as RelationUpper,
-                                candidateId: effectiveCandidateId,
-                            });
-                            onClose();
-                        }}
-                    >
-                        Xác nhận
-                    </button>
+                <div className="p-4 border-t flex items-center justify-between">
+                    <div>
+                        <button className="px-2 py-2 rounded-lg border text-black" onClick={onBack}>
+                            <ArrowLeft className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button className="px-3 py-2 rounded-lg border text-black" onClick={cancel}>
+                            Hủy
+                        </button>
+                        <button
+                            className="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
+                            disabled={!canConfirm}
+                            onClick={async () => {
+                                if (!canConfirm) return;
+                                setError("");
+                                await onConfirm({
+                                    relation: effectiveRelation as RelationUpper,
+                                    candidateId: effectiveCandidateId,
+                                });
+                                onClose();
+                            }}
+                        >
+                            Xác nhận
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
