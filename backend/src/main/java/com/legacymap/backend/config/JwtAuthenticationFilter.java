@@ -127,7 +127,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/auth/login") ||
                         path.equals("/api/users/register") ||
                         path.equals("/api/auth/forgot-password") ||
-                        path.equals("/api/auth/reset-password")
+                        path.equals("/api/auth/reset-password") ||
+                        path.startsWith("/api/support")
         )) return true;
 
         if ("GET".equalsIgnoreCase(method) && (
@@ -136,7 +137,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/notifications/stream") ||
                 path.startsWith("/v3/api-docs") ||
                 path.startsWith("/swagger-ui") ||
-                path.startsWith("/actuator")
+                    path.startsWith("/actuator") ||
+                    path.startsWith("/api/support")
         )) return true;
 
         if (path.equals("/") ||
