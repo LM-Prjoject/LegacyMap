@@ -32,5 +32,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
                                                   @Param("userA") UUID userA,
                                                   @Param("userB") UUID userB,
                                                   @Param("memberCount") long memberCount);
+    
+    Optional<ChatRoom> findByFamilyTreeIdAndRoomType(UUID familyTreeId, ChatRoom.ChatRoomType roomType);
 }
 

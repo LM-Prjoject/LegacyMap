@@ -1,6 +1,7 @@
 import { http } from '@/api/http';
 import type {
   AttachmentUploadResponse,
+  BranchRoomCreatePayload,
   ChatMessagePage,
   ChatRoom,
   ChatRoomCreatePayload,
@@ -20,6 +21,11 @@ export const chatApi = {
 
   async createRoom(payload: ChatRoomCreatePayload): Promise<ChatRoom> {
     const { data } = await http.post<ChatRoom>(`${BASE}/rooms`, payload);
+    return data;
+  },
+
+  async createBranchRoom(payload: BranchRoomCreatePayload): Promise<ChatRoom> {
+    const { data } = await http.post<ChatRoom>(`${BASE}/rooms/branch`, payload);
     return data;
   },
 

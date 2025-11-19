@@ -1,22 +1,32 @@
 package com.legacymap.backend.controller;
 
-import com.legacymap.backend.dto.request.EventCreateRequest;
-import com.legacymap.backend.dto.request.EventUpdateRequest;
-import com.legacymap.backend.dto.response.EventResponse;
-import com.legacymap.backend.entity.Event;
-import com.legacymap.backend.repository.UserRepository;
-import com.legacymap.backend.service.EventService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.legacymap.backend.dto.request.EventCreateRequest;
+import com.legacymap.backend.dto.request.EventUpdateRequest;
+import com.legacymap.backend.dto.response.EventResponse;
+import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.service.EventService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/events")

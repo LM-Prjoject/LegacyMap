@@ -1,14 +1,16 @@
 package com.legacymap.backend.repository;
 
-import com.legacymap.backend.entity.FamilyTree;
-import com.legacymap.backend.entity.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import com.legacymap.backend.entity.FamilyTree;
+import com.legacymap.backend.entity.User;
 
 @Repository
 public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
@@ -33,4 +35,7 @@ public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
     Optional<FamilyTree> findByIdAndCreatedBy(UUID id, User user);
 
     long count();
+    
+    @Query("SELECT COUNT(ft) > 0 FROM FamilyTree ft WHERE ft.id = :treeId AND (ft.createdBy.id = :userId OR EXISTS (SELECT p FROM Person p WHERE p.familyTree.id = :treeId AND EXISTS (SELECT pul FROM PersonUserLink pul WHERE pul.person.id = p.id AND pul.user.id = :userId)))")
+    boolean existsByIdAndUserHasAccess(@Param("treeId") UUID treeId, @Param("userId") UUID userId);
 }

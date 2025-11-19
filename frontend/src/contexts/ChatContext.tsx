@@ -3,7 +3,7 @@ import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { showToast } from '@/lib/toast';
 import { chatApi } from '@/api/chatApi';
-import type {AttachmentUploadResponse, ChatMessage, ChatMessageSendPayload, ChatRoom, ChatRoomCreatePayload, DirectRoomCreatePayload, JoinRoomPayload} from '@/types/chat';
+import type {AttachmentUploadResponse, BranchRoomCreatePayload, ChatMessage, ChatMessageSendPayload, ChatRoom, ChatRoomCreatePayload, DirectRoomCreatePayload, JoinRoomPayload} from '@/types/chat';
 
 interface ChatContextValue {
   rooms: ChatRoom[];
@@ -18,6 +18,7 @@ interface ChatContextValue {
   sendMessage: (payload: ChatMessageSendPayload) => void;
   sendAttachment: (roomId: string, file: File, caption?: string) => Promise<AttachmentUploadResponse | null>;
   createRoom: (payload: ChatRoomCreatePayload) => Promise<ChatRoom | null>;
+  createBranchRoom: (payload: BranchRoomCreatePayload) => Promise<ChatRoom | null>;
   createDirectRoom: (payload: DirectRoomCreatePayload) => Promise<ChatRoom | null>;
   joinRoom: (roomId: string, payload: JoinRoomPayload) => Promise<ChatRoom | null>;
   isWidgetOpen: boolean;
@@ -99,6 +100,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     () => Object.values(unreadByRoom).reduce((sum, val) => sum + (val || 0), 0),
     [unreadByRoom],
   );
+
+  // Broadcast chat unread count changes to other components
+  useEffect(() => {
+    const event = new CustomEvent('chatUnreadChanged', { detail: totalUnread });
+    window.dispatchEvent(event);
+  }, [totalUnread]);
 
   const resetState = useCallback(() => {
     setRooms([]);
@@ -201,6 +208,23 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     [loadOlderMessages],
   );
 
+  const bumpRoomToTop = useCallback(
+    (roomId: string, lastActivity?: string) => {
+      setRooms((prev) => {
+        const index = prev.findIndex((room) => room.id === roomId);
+        if (index === -1) {
+          return prev;
+        }
+        const room = prev[index];
+        const updatedRoom =
+          lastActivity && room.updatedAt !== lastActivity ? { ...room, updatedAt: lastActivity } : room;
+        const remaining = [...prev.slice(0, index), ...prev.slice(index + 1)];
+        return [updatedRoom, ...remaining];
+      });
+    },
+    [],
+  );
+
   const subscribeRoom = useCallback(
     (roomId: string) => {
       if (!clientRef.current || !isConnected || subscriptionsRef.current[roomId]) {
@@ -209,6 +233,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       const subscription = clientRef.current.subscribe(`/topic/chat/${roomId}`, (frame: IMessage) => {
         try {
           const payload = JSON.parse(frame.body) as ChatMessage;
+          bumpRoomToTop(roomId, payload.createdAt);
           setMessagesByRoom((prev) => {
             const existing = prev[roomId] ?? [];
             const alreadyExists = existing.some((msg) => msg.id === payload.id);
@@ -241,7 +266,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       });
       subscriptionsRef.current[roomId] = subscription;
     },
-    [isConnected, markAsRead],
+    [bumpRoomToTop, isConnected, markAsRead],
   );
 
   const connectWebsocket = useCallback(() => {
@@ -401,15 +426,20 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     setIsLoadingRooms(true);
     try {
       const data = await chatApi.getMyRooms();
-      setRooms(data);
+      const sorted = [...data].sort((a, b) => {
+        const timeA = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+        const timeB = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+        return timeB - timeA;
+      });
+      setRooms(sorted);
       setRoomMessageState((prev) => {
         const updated = { ...prev };
-        for (const room of data) {
+        for (const room of sorted) {
           updated[room.id] = updated[room.id] ?? { isLoading: false, hasMore: true, page: 0, initialized: false };
         }
         return updated;
       });
-      setSelectedRoomId((prev) => prev ?? (data.length ? data[0].id : null));
+      setSelectedRoomId((prev) => prev ?? (sorted.length ? sorted[0].id : null));
       roomsLoadedRef.current = true;
     } catch (err) {
       console.error('Failed to load chat rooms', err);
@@ -453,12 +483,13 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             Authorization: `Bearer ${authToken}`,
           },
         });
+        bumpRoomToTop(payload.roomId);
       } catch (err) {
         console.error('Failed to send chat message', err);
         showToast.error('Gửi tin nhắn thất bại');
       }
     },
-    [authToken, isConnected],
+    [authToken, bumpRoomToTop, isConnected],
   );
 
   const sendAttachment = useCallback(
@@ -479,7 +510,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     async (payload: ChatRoomCreatePayload) => {
       try {
         const room = await chatApi.createRoom(payload);
-        setRooms((prev) => [...prev, room]);
+        setRooms((prev) => [room, ...prev.filter((existing) => existing.id !== room.id)]);
         subscribeRoom(room.id);
         showToast.success('Đã tạo phòng chat');
         return room;
@@ -492,16 +523,33 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     [subscribeRoom],
   );
 
+  const createBranchRoom = useCallback(
+    async (payload: BranchRoomCreatePayload) => {
+      try {
+        const room = await chatApi.createBranchRoom(payload);
+        setRooms((prev) => {
+          const filtered = prev.filter((r) => r.id !== room.id);
+          return [room, ...filtered];
+        });
+        subscribeRoom(room.id);
+        showToast.success('Đã tạo phòng nhánh');
+        return room;
+      } catch (err) {
+        console.error('Create branch room failed', err);
+        showToast.error('Không tạo được phòng nhánh');
+        return null;
+      }
+    },
+    [subscribeRoom],
+  );
+
   const createDirectRoom = useCallback(
     async (payload: DirectRoomCreatePayload) => {
       try {
         const room = await chatApi.createDirectRoom(payload);
         setRooms((prev) => {
-          const exists = prev.find((r) => r.id === room.id);
-          if (exists) {
-            return prev;
-          }
-          return [...prev, room];
+          const filtered = prev.filter((r) => r.id !== room.id);
+          return [room, ...filtered];
         });
         subscribeRoom(room.id);
         showToast.success('Đã mở chat riêng');
@@ -521,7 +569,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         const room = await chatApi.joinRoom(roomId, payload);
         setRooms((prev) => {
           const next = prev.filter((r) => r.id !== room.id);
-          return [...next, room];
+          return [room, ...next];
         });
         subscribeRoom(room.id);
         showToast.success('Đã tham gia phòng');
@@ -669,6 +717,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         sendMessage,
         sendAttachment,
         createRoom,
+        createBranchRoom,
         createDirectRoom,
         joinRoom,
         isWidgetOpen,
@@ -694,6 +743,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         sendMessage,
         sendAttachment,
         createRoom,
+        createBranchRoom,
         createDirectRoom,
         joinRoom,
         isWidgetOpen,

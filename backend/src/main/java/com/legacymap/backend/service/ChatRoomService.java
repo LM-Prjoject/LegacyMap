@@ -1,20 +1,44 @@
 package com.legacymap.backend.service;
 
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.legacymap.backend.dto.request.BranchRoomCreateRequest;
 import com.legacymap.backend.dto.request.ChatRoomCreateRequest;
 import com.legacymap.backend.dto.request.DirectRoomCreateRequest;
 import com.legacymap.backend.dto.request.JoinRoomRequest;
 import com.legacymap.backend.dto.response.ChatRoomMemberResponse;
 import com.legacymap.backend.dto.response.ChatRoomResponse;
-import com.legacymap.backend.entity.*;
+import com.legacymap.backend.entity.ChatRoom;
+import com.legacymap.backend.entity.ChatRoomBranch;
+import com.legacymap.backend.entity.ChatRoomBranchId;
+import com.legacymap.backend.entity.ChatRoomMember;
+import com.legacymap.backend.entity.ChatRoomMemberId;
+import com.legacymap.backend.entity.FamilyTree;
+import com.legacymap.backend.entity.Person;
+import com.legacymap.backend.entity.Relationship;
+import com.legacymap.backend.entity.User;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
-import com.legacymap.backend.repository.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.legacymap.backend.repository.ChatRoomBranchRepository;
+import com.legacymap.backend.repository.ChatRoomMemberRepository;
+import com.legacymap.backend.repository.ChatRoomRepository;
+import com.legacymap.backend.repository.FamilyTreeRepository;
+import com.legacymap.backend.repository.PersonRepository;
+import com.legacymap.backend.repository.PersonUserLinkRepository;
+import com.legacymap.backend.repository.RelationshipRepository;
+import com.legacymap.backend.repository.UserRepository;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +50,8 @@ public class ChatRoomService {
     private final UserRepository userRepository;
     private final FamilyTreeRepository familyTreeRepository;
     private final PersonRepository personRepository;
+    private final PersonUserLinkRepository personUserLinkRepository;
+    private final RelationshipRepository relationshipRepository;
 
     @Transactional
     public ChatRoomResponse createRoom(UUID creatorId, ChatRoomCreateRequest request) {
@@ -72,6 +98,144 @@ public class ChatRoomService {
         }
 
         return toResponse(savedRoom);
+    }
+
+    @Transactional
+    public ChatRoomResponse createBranchRoom(UUID creatorId, BranchRoomCreateRequest request) {
+        // 1. Validate creator and request
+        User creator = getUserOrThrow(creatorId);
+        Person branchPerson = personRepository.findById(request.getBranchPersonId())
+                .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
+        
+        FamilyTree familyTree = branchPerson.getFamilyTree();
+        
+        // 2. Check if user has access to the family tree
+        if (!familyTreeRepository.existsByIdAndUserHasAccess(familyTree.getId(), creatorId)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
+        }
+        
+        // 3. Check if branch room already exists
+        chatRoomBranchRepository.findByBranchPersonId(branchPerson.getId())
+                .ifPresent(room -> {
+                    throw new AppException(ErrorCode.RESOURCE_ALREADY_EXISTS, "Branch room already exists");
+                });
+        
+        // 4. Fetch all relationships and person_user_links for the tree
+        List<Relationship> allRelationships = relationshipRepository.findAllByFamilyTree_Id(familyTree.getId());
+        
+        // 5. Build graph in memory
+        GraphData graphData = buildGraph(allRelationships);
+        
+        // 6. Traverse using BFS to find all descendants
+        Set<UUID> descendantPersonIds = findDescendantsWithGraph(branchPerson.getId(), graphData);
+        
+        // 7. Map person IDs to user IDs (only verified links)
+        Set<UUID> userIds = personUserLinkRepository.findUserIdsByPersonIds(descendantPersonIds);
+        
+        // 8. Create the chat room
+        ChatRoom room = ChatRoom.builder()
+                .name(request.getName() != null ? request.getName() : "Nhánh " + branchPerson.getFullName())
+                .description(request.getDescription())
+                .roomType(ChatRoom.ChatRoomType.branch)
+                .familyTree(familyTree)
+                .createdBy(creator)
+                .build();
+        
+        ChatRoom savedRoom = chatRoomRepository.save(room);
+        
+        // 9. Add branch person to chat_room_branches
+        ChatRoomBranch branch = ChatRoomBranch.builder()
+                .id(new ChatRoomBranchId(savedRoom.getId(), branchPerson.getId()))
+                .room(savedRoom)
+                .branchPerson(branchPerson)
+                .createdBy(creator)
+                .build();
+        chatRoomBranchRepository.save(branch);
+        
+        // 10. Add all users to the room
+        addMembersToRoom(savedRoom, userIds, creatorId);
+        
+        // 11. Add creator as admin if not already a member
+        if (!userIds.contains(creatorId)) {
+            addMember(savedRoom, creator, null, ChatRoomMember.ChatMemberRole.admin);
+        }
+        
+        return mapToChatRoomResponse(savedRoom, creatorId);
+    }
+    
+    /**
+     * Build graph structure from relationships
+     * - parentToChildren: Map parent ID -> List of child IDs
+     * - personToSpouses: Map person ID -> List of spouse IDs
+     */
+    private GraphData buildGraph(List<Relationship> relationships) {
+        java.util.Map<UUID, List<UUID>> parentToChildren = new java.util.HashMap<>();
+        java.util.Map<UUID, List<UUID>> personToSpouses = new java.util.HashMap<>();
+        
+        for (Relationship rel : relationships) {
+            UUID p1Id = rel.getPerson1().getId();
+            UUID p2Id = rel.getPerson2().getId();
+            String type = rel.getRelationshipType();
+            
+            if ("parent".equals(type)) {
+                // person1 is parent of person2
+                parentToChildren.computeIfAbsent(p1Id, k -> new java.util.ArrayList<>()).add(p2Id);
+            } else if ("spouse".equals(type)) {
+                // Bidirectional relationship
+                personToSpouses.computeIfAbsent(p1Id, k -> new java.util.ArrayList<>()).add(p2Id);
+                personToSpouses.computeIfAbsent(p2Id, k -> new java.util.ArrayList<>()).add(p1Id);
+            }
+        }
+        
+        return new GraphData(parentToChildren, personToSpouses);
+    }
+    
+    /**
+     * Find all descendants using BFS starting from root person
+     * Includes spouses of descendants
+     */
+    private Set<UUID> findDescendantsWithGraph(UUID rootPersonId, GraphData graphData) {
+        Set<UUID> result = new HashSet<>();
+        Queue<UUID> queue = new LinkedList<>();
+        queue.add(rootPersonId);
+        result.add(rootPersonId);
+        
+        while (!queue.isEmpty()) {
+            UUID currentId = queue.poll();
+            
+            // Add children
+            List<UUID> children = graphData.parentToChildren.getOrDefault(currentId, java.util.Collections.emptyList());
+            for (UUID childId : children) {
+                if (!result.contains(childId)) {
+                    result.add(childId);
+                    queue.add(childId);
+                    
+                    // Add spouse of child
+                    List<UUID> spouses = graphData.personToSpouses.getOrDefault(childId, java.util.Collections.emptyList());
+                    for (UUID spouseId : spouses) {
+                        if (!result.contains(spouseId)) {
+                            result.add(spouseId);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Helper class to hold graph data
+     */
+    private static class GraphData {
+        final java.util.Map<UUID, List<UUID>> parentToChildren;
+        final java.util.Map<UUID, List<UUID>> personToSpouses;
+        
+        GraphData(java.util.Map<UUID, List<UUID>> parentToChildren, 
+                  java.util.Map<UUID, List<UUID>> personToSpouses) {
+            this.parentToChildren = parentToChildren;
+            this.personToSpouses = personToSpouses;
+        }
     }
 
     @Transactional
@@ -213,6 +377,20 @@ public class ChatRoomService {
                 .updatedAt(room.getUpdatedAt())
                 .members(members)
                 .build();
+    }
+    
+    private void addMembersToRoom(ChatRoom room, Set<UUID> userIds, UUID creatorId) {
+        for (UUID userId : userIds) {
+            if (userId.equals(creatorId)) {
+                continue; // Creator will be added separately if needed
+            }
+            User user = getUserOrThrow(userId);
+            addMember(room, user, null, ChatRoomMember.ChatMemberRole.member);
+        }
+    }
+    
+    private ChatRoomResponse mapToChatRoomResponse(ChatRoom room, UUID userId) {
+        return toResponse(room);
     }
 }
 

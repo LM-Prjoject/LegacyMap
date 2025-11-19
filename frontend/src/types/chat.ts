@@ -75,9 +75,13 @@ export interface ChatRoomCreatePayload {
   name: string;
   description?: string;
   familyTreeId?: string | null;
-  branchPersonId?: string | null;
-  branchPersonIds?: string[];
   memberUserIds?: string[];
+}
+
+export interface BranchRoomCreatePayload {
+  branchPersonId: string;
+  name: string;
+  description?: string;
 }
 
 export interface DirectRoomCreatePayload {
