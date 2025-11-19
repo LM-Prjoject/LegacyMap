@@ -9,10 +9,12 @@ import { EventProvider } from '@/contexts/EventContext'
 import { ChatProvider } from '@/contexts/ChatContext'
 import ChatWidget from '@/components/chat/ChatWidget'
 import { useUserActivity } from './hooks/useUserActivity'  
+import LegacyChatWidget from '@/pages/chatbot/LegacyChatWidget.tsx'
 
 function AppWithHeartbeat() {
     useUserActivity(); 
     return (
+        
         <EventProvider>
             <ChatProvider>
                 <RouterProvider router={router} />
@@ -30,7 +32,9 @@ function AppWithHeartbeat() {
                     }}
                 />
             </ChatProvider>
+                  <LegacyChatWidget />
         </EventProvider>
+        
     );
 }
 
