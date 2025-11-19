@@ -1,20 +1,29 @@
 package com.legacymap.backend.controller;
 
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.legacymap.backend.dto.request.BranchRoomCreateRequest;
 import com.legacymap.backend.dto.request.ChatRoomCreateRequest;
 import com.legacymap.backend.dto.request.DirectRoomCreateRequest;
 import com.legacymap.backend.dto.request.JoinRoomRequest;
 import com.legacymap.backend.dto.response.ChatRoomResponse;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.ChatRoomService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/chat/rooms")
@@ -38,6 +47,13 @@ public class ChatRoomController {
     public ResponseEntity<ChatRoomResponse> joinRoom(@PathVariable UUID roomId,
                                                      @Valid @RequestBody JoinRoomRequest request) {
         return ResponseEntity.ok(chatRoomService.joinRoom(getCurrentUserId(), roomId, request));
+    }
+
+    @PostMapping("/branch")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ChatRoomResponse> createBranchRoom(@Valid @RequestBody BranchRoomCreateRequest request) {
+        UUID userId = getCurrentUserId();
+        return ResponseEntity.ok(chatRoomService.createBranchRoom(userId, request));
     }
 
     @GetMapping

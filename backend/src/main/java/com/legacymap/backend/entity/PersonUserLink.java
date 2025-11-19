@@ -30,7 +30,7 @@ public class PersonUserLink {
     @Column(name = "link_type", length = 20, nullable = false)
     private LinkType linkType = LinkType.self;
 
-    @Column(nullable = false)
+    @Column(name = "verified", nullable = false)
     private boolean verified = false;
 
     @Column(name = "linked_at")

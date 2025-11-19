@@ -4,15 +4,20 @@ import com.legacymap.backend.dto.request.FamilyTreeCreateRequest;
 import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
 import com.legacymap.backend.dto.request.PersonUpdateRequest;
+import com.legacymap.backend.entity.ChatRoom;
+import com.legacymap.backend.entity.ChatRoomMember;
+import com.legacymap.backend.entity.ChatRoomMemberId;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.entity.User;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
+import com.legacymap.backend.repository.ChatRoomMemberRepository;
+import com.legacymap.backend.repository.ChatRoomRepository;
 import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,16 +25,14 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class FamilyTreeService {
 
-    @Autowired
-    private FamilyTreeRepository familyTreeRepository;
-
-    @Autowired
-    private PersonRepository personRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    private final FamilyTreeRepository familyTreeRepository;
+    private final PersonRepository personRepository;
+    private final UserRepository userRepository;
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     private User loadUserOrThrow(UUID userId) {
         return userRepository.findById(userId)
@@ -46,7 +49,34 @@ public class FamilyTreeService {
                 .coverImageUrl(req.getCoverImageUrl())
                 .createdBy(creator)
                 .build();
-        return familyTreeRepository.save(tree);
+        FamilyTree savedTree = familyTreeRepository.save(tree);
+        
+        // Tự động tạo Family Room khi tạo cây mới
+        createFamilyRoomForTree(savedTree, creator);
+        
+        return savedTree;
+    }
+    
+    private void createFamilyRoomForTree(FamilyTree tree, User creator) {
+        ChatRoom familyRoom = ChatRoom.builder()
+                .familyTree(tree)
+                .name("Phòng chat gia đình: " + tree.getName())
+                .description("Phòng chat chung cho toàn bộ thành viên trong cây gia phả")
+                .roomType(ChatRoom.ChatRoomType.family)
+                .createdBy(creator)
+                .active(true)
+                .build();
+        ChatRoom savedRoom = chatRoomRepository.save(familyRoom);
+        
+        // Thêm creator làm admin
+        ChatRoomMember creatorMember = ChatRoomMember.builder()
+                .id(new ChatRoomMemberId(savedRoom.getId(), creator.getId()))
+                .room(savedRoom)
+                .user(creator)
+                .person(null)
+                .role(ChatRoomMember.ChatMemberRole.admin)
+                .build();
+        chatRoomMemberRepository.save(creatorMember);
     }
 
     private FamilyTree findOwnedTreeOrThrow(UUID treeId, UUID userId) {

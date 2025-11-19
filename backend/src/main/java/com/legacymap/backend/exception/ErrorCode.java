@@ -48,7 +48,12 @@ public enum ErrorCode {
     INVALID_INPUT_DATA("Invalid input data", 1112),
 
     // Notification related
-    NOTIFICATION_NOT_FOUND("Notification not found", 1113);
+    NOTIFICATION_NOT_FOUND("Notification not found", 1113),
+
+    // Resource related
+    RESOURCE_ALREADY_EXISTS("Tài nguyên đã tồn tại", 1114),
+    RESOURCE_NOT_FOUND("Không tìm thấy tài nguyên", 1115),
+    ACCESS_DENIED("Không có quyền truy cập", 1116);
 
     private final int code;
     private final String message;

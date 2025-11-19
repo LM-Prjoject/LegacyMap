@@ -20,7 +20,7 @@ interface CreateRoomFormState {
   name: string;
   description: string;
   familyTreeId: string;
-  branchPersonIds: string[];
+  branchPersonId: string;
 }
 
 const defaultCreateState: CreateRoomFormState = {
@@ -28,7 +28,7 @@ const defaultCreateState: CreateRoomFormState = {
   name: '',
   description: '',
   familyTreeId: '',
-  branchPersonIds: [],
+  branchPersonId: '',
 };
 
 export const ChatWidget = () => {
@@ -45,6 +45,7 @@ export const ChatWidget = () => {
     sendAttachment,
     unreadByRoom,
     createRoom,
+    createBranchRoom,
     joinRoom,
     createDirectRoom,
     widgetSignal,
@@ -78,11 +79,13 @@ export const ChatWidget = () => {
   const [sending, setSending] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showAllFilters, setShowAllFilters] = useState(false);
+  const [showMembersList, setShowMembersList] = useState(false);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const createMemberSearchTimer = useRef<NodeJS.Timeout | null>(null);
   const directSearchTimer = useRef<NodeJS.Timeout | null>(null);
+  const membersListRef = useRef<HTMLDivElement>(null);
 
   const currentMessages = useMemo(
     () => (currentRoom ? messagesByRoom[currentRoom.id] ?? [] : []),
@@ -138,8 +141,19 @@ export const ChatWidget = () => {
     return rooms
       .filter((room) => filter === 'all' || room.roomType === filter)
       .filter((room) => (keyword ? room.name.toLowerCase().includes(keyword) : true))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [rooms, filter, search]);
+      .sort((a, b) => {
+        const unreadA = unreadByRoom[a.id] || 0;
+        const unreadB = unreadByRoom[b.id] || 0;
+        if (unreadA > 0 && unreadB === 0) return -1;
+        if (unreadB > 0 && unreadA === 0) return 1;
+        const timeA = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+        const timeB = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+        if (timeA !== timeB) {
+          return timeB - timeA;
+        }
+        return a.name.localeCompare(b.name);
+      });
+  }, [filter, rooms, search, unreadByRoom]);
 
   useEffect(() => {
     if (!isWidgetOpen) return;
@@ -164,6 +178,23 @@ export const ChatWidget = () => {
     setViewMode('list');
     setIsCollapsed(false);
   }, [isWidgetOpen, widgetSignal]);
+
+  useEffect(() => {
+    setShowMembersList(false);
+  }, [currentRoom?.id, isWidgetOpen]);
+
+  useEffect(() => {
+    if (!showMembersList) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (membersListRef.current && !membersListRef.current.contains(event.target as Node)) {
+        setShowMembersList(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMembersList]);
 
   useEffect(() => {
     if (!isWidgetOpen || !currentRoom) return;
@@ -361,22 +392,46 @@ export const ChatWidget = () => {
   );
 
   const handleCreateRoom = async () => {
-    if (!createState.name.trim()) {
+    const trimmedName = createState.name.trim();
+    const trimmedDescription = createState.description.trim();
+    if (!trimmedName) {
       showToast.warning('Vui lòng nhập tên phòng');
       return;
     }
-    if ((createState.roomType === 'family' || createState.roomType === 'branch') && !createState.familyTreeId) {
+    if (createState.roomType === 'branch') {
+      if (!createState.familyTreeId) {
+        showToast.warning('Chọn cây gia phả cho phòng nhánh');
+        return;
+      }
+      if (!createState.branchPersonId) {
+        showToast.warning('Chọn thành viên đại diện cho nhánh');
+        return;
+      }
+      const room = await createBranchRoom({
+        branchPersonId: createState.branchPersonId,
+        name: trimmedName,
+        description: trimmedDescription || undefined,
+      });
+      if (room) {
+        selectRoom(room.id);
+        setShowCreate(false);
+        setCreateState(defaultCreateState);
+        setCreateMemberSelections([]);
+        setCreateMemberSearch('');
+        setCreateMemberResults([]);
+      }
+      return;
+    }
+    if (createState.roomType !== 'private_chat' && !createState.familyTreeId) {
       showToast.warning('Chọn cây gia phả cho phòng này');
       return;
     }
     const memberIds = createMemberSelections.map((member) => member.id);
     const payload = {
       roomType: createState.roomType,
-      name: createState.name.trim(),
-      description: createState.description.trim() || undefined,
-      familyTreeId:
-        createState.roomType === 'private_chat' ? undefined : createState.familyTreeId || undefined,
-      branchPersonIds: createState.roomType === 'branch' ? createState.branchPersonIds : undefined,
+      name: trimmedName,
+      description: trimmedDescription || undefined,
+      familyTreeId: createState.roomType === 'private_chat' ? undefined : createState.familyTreeId || undefined,
       memberUserIds: memberIds.length ? memberIds : undefined,
     };
     const room = await createRoom(payload);
@@ -588,7 +643,13 @@ export const ChatWidget = () => {
               <button
                 key={room.id}
                 onClick={() => handleRoomClick(room.id)}
-                className="w-full text-left px-4 py-3 hover:bg-white/5 transition"
+                className={`w-full text-left px-4 py-3 transition ${
+                  room.id === currentRoom?.id
+                    ? 'bg-white/10'
+                    : unreadByRoom[room.id]
+                        ? 'bg-white/5 border-l-2 border-amber-300'
+                        : 'hover:bg-white/5'
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <p className="font-semibold truncate">{room.name}</p>
@@ -613,9 +674,11 @@ export const ChatWidget = () => {
     </div>
   );
 
-  const renderChatView = () => (
+  const renderChatView = () => {
+    const memberCount = currentRoom?.members?.length ?? 0;
+    return (
     <div className="fixed bottom-4 right-4 z-[1300] w-full max-w-sm">
-      <div className="bg-slate-900/95 text-white rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+      <div className="bg-slate-900/95 text-white rounded-2xl shadow-2xl border border-white/10 overflow-hidden relative">
         <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
           <div className="flex items-center gap-2">
             <button
@@ -627,9 +690,14 @@ export const ChatWidget = () => {
             </button>
             <div>
               <p className="font-semibold text-sm">{currentRoom?.name || 'Tin nhắn'}</p>
-              <p className="text-xs text-white/70">
-                Loại: {currentRoom ? ROOM_TYPE_LABEL_MAP[currentRoom.roomType] : '---'}
-              </p>
+              {currentRoom && (
+                <button
+                  onClick={() => setShowMembersList((prev) => !prev)}
+                  className="text-xs text-emerald-200 hover:text-white transition underline-offset-2 hover:underline flex items-center gap-1"
+                >
+                  {memberCount} thành viên
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -649,6 +717,43 @@ export const ChatWidget = () => {
             </button>
           </div>
         </header>
+        {showMembersList && currentRoom && (
+          <div
+            ref={membersListRef}
+            className="absolute right-4 top-16 w-72 bg-slate-950/95 border border-white/10 rounded-2xl shadow-2xl z-50"
+          >
+            <div className="px-4 py-3 border-b border-white/10">
+              <p className="text-sm font-semibold">Thành viên ({memberCount})</p>
+            </div>
+            <div className="max-h-64 overflow-y-auto divide-y divide-white/5">
+              {currentRoom.members.map((member) => (
+                <div key={member.userId} className="px-4 py-2 text-sm flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{member.username}</p>
+                    {member.personId && (
+                      <p className="text-[11px] text-white/60">Đã liên kết với một thành viên trong cây</p>
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded ${
+                      member.role === 'admin'
+                        ? 'bg-amber-500/20 text-amber-200'
+                        : member.role === 'moderator'
+                            ? 'bg-sky-500/20 text-sky-200'
+                            : 'bg-white/10 text-white/70'
+                    }`}
+                  >
+                    {member.role === 'admin'
+                      ? 'Admin'
+                      : member.role === 'moderator'
+                          ? 'Điều phối'
+                          : 'Thành viên'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {currentRoom ? (
           <>
             <div className="h-[360px] overflow-y-auto px-4 py-3 space-y-3">
@@ -750,6 +855,7 @@ export const ChatWidget = () => {
       </div>
     </div>
   );
+  };
 
   const renderActivePanel = () => {
     if (isCollapsed) return renderCollapsedDock();
@@ -779,6 +885,8 @@ export const ChatWidget = () => {
                     setCreateState((prev) => ({
                       ...prev,
                       roomType: nextType,
+                      branchPersonId: nextType === 'branch' ? prev.branchPersonId : '',
+                      familyTreeId: nextType === 'private_chat' ? '' : prev.familyTreeId,
                     }));
                     if (nextType !== 'private_chat') {
                       await ensureTreesLoaded();
@@ -815,7 +923,11 @@ export const ChatWidget = () => {
                     value={createState.familyTreeId}
                     onChange={async (e) => {
                       const treeId = e.target.value;
-                      setCreateState((prev) => ({ ...prev, familyTreeId: treeId }));
+                      setCreateState((prev) => ({
+                        ...prev,
+                        familyTreeId: treeId,
+                        branchPersonId: treeId ? '' : prev.branchPersonId,
+                      }));
                       await loadTreeMembers(treeId);
                     }}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm"
@@ -831,25 +943,31 @@ export const ChatWidget = () => {
               )}
               {createState.roomType === 'branch' && createState.familyTreeId && (
                 <label className="text-sm space-y-1 block">
-                  <span>Chọn nhánh (thành viên đại diện)</span>
+                  <span>Chọn thành viên đại diện cho nhánh</span>
                   <select
-                    multiple
-                    value={createState.branchPersonIds}
-                    onChange={(e) => {
-                      const options = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-                      setCreateState((prev) => ({ ...prev, branchPersonIds: options }));
-                    }}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm h-32"
+                    value={createState.branchPersonId}
+                    onChange={(e) =>
+                      setCreateState((prev) => ({
+                        ...prev,
+                        branchPersonId: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm"
                   >
+                    <option value="">-- Chọn --</option>
                     {(treeMembers[createState.familyTreeId] ?? []).map((person) => (
                       <option key={person.id} value={person.id}>
                         {person.fullName}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-emerald-200/80">
+                    Thành viên sẽ được tự động thêm theo nhánh này (bao gồm hậu duệ và vợ/chồng đã liên kết tài khoản).
+                  </p>
                 </label>
               )}
-              <div className="text-sm space-y-2">
+              {createState.roomType !== 'branch' && (
+                <div className="text-sm space-y-2">
                 <div className="space-y-1">
                   <span className="block">Thêm thành viên (tìm bằng email / số điện thoại / tên)</span>
                   <input
@@ -895,6 +1013,7 @@ export const ChatWidget = () => {
                   </div>
                 )}
               </div>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-xl bg-white/10 text-sm">
