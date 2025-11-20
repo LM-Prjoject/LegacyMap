@@ -1,15 +1,16 @@
 package com.legacymap.backend.repository;
 
-import com.legacymap.backend.entity.PersonUserLink;
-import com.legacymap.backend.entity.PersonUserLinkId;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.legacymap.backend.entity.PersonUserLink;
+import com.legacymap.backend.entity.PersonUserLinkId;
 
 public interface PersonUserLinkRepository extends JpaRepository<PersonUserLink, PersonUserLinkId> {
     Optional<PersonUserLink> findByPersonIdAndLinkType(UUID personId, PersonUserLink.LinkType linkType);
@@ -41,8 +42,9 @@ public interface PersonUserLinkRepository extends JpaRepository<PersonUserLink, 
     Set<UUID> findUserIdsByPersonIds(@Param("personIds") Set<UUID> personIds);
 
     @Query("SELECT pul FROM PersonUserLink pul " +
-       "JOIN FETCH pul.person p " +
-       "WHERE p.familyTree.id = :familyTreeId " +
-       "AND pul.verified = true")
-List<PersonUserLink> findByPerson_FamilyTree_IdAndVerifiedIsTrue(@Param("familyTreeId") UUID familyTreeId);
+            "JOIN FETCH pul.person p " +
+            "JOIN FETCH pul.user u " +
+            "WHERE p.familyTree.id = :familyTreeId " +
+            "AND pul.status = com.legacymap.backend.entity.PersonUserLink.Status.approved")
+    List<PersonUserLink> findApprovedLinksByFamilyTreeId(@Param("familyTreeId") UUID familyTreeId);
 }

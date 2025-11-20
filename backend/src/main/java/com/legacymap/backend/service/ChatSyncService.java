@@ -90,7 +90,7 @@ public class ChatSyncService {
             .ifPresent(familyRoom -> {
                 // Lấy tất cả người dùng đã xác minh trong cây gia phả
                 List<PersonUserLink> verifiedLinks = personUserLinkRepository
-                    .findByPerson_FamilyTree_IdAndVerifiedIsTrue(familyTreeId);
+                    .findApprovedLinksByFamilyTreeId(familyTreeId);
                 
                 for (PersonUserLink link : verifiedLinks) {
                     if (!chatRoomMemberRepository.existsByRoomIdAndUserId(familyRoom.getId(), link.getUser().getId())) {

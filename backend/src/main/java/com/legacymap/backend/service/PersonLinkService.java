@@ -1,5 +1,15 @@
 package com.legacymap.backend.service;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.legacymap.backend.dto.request.PersonLinkInviteRequest;
 import com.legacymap.backend.dto.response.PersonClaimResponse;
 import com.legacymap.backend.entity.Person;
@@ -10,17 +20,9 @@ import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.PersonUserLinkRepository;
 import com.legacymap.backend.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -32,6 +34,7 @@ public class PersonLinkService {
     private final PersonUserLinkRepository personUserLinkRepository;
     private final NotificationService notificationService;
     private final EmailService emailService;
+    private final ChatSyncService chatSyncService;
 
     private Person loadPersonOrThrow(UUID personId) {
         return personRepository.findById(personId)
@@ -158,6 +161,9 @@ public class PersonLinkService {
         link.setStatus(PersonUserLink.Status.approved);
         link.setVerifiedAt(OffsetDateTime.now(ZoneOffset.UTC));
         personUserLinkRepository.save(link);
+
+        chatSyncService.syncUserToRooms(currentUserId, person.getId());
+        chatSyncService.syncAllMembersToFamilyRoom(person.getFamilyTree().getId());
 
         // Thông báo cho chủ cây
         UUID ownerId = person.getFamilyTree().getCreatedBy().getId();
