@@ -78,7 +78,7 @@ public class PersonLinkService {
             User target = targetUserOpt.get();
 
             // Ràng buộc: chỉ 1 self verified mỗi person
-            if (personUserLinkRepository.existsByPerson_IdAndLinkTypeAndVerifiedIsTrue(person.getId(), PersonUserLink.LinkType.self))
+            if (personUserLinkRepository.existsByPerson_IdAndLinkTypeAndStatus(person.getId(), PersonUserLink.LinkType.self, PersonUserLink.Status.approved))
                 throw new AppException(ErrorCode.VALIDATION_FAILED);
 
             // Upsert link pending
@@ -89,12 +89,12 @@ public class PersonLinkService {
                             .person(person)
                             .user(target)
                             .linkType(PersonUserLink.LinkType.self)
-                            .verified(false)
+                            .status(PersonUserLink.Status.pending)
                             .linkedAt(OffsetDateTime.now(ZoneOffset.UTC))
                             .build());
 
             link.setLinkType(PersonUserLink.LinkType.self);
-            link.setVerified(false);
+            link.setStatus(PersonUserLink.Status.pending);
             link.setVerifiedAt(null);
             personUserLinkRepository.save(link);
 
@@ -131,7 +131,7 @@ public class PersonLinkService {
         Person person = loadPersonOrThrow(personId);
 
         // Ràng buộc self duy nhất đã xác thực
-        if (personUserLinkRepository.existsByPerson_IdAndLinkTypeAndVerifiedIsTrue(person.getId(), PersonUserLink.LinkType.self))
+        if (personUserLinkRepository.existsByPerson_IdAndLinkTypeAndStatus(person.getId(), PersonUserLink.LinkType.self, PersonUserLink.Status.approved))
             throw new AppException(ErrorCode.VALIDATION_FAILED);
 
         // Nếu đã có pending link cho user này → xác nhận
@@ -155,7 +155,7 @@ public class PersonLinkService {
         });
 
         link.setLinkType(PersonUserLink.LinkType.self);
-        link.setVerified(true);
+        link.setStatus(PersonUserLink.Status.approved);
         link.setVerifiedAt(OffsetDateTime.now(ZoneOffset.UTC));
         personUserLinkRepository.save(link);
 
@@ -181,7 +181,7 @@ public class PersonLinkService {
     @Transactional(readOnly = true)
     public List<PersonClaimResponse> listPendingClaims(UUID userId) {
         User user = loadUserOrThrow(userId);
-        return personUserLinkRepository.findByUser_IdAndVerifiedIsFalse(user.getId())
+        return personUserLinkRepository.findByUser_IdAndStatus(user.getId(), PersonUserLink.Status.pending)
                 .stream()
                 .map(link -> PersonClaimResponse.builder()
                         .personId(link.getPerson().getId())
@@ -196,8 +196,8 @@ public class PersonLinkService {
     @Transactional(readOnly = true)
     public boolean isSelfVerified(UUID personId) {
         Person person = loadPersonOrThrow(personId);
-        return personUserLinkRepository.existsByPerson_IdAndLinkTypeAndVerifiedIsTrue(
-                person.getId(), PersonUserLink.LinkType.self
+        return personUserLinkRepository.existsByPerson_IdAndLinkTypeAndStatus(
+                person.getId(), PersonUserLink.LinkType.self, PersonUserLink.Status.approved
         );
     }
 
