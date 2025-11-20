@@ -297,15 +297,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                             <>
                                                 <p className="font-semibold text-white text-m">{getEventTypeLabel(event.eventType)}</p>
                                                 {event.reminder && <p className="text-sm text-white/70 mt-1">Nhắc nhở {event.reminder.daysBefore} ngày trước</p>}
-                                                <div className="flex gap-2 mt-3">
-                                                    <span className={`px-4 py-2 rounded-xl text-xs font-bold shadow-lg ${
-                                                        event.isPublic
-                                                            ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white'
-                                                            : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white'
-                                                    }`}>
-                                                        {event.isPublic ? 'Công khai' : 'Riêng tư'}
-                                                    </span>
-                                                </div>
+                                                {/* Privacy display removed: per-event public/private removed */}
                                             </>
                                         )}
                                     </div>

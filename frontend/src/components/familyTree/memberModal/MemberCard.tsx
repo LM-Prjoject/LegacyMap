@@ -5,9 +5,17 @@ import avt from "@/assets/avt.jpg";
 const uniqueClipId = (base?: string) =>
     `avatarClip-${(base && String(base)) || Math.random().toString(36).slice(2)}`;
 
-const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength - 1) + "…";
+const truncateByWidth = (text: string, maxWidth: number, font = "10px sans-serif") => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return text;
+    ctx.font = font;
+    if (ctx.measureText(text).width <= maxWidth) return text;
+    let truncated = text;
+    while (ctx.measureText(truncated + "…").width > maxWidth && truncated.length > 0) {
+        truncated = truncated.slice(0, -1);
+    }
+    return truncated + "…";
 };
 
 export const MemberCard = (
@@ -78,9 +86,9 @@ export const MemberCard = (
                     textAnchor="middle"
                     fontSize={10}
                     fill="#111827"
-                    style={{ fontWeight: 300 }}
+                    style={{ fontWeight: 100 }}
                 >
-                    {truncateText(name, 10)}
+                    {truncateByWidth(name, 70)}
                 </text>
 
                 <text
@@ -89,7 +97,7 @@ export const MemberCard = (
                     textAnchor="middle"
                     fontSize={9}
                     fill="#4b5563"
-                    style={{ fontWeight: 200 }}
+                    style={{ fontWeight: 100 }}
                 >
                     {life}
                 </text>

@@ -120,14 +120,14 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     }
 
     /**
-     * ✅ Kiểm tra xem email có bị ban không
+     * Kiểm tra xem email có bị ban không
      * Check TẤT CẢ accounts có cùng email
      */
     private boolean isEmailBanned(String email) {
         try {
             List<User> allAccountsWithEmail = userRepository.findAllByEmail(email);
 
-            log.info("🔍 Found {} account(s) with email: {}", allAccountsWithEmail.size(), email);
+            log.info("Found {} account(s) with email: {}", allAccountsWithEmail.size(), email);
 
             // Log chi tiết từng account
             for (User user : allAccountsWithEmail) {
@@ -139,12 +139,12 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             boolean isBanned = allAccountsWithEmail.stream()
                     .anyMatch(user -> Boolean.TRUE.equals(user.getIsBanned()));
 
-            log.info("🎯 Email {} ban status: {}", email, isBanned);
+            log.info("Email {} ban status: {}", email, isBanned);
 
             return isBanned;
 
         } catch (Exception e) {
-            log.error("❌ Error checking ban status for email {}: {}", email, e.getMessage(), e);
+            log.error("Error checking ban status for email {}: {}", email, e.getMessage(), e);
             // Nếu có lỗi, coi như không bị ban để không block user nhầm
             return false;
         }

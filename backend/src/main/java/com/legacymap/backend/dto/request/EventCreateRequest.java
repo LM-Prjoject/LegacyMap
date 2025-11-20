@@ -22,7 +22,6 @@ public class EventCreateRequest {
     private String location;
     private Map<String, Object> locationCoordinates;
     private ReminderConfig reminder;
-    private Boolean isPublic = true;
     private UUID personalOwnerId;
 
     @Data

@@ -19,6 +19,7 @@ public enum ErrorCode {
     INVALID_PURPOSE("Mục đích của mã xác thực không hợp lệ", 1013),
     INVALID_PASSWORD("Mật khẩu không đúng", 1024),
     BAD_REQUEST("Yêu cầu không hợp lệ", 1025),
+    NOT_FOUND("Không tìm thấy tài nguyên", 1026),
 
     // Authentication & Authorization
     UNAUTHENTICATED("Bạn chưa đăng nhập", 1014),
@@ -51,6 +52,10 @@ public enum ErrorCode {
 
     // Person email uniqueness within a family tree
     PERSON_EMAIL_EXISTS_IN_TREE("Email đã tồn tại trong cây", 1114);
+    // Resource related
+    RESOURCE_ALREADY_EXISTS("Tài nguyên đã tồn tại", 1114),
+    RESOURCE_NOT_FOUND("Không tìm thấy tài nguyên", 1115),
+    ACCESS_DENIED("Không có quyền truy cập", 1116);
 
     private final int code;
     private final String message;

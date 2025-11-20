@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, User, Album, TreePine, Menu, CalendarFold, Bell } from 'lucide-react';
+import { LogOut, User, Album, TreePine, Menu, CalendarFold, Bell, MessageCircle } from 'lucide-react';
 import Button from './Button';
 import logoImg from '@/assets/logo.png';
 import { useAutoLogout } from '@/hooks/useAutoLogout';
 import { notificationApi } from "@/api/notificationApi";
 import { sseService } from "@/api/sseService";
+import { useChat } from '@/contexts/ChatContext';
 
 const UNREAD_COUNT_KEY = 'navbar_unread_count';
 
@@ -33,7 +34,10 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [chatUnreadCount, setChatUnreadCount] = useState(0);
     const eventSourceRef = useRef<EventSource | null>(null);
+
+    const { openWidget, totalUnread: chatTotalUnread } = useChat();
 
     useAutoLogout(30);
 
@@ -44,7 +48,6 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         if (token && userStr) {
             try {
                 const userData = JSON.parse(userStr);
-                //console.log('USER LOADED:', userData);
                 setUser(userData);
                 setIsAuthenticated(true);
             } catch {
@@ -90,6 +93,11 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         window.addEventListener('storage', checkAuth);
         return () => window.removeEventListener('storage', checkAuth);
     }, [checkAuth]);
+
+    // Sync chat unread count from context on mount/auth change
+    useEffect(() => {
+        setChatUnreadCount(chatTotalUnread);
+    }, [chatTotalUnread]);
 
     useEffect(() => {
         if (!isAuthenticated || !user?.id) {
@@ -174,18 +182,15 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
     const handleSectionClick = (e: React.MouseEvent, sectionId: string) => {
         e.preventDefault();
-        setIsOpen(false); // Đóng mobile menu nếu đang mở
+        setIsOpen(false);
 
-        // Nếu đang ở HomePage
         if (location.pathname === '/') {
             const element = document.getElementById(sectionId);
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth' });
             }
         } else {
-            // Nếu ở trang khác, navigate về home với hash
             navigate('/#' + sectionId);
-            // Sau khi navigate, scroll đến section
             setTimeout(() => {
                 const element = document.getElementById(sectionId);
                 if (element) {
@@ -235,10 +240,18 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
             localStorage.setItem(UNREAD_COUNT_KEY, newCount.toString());
         };
 
+        const handleChatUnreadChange = (e: Event) => {
+            const customEvent = e as CustomEvent<number>;
+            const newCount = customEvent.detail ?? 0;
+            setChatUnreadCount(newCount);
+        };
+
         window.addEventListener('unreadCountChanged', handleCountChange);
+        window.addEventListener('chatUnreadChanged', handleChatUnreadChange);
 
         return () => {
             window.removeEventListener('unreadCountChanged', handleCountChange);
+            window.removeEventListener('chatUnreadChanged', handleChatUnreadChange);
         };
     }, []);
 
@@ -443,6 +456,20 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
                                     {unreadCount > 0 && (
                                         <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow-lg">
                                             {unreadCount > 99 ? '99+' : unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* Messenger */}
+                                <button
+                                    onClick={openWidget}
+                                    className="relative p-2.5 rounded-full hover:bg-white/10 transition-all"
+                                    title="Tin nhắn"
+                                >
+                                    <MessageCircle className="w-6 h-6 text-white" />
+                                    {chatUnreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center shadow-lg">
+                                            {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
                                         </span>
                                     )}
                                 </button>

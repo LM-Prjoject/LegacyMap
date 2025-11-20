@@ -17,9 +17,6 @@ import EventFormPage from "@/pages/event/EventFormPage.tsx"
 import { EventProvider } from '@/contexts/EventContext'
 import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx'
 import NotificationsPage from "@/pages/auth/NotificationsPage.tsx"
-
-
-// 🧱 Layout để giữ Navbar & gradient cố định
 import AppLayout from '@/components/layout/AppLayout'
 
 // Alias component to redirect /login -> /signin while preserving query string
@@ -30,10 +27,9 @@ function LoginAlias() {
 }
 
 export const router = createBrowserRouter([
-    // 🌍 Main app layout (Navbar cố định, tránh flash trắng)
     {
         path: '/',
-        element: <AppLayout />, // ✅ Bọc toàn bộ các trang người dùng
+        element: <AppLayout />,
         children: [
             {
                 index: true,
@@ -102,7 +98,6 @@ export const router = createBrowserRouter([
         ],
     },
 
-    // 🔐 Auth routes (ngoài layout)
     {
         path: '/signin',
         element: (
@@ -140,7 +135,6 @@ export const router = createBrowserRouter([
         ),
     },
 
-    // 🧩 Admin routes — GIỮ NGUYÊN KHÔNG ĐỤNG TỚI
     {
         path: '/admin',
         element: (
@@ -168,7 +162,6 @@ export const router = createBrowserRouter([
         ],
     },
 
-    // 🔁 Redirect routes
     { path: '/app', element: <Navigate to="/dashboard" replace /> },
     { path: '/forgot-password', element: <Navigate to="/password-reset" replace /> },
     { path: '/reset-password', element: <Navigate to="/password-reset" replace /> },

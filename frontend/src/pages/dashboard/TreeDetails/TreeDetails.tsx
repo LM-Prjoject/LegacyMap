@@ -47,6 +47,7 @@ export default function TreeDetails() {
     const [readOnly, setReadOnly] = useState(false);
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
 
+    const [isInAddFlow, setIsInAddFlow] = useState(false);
     useEffect(() => {
         if (!treeId) {
             setLoading(false);
@@ -145,6 +146,8 @@ export default function TreeDetails() {
     const handleAddClick = () => {
         if (readOnly) return;
         setSelectedPerson(null);
+        setIsEditing(false);
+        setIsInAddFlow(true);
         setMemberOpen(true);
     };
 
@@ -185,14 +188,15 @@ export default function TreeDetails() {
                 setSource(created);
                 setModalOpen(true);
                 showToast.success("Đang tìm kiếm mối quan hệ...");
+                setMemberOpen(false);
+                setIsEditing(false);
+                setIsInAddFlow(true);
             } else {
                 setPendingNew(null);
                 setSource(null);
                 setModalOpen(false);
                 showToast.success("Thêm thành viên thành công.");
             }
-
-            setMemberOpen(false);
         } catch (e: any) {
             showToast.error(e?.message || "Thêm thành viên thất bại");
         } finally {
@@ -236,6 +240,20 @@ export default function TreeDetails() {
             showToast.success("Cập nhật thông tin thành công");
             closeEditModals();
             setGraphVersion((v) => v + 1);
+            if (
+                isInAddFlow &&
+                pendingNew &&
+                selectedPerson &&
+                selectedPerson.id === pendingNew.id
+            ) {
+                setPendingNew(updated);
+                setSource(updated);
+                setMemberOpen(false);
+                setIsEditing(false);
+                setModalOpen(true);
+            } else {
+                closeEditModals();
+            }
         } catch (e: any) {
             showToast.error(e?.message || "Có lỗi xảy ra khi cập nhật");
         } finally {
@@ -248,6 +266,8 @@ export default function TreeDetails() {
         if (person) {
             setSelectedPerson(person);
             setIsViewingDetails(true);
+            setIsEditing(false);
+            setIsInAddFlow(false);
         }
     };
 
@@ -260,6 +280,7 @@ export default function TreeDetails() {
         if (readOnly) return;
         setIsViewingDetails(false);
         setIsEditing(true);
+        setIsInAddFlow(false);
     };
 
     const cancelRelationshipFlow = async () => {
@@ -471,6 +492,7 @@ export default function TreeDetails() {
         setModalOpen(false);
         setSource(null);
         setPendingNew(null);
+        setIsInAddFlow(false);
     };
 
     const fetchSuggestions = useMemo(() => {
@@ -793,6 +815,14 @@ export default function TreeDetails() {
                         setPendingNew(null);
                     }}
                     onCancel={cancelRelationshipFlow}
+                    onBack={() => {
+                        if (!pendingNew) return;
+                        setSelectedPerson(pendingNew);
+                        setIsEditing(true);
+                        setMemberOpen(true);
+                        setModalOpen(false);
+                        setIsInAddFlow(true);
+                    }}
                     source={source}
                     persons={persons}
                     fetchSuggestions={fetchSuggestions}

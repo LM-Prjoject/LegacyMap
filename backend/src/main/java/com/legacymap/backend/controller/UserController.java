@@ -2,6 +2,7 @@ package com.legacymap.backend.controller;
 
 import com.legacymap.backend.dto.request.UserCreateRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
+import com.legacymap.backend.dto.response.UserSearchResponse;
 import com.legacymap.backend.entity.User;
 import com.legacymap.backend.entity.UserProfile;
 import com.legacymap.backend.exception.AppException;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -25,6 +27,14 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<UserSearchResponse>>> searchUsers(
+            @RequestParam("q") String keyword,
+            @RequestParam(value = "limit", defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(userService.searchUsers(keyword, limit)));
+    }
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<User>> createUser(@RequestBody @Valid UserCreateRequest request) {

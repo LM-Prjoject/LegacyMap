@@ -98,6 +98,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/persons/*/links/self/verified").permitAll()
                         .requestMatchers("/api/persons/**").permitAll()
                         .requestMatchers("/api/notifications/stream").permitAll()
+                        .requestMatchers("/api/support/**").permitAll()
                         .requestMatchers("/api/trees/**").permitAll()
                         .requestMatchers("/api/events/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
@@ -134,7 +135,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/", "/index.html",
                                 "/oauth2/**", "/login/**", "/login/oauth2/**",
-                                "/error", "/default-ui.css", "/assets/**", "/favicon.ico"
+                                "/error", "/default-ui.css", "/assets/**", "/favicon.ico",
+                                "/ws/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
