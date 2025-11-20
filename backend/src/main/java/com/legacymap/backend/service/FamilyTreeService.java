@@ -1,5 +1,13 @@
 package com.legacymap.backend.service;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.legacymap.backend.dto.request.FamilyTreeCreateRequest;
 import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
@@ -19,15 +27,8 @@ import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.PersonUserLinkRepository;
 import com.legacymap.backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -38,9 +39,7 @@ public class FamilyTreeService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
-
-    @Autowired
-    private PersonUserLinkRepository personUserLinkRepository;
+    private final PersonUserLinkRepository personUserLinkRepository;
 
     private User loadUserOrThrow(UUID userId) {
         return userRepository.findById(userId)

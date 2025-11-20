@@ -15,15 +15,15 @@ import com.legacymap.backend.entity.User;
 @Repository
 public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
 
-    // ✅ MAIN: Eager fetch User để tránh LazyInitializationException
+    // MAIN: Eager fetch User để tránh LazyInitializationException
     @Query("SELECT DISTINCT ft FROM FamilyTree ft LEFT JOIN FETCH ft.createdBy ORDER BY ft.createdAt DESC")
     List<FamilyTree> findAllWithUserOrderByCreatedAtDesc();
 
-    // ✅ BACKUP: Simple query without JOIN
+    // BACKUP: Simple query without JOIN
     @Query("SELECT ft FROM FamilyTree ft ORDER BY ft.createdAt DESC")
     List<FamilyTree> findAllOrderByCreatedAtDescSimple();
 
-    // ✅ ALTERNATIVE: Native query
+    // ALTERNATIVE: Native query
     @Query(value = "SELECT * FROM family_trees ORDER BY created_at DESC", nativeQuery = true)
     List<FamilyTree> findAllNative();
 

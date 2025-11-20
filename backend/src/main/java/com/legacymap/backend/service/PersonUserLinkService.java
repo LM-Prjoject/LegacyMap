@@ -60,6 +60,7 @@ public class PersonUserLinkService {
         // Only sync if verified = true
         if (savedLink.isVerified()) {
             chatSyncService.syncUserToRooms(userId, personId);
+            chatSyncService.syncAllMembersToFamilyRoom(savedLink.getPerson().getFamilyTree().getId());
         }
         
         return savedLink;

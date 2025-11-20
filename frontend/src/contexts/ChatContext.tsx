@@ -101,7 +101,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     [unreadByRoom],
   );
 
-  // Broadcast chat unread count changes to other components
   useEffect(() => {
     const event = new CustomEvent('chatUnreadChanged', { detail: totalUnread });
     window.dispatchEvent(event);

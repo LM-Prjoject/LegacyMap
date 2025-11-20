@@ -37,7 +37,15 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const [chatUnreadCount, setChatUnreadCount] = useState(0);
     const eventSourceRef = useRef<EventSource | null>(null);
 
-    const { openWidget, totalUnread: chatTotalUnread } = useChat();
+    const { openWidget, closeWidget, isWidgetOpen, totalUnread: chatTotalUnread } = useChat();
+    const handleMessengerToggle = () => {
+        if (isWidgetOpen) {
+            closeWidget();
+        } else {
+            openWidget();
+        }
+    };
+
 
     useAutoLogout(30);
 
@@ -462,7 +470,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
                                 {/* Messenger */}
                                 <button
-                                    onClick={openWidget}
+                                    onClick={handleMessengerToggle}
                                     className="relative p-2.5 rounded-full hover:bg-white/10 transition-all"
                                     title="Tin nhắn"
                                 >

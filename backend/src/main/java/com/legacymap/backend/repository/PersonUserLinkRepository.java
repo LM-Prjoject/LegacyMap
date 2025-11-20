@@ -38,4 +38,10 @@ public interface PersonUserLinkRepository extends JpaRepository<PersonUserLink, 
 
     @Query("SELECT pul.user.id FROM PersonUserLink pul WHERE pul.person.id IN :personIds AND pul.verified = true")
     Set<UUID> findUserIdsByPersonIds(@Param("personIds") Set<UUID> personIds);
+
+    @Query("SELECT pul FROM PersonUserLink pul " +
+       "JOIN FETCH pul.person p " +
+       "WHERE p.familyTree.id = :familyTreeId " +
+       "AND pul.verified = true")
+List<PersonUserLink> findByPerson_FamilyTree_IdAndVerifiedIsTrue(@Param("familyTreeId") UUID familyTreeId);
 }
