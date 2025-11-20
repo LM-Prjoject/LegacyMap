@@ -13,6 +13,7 @@ const API_BASE_URL =
  */
 export const useUserActivity = () => {
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const failureCountRef = useRef<number>(0);
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -25,6 +26,13 @@ export const useUserActivity = () => {
         console.log('💓 Starting heartbeat service');
 
         const sendHeartbeat = async () => {
+            if (document.visibilityState === 'hidden') {
+                return; // skip when tab hidden
+            }
+            if (!navigator.onLine) {
+                console.warn('⚠️ Offline, skip heartbeat');
+                return;
+            }
             try {
                 const response = await fetch(`${API_BASE_URL}/auth/heartbeat`, {
                     method: 'POST',
@@ -37,11 +45,25 @@ export const useUserActivity = () => {
 
                 if (response.ok) {
                     console.log('💓 Heartbeat sent successfully at', new Date().toLocaleTimeString());
+                    failureCountRef.current = 0;
                 } else {
                     console.error('❌ Heartbeat failed:', response.status);
+                    failureCountRef.current += 1;
+                    // Stop after 3 consecutive failures or on auth errors
+                    if (response.status === 401 || response.status === 403 || failureCountRef.current >= 3) {
+                        if (intervalRef.current) clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                        console.warn('🛑 Stopping heartbeat due to repeated failures or auth error');
+                    }
                 }
             } catch (error) {
                 console.error('❌ Heartbeat error:', error);
+                failureCountRef.current += 1;
+                if (failureCountRef.current >= 3) {
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                    console.warn('🛑 Stopping heartbeat due to network errors');
+                }
             }
         };
 

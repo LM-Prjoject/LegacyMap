@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
 import SignIn from '@/pages/auth/SignIn'
 import SignUp from '@/pages/auth/SignUp'
 import PasswordReset from '@/pages/auth/password-reset'
@@ -18,6 +18,13 @@ import { EventProvider } from '@/contexts/EventContext'
 import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx'
 import NotificationsPage from "@/pages/auth/NotificationsPage.tsx"
 import AppLayout from '@/components/layout/AppLayout'
+
+// Alias component to redirect /login -> /signin while preserving query string
+function LoginAlias() {
+    const location = useLocation();
+    const search = location.search || '';
+    return <Navigate to={`/signin${search}` } replace />
+}
 
 export const router = createBrowserRouter([
     {
@@ -100,6 +107,10 @@ export const router = createBrowserRouter([
                 onShowSignUp={() => (window.location.href = '/signup')}
             />
         ),
+    },
+    {
+        path: '/login',
+        element: <LoginAlias />,
     },
     {
         path: '/signup',

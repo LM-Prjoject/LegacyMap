@@ -50,6 +50,8 @@ public enum ErrorCode {
     // Notification related
     NOTIFICATION_NOT_FOUND("Notification not found", 1113),
 
+    // Person email uniqueness within a family tree
+    PERSON_EMAIL_EXISTS_IN_TREE("Email đã tồn tại trong cây", 1114);
     // Resource related
     RESOURCE_ALREADY_EXISTS("Tài nguyên đã tồn tại", 1114),
     RESOURCE_NOT_FOUND("Không tìm thấy tài nguyên", 1115),
