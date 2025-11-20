@@ -30,8 +30,9 @@ public class PersonUserLink {
     @Column(name = "link_type", length = 20, nullable = false)
     private LinkType linkType = LinkType.self;
 
-    @Column(name = "verified", nullable = false)
-    private boolean verified = false;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20, nullable = false)
+    private Status status = Status.pending;
 
     @Column(name = "linked_at")
     private OffsetDateTime linkedAt = OffsetDateTime.now();
@@ -41,5 +42,9 @@ public class PersonUserLink {
 
     public enum LinkType {
         self, relative, manager
+    }
+
+    public enum Status {
+        pending, approved, rejected
     }
 }

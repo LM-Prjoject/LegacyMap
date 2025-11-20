@@ -51,14 +51,14 @@ public class PersonUserLinkService {
                 .person(person)
                 .user(user)
                 .linkType(linkTypeEnum)
-                .verified(true)
+                .status(PersonUserLink.Status.approved)
                 .build();
         
         PersonUserLink savedLink = personUserLinkRepository.save(link);
         
         // Sync user to relevant rooms (family room + branch rooms)
-        // Only sync if verified = true
-        if (savedLink.isVerified()) {
+        // Only sync if status = approved
+        if (savedLink.getStatus() == PersonUserLink.Status.approved) {
             chatSyncService.syncUserToRooms(userId, personId);
         }
         

@@ -163,8 +163,8 @@ public class FamilyTreeService {
         loadUserOrThrow(userId);
         // a user can view if they have a verified self-link to any person in the tree
         return personUserLinkRepository
-                .existsByUser_IdAndPerson_FamilyTree_IdAndLinkTypeAndVerifiedIsTrue(
-                        userId, treeId, PersonUserLink.LinkType.self);
+                .existsByUser_IdAndPerson_FamilyTree_IdAndLinkTypeAndStatus(
+                        userId, treeId, PersonUserLink.LinkType.self, PersonUserLink.Status.approved);
     }
 
     @Transactional(readOnly = true)
@@ -179,7 +179,7 @@ public class FamilyTreeService {
     public List<FamilyTree> listViewableTrees(UUID userId) {
         loadUserOrThrow(userId);
         List<PersonUserLink> links = personUserLinkRepository
-                .findByUser_IdAndLinkTypeAndVerifiedIsTrue(userId, PersonUserLink.LinkType.self);
+                .findByUser_IdAndLinkTypeAndStatus(userId, PersonUserLink.LinkType.self, PersonUserLink.Status.approved);
         // Collect distinct tree IDs in order
         List<UUID> treeIds = links.stream()
                 .map(l -> l.getPerson())
