@@ -225,4 +225,64 @@ public class PersonLinkService {
                     "Liên kết của bạn với hồ sơ " + person.getFullName() + " đã được gỡ");
         }
     }
+
+    @Transactional
+    public PersonUserLink createLink(UUID personId, UUID userId, String linkType) {
+        Person person = loadPersonOrThrow(personId);
+        User user = loadUserOrThrow(userId);
+
+        if (personUserLinkRepository.existsByPersonIdAndUserId(personId, userId)) {
+            throw new AppException(ErrorCode.RESOURCE_ALREADY_EXISTS, "User is already linked to this person");
+        }
+
+        PersonUserLink.LinkType resolvedType = resolveLinkType(linkType);
+        if (resolvedType == PersonUserLink.LinkType.self &&
+                personUserLinkRepository.existsByPerson_IdAndLinkTypeAndStatus(
+                        personId, PersonUserLink.LinkType.self, PersonUserLink.Status.approved)) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED);
+        }
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        PersonUserLink link = PersonUserLink.builder()
+                .id(new com.legacymap.backend.entity.PersonUserLinkId(personId, userId))
+                .person(person)
+                .user(user)
+                .linkType(resolvedType)
+                .status(PersonUserLink.Status.approved)
+                .linkedAt(now)
+                .verifiedAt(now)
+                .build();
+
+        PersonUserLink savedLink = personUserLinkRepository.save(link);
+        chatSyncService.syncUserToRooms(userId, personId);
+        chatSyncService.syncAllMembersToFamilyRoom(person.getFamilyTree().getId());
+        return savedLink;
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isLinked(UUID personId, UUID userId) {
+        return personUserLinkRepository.existsByPersonIdAndUserId(personId, userId);
+    }
+
+    @Transactional
+    public void removeLinkDirect(UUID personId, UUID userId) {
+        personUserLinkRepository.deleteByPersonIdAndUserId(personId, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public PersonUserLink getLink(UUID personId, UUID userId) {
+        return personUserLinkRepository.findByPersonIdAndUserId(personId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Link not found"));
+    }
+
+    private PersonUserLink.LinkType resolveLinkType(String linkType) {
+        if (linkType == null || linkType.isBlank()) {
+            return PersonUserLink.LinkType.self;
+        }
+        try {
+            return PersonUserLink.LinkType.valueOf(linkType.trim().toLowerCase());
+        } catch (IllegalArgumentException ex) {
+            return PersonUserLink.LinkType.self;
+        }
+    }
 }
