@@ -7,24 +7,14 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 
+import com.legacymap.backend.entity.*;
+import com.legacymap.backend.repository.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.legacymap.backend.entity.ChatRoom;
-import com.legacymap.backend.entity.ChatRoomBranch;
-import com.legacymap.backend.entity.ChatRoomMember;
-import com.legacymap.backend.entity.ChatRoomMemberId;
-import com.legacymap.backend.entity.FamilyTree;
-import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
-import com.legacymap.backend.repository.ChatRoomBranchRepository;
-import com.legacymap.backend.repository.ChatRoomMemberRepository;
-import com.legacymap.backend.repository.ChatRoomRepository;
-import com.legacymap.backend.repository.PersonRepository;
-import com.legacymap.backend.repository.RelationshipRepository;
-import com.legacymap.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -37,6 +27,7 @@ public class ChatSyncService {
     private final UserRepository userRepository;
     private final PersonRepository personRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final PersonUserLinkRepository personUserLinkRepository;
     
     @Async
     @Transactional
@@ -90,10 +81,33 @@ public class ChatSyncService {
             }
         }
     }
+
+    @Async
+    @Transactional
+    public void syncAllMembersToFamilyRoom(UUID familyTreeId) {
+        // Lấy phòng chat gia đình
+        chatRoomRepository.findByFamilyTreeIdAndRoomType(familyTreeId, ChatRoom.ChatRoomType.family)
+            .ifPresent(familyRoom -> {
+                // Lấy tất cả người dùng đã xác minh trong cây gia phả
+                List<PersonUserLink> verifiedLinks = personUserLinkRepository
+                    .findByPerson_FamilyTree_IdAndVerifiedIsTrue(familyTreeId);
+                
+                for (PersonUserLink link : verifiedLinks) {
+                    if (!chatRoomMemberRepository.existsByRoomIdAndUserId(familyRoom.getId(), link.getUser().getId())) {
+                        ChatRoomMember member = ChatRoomMember.builder()
+                            .id(new ChatRoomMemberId(familyRoom.getId(), link.getUser().getId()))
+                            .room(familyRoom)
+                            .user(link.getUser())
+                            .person(link.getPerson())
+                            .role(ChatRoomMember.ChatMemberRole.member)
+                            .build();
+                        chatRoomMemberRepository.save(member);
+                    }
+                }
+            });
+    }
     
-    /**
-     * Find all ancestors by traversing up the tree (from person to parents, grandparents, etc.)
-     */
+    //Find all ancestors by traversing up the tree (from person to parents, grandparents, etc.)
     private Set<UUID> findAncestors(UUID personId) {
         Set<UUID> ancestorIds = new HashSet<>();
         Queue<UUID> queue = new LinkedList<>();
@@ -106,7 +120,7 @@ public class ChatSyncService {
             for (UUID parentId : parentIds) {
                 if (!ancestorIds.contains(parentId)) {
                     ancestorIds.add(parentId);
-                    queue.add(parentId); // Continue tracing up
+                    queue.add(parentId);
                 }
             }
         }

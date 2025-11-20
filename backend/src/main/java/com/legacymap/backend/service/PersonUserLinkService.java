@@ -60,6 +60,7 @@ public class PersonUserLinkService {
         // Only sync if status = approved
         if (savedLink.getStatus() == PersonUserLink.Status.approved) {
             chatSyncService.syncUserToRooms(userId, personId);
+            chatSyncService.syncAllMembersToFamilyRoom(savedLink.getPerson().getFamilyTree().getId());
         }
         
         return savedLink;

@@ -86,6 +86,7 @@ export const ChatWidget = () => {
   const createMemberSearchTimer = useRef<NodeJS.Timeout | null>(null);
   const directSearchTimer = useRef<NodeJS.Timeout | null>(null);
   const membersListRef = useRef<HTMLDivElement>(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
 
   const currentMessages = useMemo(
       () => (currentRoom ? messagesByRoom[currentRoom.id] ?? [] : []),
@@ -200,6 +201,23 @@ export const ChatWidget = () => {
     if (!isWidgetOpen || !currentRoom) return;
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentRoom, currentMessages.length, isWidgetOpen]);
+
+  useEffect(() => {
+    if (!isWidgetOpen || isCollapsed || showCreate || showJoin || showDirect) {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (!widgetRef.current) return;
+      if (widgetRef.current.contains(event.target as Node)) return;
+      closeWidget();
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [isWidgetOpen, isCollapsed, closeWidget, showCreate, showJoin, showDirect]);
 
   useEffect(() => {
     if (!showCreate) {
@@ -639,35 +657,39 @@ export const ChatWidget = () => {
                   <p className="text-sm">Chưa có cuộc trò chuyện nào</p>
                 </div>
             ) : (
-                filteredRooms.map((room) => (
+                filteredRooms.map((room) => {
+                    const count = unreadByRoom[room.id] || 0;
+                    const hasUnread = count > 0;
+                    return (
                     <button
                         key={room.id}
                         onClick={() => handleRoomClick(room.id)}
                         className={`w-full text-left px-4 py-3 transition ${
-                            room.id === currentRoom?.id
-                                ? 'bg-white/10'
-                                : unreadByRoom[room.id]
-                                    ? 'bg-white/5 border-l-2 border-amber-300'
-                                    : 'hover:bg-white/5'
+                            hasUnread ? 'bg-[#fff4d6] hover:bg-[#ffe8a3]' : 'hover:bg-white/5'
                         }`}
                     >
                       <div className="flex items-center justify-between">
-                        <p className="font-semibold truncate">{room.name}</p>
-                        {unreadByRoom[room.id] ? (
-                            <span className="text-xs bg-red-500/80 rounded-full px-2 py-0.5">
-                      {unreadByRoom[room.id]}
-                    </span>
+                        <p className={`font-semibold truncate ${hasUnread ? 'text-emerald-700' : ''}`}>{room.name}</p>
+                        {hasUnread ? (
+                            <span className="text-xs bg-emerald-600 text-white rounded-full px-2 py-0.5">
+                              {count > 99 ? '99+' : count}
+                            </span>
                         ) : (
                             <span className="text-[11px] text-white/50">
-                      {ROOM_TYPE_LABEL_MAP[room.roomType]}
-                    </span>
+                              {ROOM_TYPE_LABEL_MAP[room.roomType]}
+                            </span>
                         )}
                       </div>
-                      <p className="text-xs text-white/60 line-clamp-1">
+                      <p
+                          className={`text-xs line-clamp-1 ${
+                              hasUnread ? 'text-emerald-800/80' : 'text-white/60'
+                          }`}
+                      >
                         {room.description || (room.roomType === 'private_chat' ? 'Phòng chat riêng tư 1-1' : 'Không có mô tả')}
                       </p>
                     </button>
-                ))
+                    );
+                })
             )}
           </div>
         </div>
@@ -865,7 +887,7 @@ export const ChatWidget = () => {
 
   return (
       <>
-        {renderActivePanel()}
+        <div ref={widgetRef}>{renderActivePanel()}</div>
         {showCreate && (
             <div className="fixed inset-0 z-[1300] bg-black/50 flex items-center justify-center px-4">
               <div className="bg-slate-900 text-white rounded-2xl w-full max-w-lg shadow-2xl border border-white/10 p-6 space-y-4">
