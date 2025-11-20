@@ -20,6 +20,7 @@ import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.PersonUserLinkRepository;
 import com.legacymap.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
