@@ -26,8 +26,14 @@ export default function TreesList() {
         setLoading(true);
         setError("");
         try {
-            const data = await api.listTrees(userId);
-            setTrees(data);
+            const [owned, viewable] = await Promise.all([
+                api.listTrees(userId),
+                api.listViewableTrees(userId).catch(() => []),
+            ]);
+            const map = new Map<string, FamilyTree>();
+            viewable.forEach(t => map.set(t.id, t as FamilyTree));
+            owned.forEach(t => map.set(t.id, t));
+            setTrees(Array.from(map.values()));
         } catch (e: any) {
             setError(e?.message || "Không tải được danh sách");
         } finally {
@@ -110,12 +116,23 @@ export default function TreesList() {
                                             <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => goToDetail(t.id)}>
                                                 <Eye size={16} />
                                             </button>
-                                            <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => startEdit(t)}>
-                                                <Pencil size={16} />
-                                            </button>
-                                            <button className="p-2 rounded-lg hover:bg-red-50 text-red-500" onClick={() => setDeleteTarget(t)}>
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {(() => {
+                                                const ownerId = (t as any)?.userId
+                                                    ?? (t as any)?.createdBy
+                                                    ?? (t as any)?.created_by
+                                                    ?? (t as any)?.createdById;
+                                                const isOwner = String(ownerId || '') === String(userId || '');
+                                                return isOwner;
+                                            })() && (
+                                                <>
+                                                    <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => startEdit(t)}>
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button className="p-2 rounded-lg hover:bg-red-50 text-red-500" onClick={() => setDeleteTarget(t)}>
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </li>

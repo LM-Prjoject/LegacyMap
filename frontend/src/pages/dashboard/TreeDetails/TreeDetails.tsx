@@ -44,7 +44,9 @@ export default function TreeDetails() {
     const [tree, setTree] = useState<TreeView | null>(null);
     const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
     const [graphVersion, setGraphVersion] = useState(0);
+    const [readOnly, setReadOnly] = useState(false);
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
+
     useEffect(() => {
         if (!treeId) {
             setLoading(false);
@@ -59,19 +61,20 @@ export default function TreeDetails() {
         (async () => {
             setLoading(true);
             try {
-                const [trees, ps, rs] = await Promise.all([
-                    api.listTrees(userId),
-                    api.listMembers(userId, treeId),
-                    api.listRelationships(userId, treeId),
+                const [owned, viewable] = await Promise.all([
+                    api.listTrees(userId).catch(() => []),
+                    api.listViewableTrees(userId).catch(() => [] as any[]),
                 ]);
+                const allTrees: any[] = [...owned, ...viewable];
+                const found: any = allTrees.find((t) => t.id === treeId) || null;
 
-                const found: any = trees.find((t) => t.id === treeId) || null;
-
-                const createdById: string | null =
-                    found?.createdBy?.id ??
-                    (typeof found?.createdBy === "string" ? found.createdBy : null) ??
-                    found?.created_by ??
-                    null;
+                // Resolve owner via backend owner endpoint (authoritative)
+                let createdById: string | null = null;
+                try {
+                    createdById = await api.getTreeOwner(treeId);
+                } catch {
+                    createdById = null;
+                }
 
                 setTree(
                     found
@@ -87,17 +90,50 @@ export default function TreeDetails() {
 
                 if (createdById) {
                     try {
-                        const owner = await authApi.getUser(createdById);
-                        setOwnerProfile(owner?.profile || null);
+                        const basic = await api.getPublicUserBasic(createdById);
+                        if (basic && (basic.fullName || basic.username)) {
+                            setOwnerProfile({
+                                ...(ownerProfile as any),
+                                fullName: basic.fullName || basic.username || "",
+                            } as any);
+                        } else {
+                            const owner = await authApi.getUser(createdById);
+                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
+                        }
                     } catch {
-                        setOwnerProfile(null);
+                        try {
+                            const owner = await authApi.getUser(createdById);
+                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
+                        } catch {
+                            setOwnerProfile(null);
+                        }
                     }
                 } else {
                     setOwnerProfile(null);
                 }
 
-                setPersons(ps);
-                setRels(rs);
+                try {
+                    const [ps, rs] = await Promise.all([
+                        api.listMembers(userId, treeId),
+                        api.listRelationships(userId, treeId),
+                    ]);
+                    setPersons(ps);
+                    setRels(rs);
+                    setReadOnly(false);
+                } catch (err: any) {
+                    const msg = String(err?.message || "").toLowerCase();
+                    if (msg.includes("unauthorized") || msg.includes("không") || msg.includes("forbidden")) {
+                        const [psV, rsV] = await Promise.all([
+                            api.listMembersForViewer(userId, treeId),
+                            api.listRelationshipsForViewer(userId, treeId),
+                        ]);
+                        setPersons(psV);
+                        setRels(rsV);
+                        setReadOnly(true);
+                    } else {
+                        throw err;
+                    }
+                }
             } catch (e: any) {
                 showToast.error(e?.message || "Không tải được dữ liệu");
             } finally {
@@ -107,6 +143,7 @@ export default function TreeDetails() {
     }, [treeId, userId]);
 
     const handleAddClick = () => {
+        if (readOnly) return;
         setSelectedPerson(null);
         setMemberOpen(true);
     };
@@ -220,6 +257,7 @@ export default function TreeDetails() {
     };
 
     const handleEditClick = () => {
+        if (readOnly) return;
         setIsViewingDetails(false);
         setIsEditing(true);
     };
@@ -621,12 +659,7 @@ export default function TreeDetails() {
         return ans;
     }, [persons, relsNormalized]);
 
-    const createdByName =
-        ownerProfile?.fullName?.trim() ||
-        user?.profile?.fullName?.trim?.() ||
-        user?.fullName?.trim?.() ||
-        user?.username ||
-        "—";
+    const createdByName = (ownerProfile?.fullName || "—").toString().trim();
 
     const anyModalOpen = memberOpen || isEditing || isViewingDetails || modalOpen;
 
@@ -676,13 +709,15 @@ export default function TreeDetails() {
                             <ArrowLeft className="w-4 h-4" />
                             <span>Quay lại</span>
                         </button>
-                        <button
-                            onClick={handleAddClick}
-                            className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
-                            title="Thêm thành viên"
-                        >
-                            <LucideUserPlus className="w-5 h-5" />
-                        </button>
+                        {!loading && !readOnly && (
+                            <button
+                                onClick={handleAddClick}
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                title="Thêm thành viên"
+                            >
+                                <LucideUserPlus className="w-5 h-5" />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -710,7 +745,7 @@ export default function TreeDetails() {
                             relationships={relsNormalized}
                             onNodeClick={handleNodeClick}
                             selectedNodeId={anyModalOpen ? null : selectedPerson?.id}
-                            onEmptyClick={handleAddClick}
+                            onEmptyClick={!loading && !readOnly ? handleAddClick : undefined}
                         />
                     )}
                 </main>
@@ -745,8 +780,9 @@ export default function TreeDetails() {
                 persons={persons}
                 relationships={rels}
                 onClose={handleCloseDetails}
-                onEditClick={handleEditClick}
-                onDelete={handleDeleteMember}
+                onEditClick={readOnly ? () => {} : handleEditClick}
+                onDelete={readOnly ? () => {} : handleDeleteMember}
+                readOnly={readOnly}
             />
             {source && (
                 <RelationshipModal

@@ -47,7 +47,10 @@ public enum ErrorCode {
     INVALID_INPUT_DATA("Invalid input data", 1112),
 
     // Notification related
-    NOTIFICATION_NOT_FOUND("Notification not found", 1113);
+    NOTIFICATION_NOT_FOUND("Notification not found", 1113),
+
+    // Person email uniqueness within a family tree
+    PERSON_EMAIL_EXISTS_IN_TREE("Email đã tồn tại trong cây", 1114);
 
     private final int code;
     private final String message;
