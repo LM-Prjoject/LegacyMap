@@ -9,7 +9,7 @@ import PicNoi from "@/assets/picnoi.png";
 import ProfileEditModal, { type Form } from "@/components/profileEditModal/ProfileEditModal";
 import { fetchProvinces, fetchWardsByProvince, type Province, type Ward } from "@/api/locations";
 import { type Option } from "@/components/ui/SearchCombo";
-import AccountSecuritySection from "@/components/AccountSecuritySection/AccountSecuritySection";
+import AccountSecuritySection from "@/pages/auth/AccountSecuritySection/AccountSecuritySection";
 
 function LabeledText({ label, value }: { label: string; value: string }) {
     return (
@@ -386,37 +386,6 @@ export default function ProfilePage() {
                     onWardChange={onWardChange}
                 />
             )}
-
-            {/* Animations */}
-            <style>{`
-                @keyframes fade-in {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                
-                @keyframes pulse-slow {
-                    0%, 100% { 
-                        opacity: 0.3;
-                        transform: scale(1);
-                    }
-                    50% { 
-                        opacity: 0.5;
-                        transform: scale(1.08);
-                    }
-                }
-                
-                .animate-fade-in {
-                    animation: fade-in 1s ease-out;
-                }
-                
-                .animate-pulse-slow {
-                    animation: pulse-slow 5s ease-in-out infinite;
-                }
-                
-                .bg-gradient-radial {
-                    background: radial-gradient(circle, var(--tw-gradient-stops));
-                }
-            `}</style>
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { Loader, Pencil, Trash2, Eye } from "lucide-react";
 import bg from "@/assets/bg.jpg";
 import PopupModal from "@/components/popupModal/PopupModal";
 import { useNavigate } from "react-router-dom";
+import { truncateByWidth } from "@/lib/truncate";
 
 export default function TreesList() {
     const [showModal, setShowModal] = useState(false);
@@ -109,12 +110,12 @@ export default function TreesList() {
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <h4 className="font-semibold text-slate-50 drop-shadow-sm">{t.name}</h4>
-                                            <p className="text-sm text-slate-100/80 line-clamp-2">{t.description || "—"}</p>
+                                            <p className="text-sm text-slate-100/80 line-clamp-2">{truncateByWidth(t.description || "—",200)}</p>
                                             <p className="mt-1 text-xs text-slate-200/70">{t.isPublic ? "Công khai" : "Riêng tư"}</p>
                                         </div>
                                         <div className="flex items-center gap-1 sm:gap-2">
-                                            <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => goToDetail(t.id)}>
-                                                <Eye size={16} />
+                                            <button className="group p-2 rounded-xl hover:bg-white/20 transition" onClick={() => goToDetail(t.id)}>
+                                                <Eye size={16} className="stroke-white group-hover:stroke-black transition"/>
                                             </button>
                                             {(() => {
                                                 const ownerId = (t as any)?.userId
@@ -125,10 +126,10 @@ export default function TreesList() {
                                                 return isOwner;
                                             })() && (
                                                 <>
-                                                    <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => startEdit(t)}>
-                                                        <Pencil size={16} />
+                                                    <button className="group p-2 rounded-xl hover:bg-white/20 transition" onClick={() => startEdit(t)}>
+                                                        <Pencil size={16} className="stroke-white group-hover:stroke-black transition"/>
                                                     </button>
-                                                    <button className="p-2 rounded-lg hover:bg-red-50 text-red-500" onClick={() => setDeleteTarget(t)}>
+                                                    <button className="p-2 rounded-lg hover:bg-white/20 text-red-500" onClick={() => setDeleteTarget(t)}>
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </>
