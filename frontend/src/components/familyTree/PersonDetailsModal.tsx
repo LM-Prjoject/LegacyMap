@@ -75,7 +75,7 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
                     } else if (othDOB > curDOB) {
                         relationshipText = g === "FEMALE" ? `Em gái: ${otherPersonName}` : `Em trai: ${otherPersonName}`;
                     } else {
-                        relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
+                        relationshipText = g === "FEMALE" ?`Chị/Em: ${otherPersonName}`:  `Anh/em: ${otherPersonName}`;
                     }
                 } else {
                     relationshipText = g === "FEMALE" ? `Chị/Em gái: ${otherPersonName}` : `Anh/Em trai: ${otherPersonName}`;
@@ -268,7 +268,7 @@ export default function PersonDetailsModal({
                                     </div>
                                 </div>
 
-                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className=" grid grid-cols-1 md:grid-cols-2 gap-1">
                                     <div>
                                         <p className="text-sm font-medium text-gray-500">Ngày sinh</p>
                                         <p className="text-slate-500">{formatDate(person.birthDate)}</p>
@@ -317,7 +317,7 @@ export default function PersonDetailsModal({
                                     </div>
                                 )}
 
-                                <div className="mt-6">
+                                <div className="mt-2">
                                     <p className="text-sm font-medium text-gray-500 mb-3">Mối quan hệ</p>
                                     {filteredRelationships.length > 0 ? (
                                         <div className="space-y-3">

@@ -1,33 +1,69 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, Eye, EyeOff, CheckCircle2, Sparkles } from "lucide-react";
-import { showToast } from "@/lib/toast";
-import { authApi } from "@/api/auth";
+import { showToast } from "@/lib/toast.ts";
+import { authApi } from "@/api/auth.ts";
 
-function PasswordInput({
-                           label,
-                           value,
-                           onChange,
-                       }: {
+export function PasswordInput({
+                                  label,
+                                  value,
+                                  onChange,
+                                  variant = "dark",
+                              }: {
     label: string;
     value: string;
     onChange: (v: string) => void;
+    variant?: "dark" | "light";
 }) {
     const [show, setShow] = useState(false);
+
+    const isLight = variant === "light";
+
+    const labelStyle = isLight
+        ? { color: "#2a3548" }
+        : { color: "#ffd89b" };
+
+    const inputClassName = isLight
+        ? "w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium pr-10"
+        : "w-full rounded-xl border border-[#ffd89b]/20 bg-white/5 backdrop-blur-xl px-4 py-3 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-[#ffd89b]/50 focus:border-[#ffd89b]/50 shadow-lg transition-all duration-300 pr-10";
+
+    const inputStyle = isLight
+        ? {
+            background:
+                "linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)",
+            borderColor: "rgba(42, 53, 72, 0.3)",
+            color: "#2a3548",
+        }
+        : undefined;
+
+    const iconClassName = isLight
+        ? "absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#2a3548]/60 hover:text-[#2a3548] transition"
+        : "absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-[#ffd89b] transition-all duration-300";
+
     return (
         <label className="block">
-            <span className="block text-[15px] font-semibold text-[#ffd89b] tracking-wide mb-2">{label}</span>
+      <span
+          className={
+              isLight
+                  ? "block text-sm font-semibold mb-2"
+                  : "block text-[15px] font-semibold text-[#ffd89b] tracking-wide mb-2"
+          }
+          style={labelStyle}
+      >
+        {label}
+      </span>
             <div className="relative">
                 <input
                     type={show ? "text" : "password"}
-                    className="w-full rounded-xl border border-[#ffd89b]/20 bg-white/5 backdrop-blur-xl px-4 py-3 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-[#ffd89b]/50 focus:border-[#ffd89b]/50 shadow-lg transition-all duration-300"
+                    className={inputClassName}
+                    style={inputStyle}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder= "••••••••"
                 />
                 <button
                     type="button"
                     onClick={() => setShow((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-[#ffd89b] transition-all duration-300"
+                    className={iconClassName}
                 >
                     {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -64,7 +100,7 @@ function StrengthBar({ value }: { value: string }) {
     );
 }
 
-function generateStrongPassword(length = 12): string {
+function generateStrongPassword(length =18): string {
     const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const lower = "abcdefghijklmnopqrstuvwxyz";
     const digits = "0123456789";
@@ -199,7 +235,7 @@ export default function AccountSecuritySection({
                     }`}>
                         <CheckCircle2 className={`h-4 w-4 ${hasChanged ? "text-emerald-400 animate-pulse" : "text-white/40"}`} />
                         <span className="font-medium">
-                            Lần cuối: {lastChangedLabel}
+                            Lần cuối thay đổi mật khẩu: {lastChangedLabel}
                         </span>
                     </span>
                 </div>
@@ -225,7 +261,7 @@ export default function AccountSecuritySection({
                                 />
                             </div>
 
-                            <StrengthBar value={nextPwd} />
+                            {nextPwd.length > 0 && <StrengthBar value={nextPwd} />}
 
                             <button
                                 type="button"
@@ -253,7 +289,7 @@ export default function AccountSecuritySection({
                         {confirm && nextPwd && nextPwd !== confirm && (
                             <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 flex items-start gap-2">
                                 <span className="text-rose-400 text-sm font-medium">
-                                    ⚠️ Mật khẩu xác nhận không khớp
+                                    Mật khẩu xác nhận không khớp
                                 </span>
                             </div>
                         )}
@@ -261,7 +297,7 @@ export default function AccountSecuritySection({
                         {error && (
                             <div className="rounded-lg bg-rose-500/10 border border-rose-500/30 px-4 py-3 flex items-start gap-2">
                                 <span className="text-rose-400 text-sm font-medium">
-                                    ❌ {error}
+                                  {error}
                                 </span>
                             </div>
                         )}

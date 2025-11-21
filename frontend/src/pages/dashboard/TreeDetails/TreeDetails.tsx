@@ -21,6 +21,22 @@ type TreeView = {
     createdById?: string | null;
 };
 
+const buildExistingRelationshipKeys = (rels: Relationship[]): Set<string> => {
+    return new Set(
+        rels.map((r) => {
+            const t = String(r.type).toUpperCase();
+            if (t === "SPOUSE" || t === "SIBLING") {
+                const [a, b] = [r.fromPersonId, r.toPersonId].sort();
+                return `PAIR:${a}-${b}:${t}`;
+            }
+            const parent = t === "PARENT" ? r.fromPersonId : r.toPersonId;
+            const child = t === "PARENT" ? r.toPersonId : r.fromPersonId;
+            return `PARENT:${parent}->${child}`;
+        })
+    );
+};
+
+
 export default function TreeDetails() {
     const { treeId } = useParams<{ treeId: string }>();
     const navigate = useNavigate();
@@ -158,6 +174,7 @@ export default function TreeDetails() {
                 setPendingNew(null);
                 setSource(null);
                 setModalOpen(false);
+                setMemberOpen(false);
                 showToast.success("Thêm thành viên thành công.");
             }
         } catch (e: any) {
@@ -192,12 +209,12 @@ export default function TreeDetails() {
                 gender: values.gender || undefined,
                 birthDate: values.birthDate || undefined,
                 deathDate: values.deathDate || undefined,
-                birthPlace: values.birthPlace || undefined,
-                deathPlace: values.deathPlace || undefined,
-                biography: values.biography || undefined,
+                birthPlace: values.birthPlace,
+                deathPlace: values.deathPlace,
+                biography: values.biography,
                 avatarUrl: avatarUrl || undefined,
-                phone: values.phone || undefined,
-                email: values.email || undefined,
+                phone: values.phone,
+                email: values.email,
             });
             setPersons(persons.map((p) => (p.id === updated.id ? updated : p)));
             showToast.success("Cập nhật thông tin thành công");
@@ -273,28 +290,23 @@ export default function TreeDetails() {
     }) => {
         if (!treeId || !source || !userId) return;
 
-        const existingKeys = new Set(
-            rels.map((r) => {
-                const t = String(r.type).toUpperCase();
-                if (t === "SPOUSE" || t === "SIBLING") {
-                    const [a, b] = [r.fromPersonId, r.toPersonId].sort();
-                    return `PAIR:${a}-${b}:${t}`;
-                }
-                const parent = t === "PARENT" ? r.fromPersonId : r.toPersonId;
-                const child = t === "PARENT" ? r.toPersonId : r.fromPersonId;
-                return `PARENT:${parent}->${child}`;
-            })
-        );
+        const existingKeys = buildExistingRelationshipKeys(rels);
 
         let person1Id: string;
         let person2Id: string;
         let typeToSend: "PARENT" | "SPOUSE" | "SIBLING";
+        let parentId: string | null = null;
+        let childId: string | null = null;
 
         if (relation === "PARENT" || relation === "CHILD") {
-            const parentId = relation === "PARENT" ? source.id : candidateId;
-            const childId = relation === "PARENT" ? candidateId : source.id;
-            person1Id = parentId;
-            person2Id = childId;
+            const pId = relation === "PARENT" ? source.id : candidateId;
+            const cId = relation === "PARENT" ? candidateId : source.id;
+
+            parentId = pId;
+            childId = cId;
+
+            person1Id = pId;
+            person2Id = cId;
             typeToSend = "PARENT";
         } else {
             const [a, b] = [source.id, candidateId].sort();
@@ -326,18 +338,18 @@ export default function TreeDetails() {
             existingKeys.add(`PARENT:${person1Id}->${person2Id}`);
         }
 
-        const addParent = async (parentId: string, childId: string) => {
-            const k = `PARENT:${parentId}->${childId}`;
+        const addParent = async (pId: string, cId: string) => {
+            const k = `PARENT:${pId}->${cId}`;
             if (existingKeys.has(k)) return;
             const r = await api.createRelationship(userId, treeId, {
-                person1Id: parentId,
-                person2Id: childId,
+                person1Id: pId,
+                person2Id: cId,
                 relationshipType: "PARENT",
             });
             newRels.push({
                 id: r?.id ?? crypto.randomUUID?.(),
-                fromPersonId: parentId,
-                toPersonId: childId,
+                fromPersonId: pId,
+                toPersonId: cId,
                 type: "PARENT",
             });
             existingKeys.add(k);
@@ -380,27 +392,62 @@ export default function TreeDetails() {
             }
         };
 
-        if (relation === "PARENT" || relation === "CHILD") {
-            const parentId = relation === "PARENT" ? person1Id : person2Id;
-            const childId = relation === "PARENT" ? person2Id : person1Id;
-
+        if (parentId && childId) {
             const spouseOfParent = rels
-                .filter((r) => r.type === "SPOUSE" && (r.fromPersonId === parentId || r.toPersonId === parentId))
+                .filter(
+                    (r) =>
+                        String(r.type).toUpperCase() === "SPOUSE" &&
+                        (r.fromPersonId === parentId || r.toPersonId === parentId)
+                )
                 .map((r) => (r.fromPersonId === parentId ? r.toPersonId : r.fromPersonId));
 
             for (const sp of spouseOfParent) await addParent(sp, childId);
 
             const parentsOfChild = new Set<string>(
-                newRels.filter((r) => r.type === "PARENT" && r.toPersonId === childId).map((r) => r.fromPersonId)
+                newRels
+                    .filter((r) => String(r.type).toUpperCase() === "PARENT" && r.toPersonId === childId)
+                    .map((r) => r.fromPersonId)
             );
             const sameParentsChildren = new Set<string>([childId]);
             for (const pid of parentsOfChild) {
                 newRels
-                    .filter((r) => r.type === "PARENT" && r.fromPersonId === pid)
+                    .filter((r) => String(r.type).toUpperCase() === "PARENT" && r.fromPersonId === pid)
                     .forEach((r) => sameParentsChildren.add(r.toPersonId));
             }
             for (const other of Array.from(sameParentsChildren)) {
                 if (other !== childId) await addSiblingPair(childId, other);
+            }
+
+            const otherParents = new Set(
+                rels
+                    .filter(
+                        (r) =>
+                            String(r.type).toUpperCase() === "PARENT" &&
+                            r.toPersonId === childId
+                    )
+                    .map((r) => r.fromPersonId)
+            );
+            otherParents.delete(parentId);
+
+            for (const op of otherParents) {
+                const [a, b] = [parentId, op].sort();
+                const key = `PAIR:${a}-${b}:SPOUSE`;
+                if (existingKeys.has(key)) continue;
+
+                const createdSpouse = await api.createRelationship(userId, treeId, {
+                    person1Id: a,
+                    person2Id: b,
+                    relationshipType: "SPOUSE",
+                });
+
+                newRels.push({
+                    id: createdSpouse?.id ?? crypto.randomUUID?.(),
+                    fromPersonId: a,
+                    toPersonId: b,
+                    type: "SPOUSE",
+                } as Relationship);
+
+                existingKeys.add(key);
             }
         }
 
@@ -465,18 +512,7 @@ export default function TreeDetails() {
         };
         const MIN_PARENT_GAP = 18;
 
-        const existingKeys = new Set(
-            rels.map((r) => {
-                const t = String(r.type).toUpperCase();
-                if (t === "SPOUSE" || t === "SIBLING") {
-                    const [a, b] = [r.fromPersonId, r.toPersonId].sort();
-                    return `PAIR:${a}-${b}:${t}`;
-                }
-                const parent = t === "PARENT" ? r.fromPersonId : r.toPersonId;
-                const child = t === "PARENT" ? r.toPersonId : r.fromPersonId;
-                return `PARENT:${parent}->${child}`;
-            })
-        );
+        const existingKeys = buildExistingRelationshipKeys(rels);
 
         return async (
             personId: string
@@ -655,11 +691,59 @@ export default function TreeDetails() {
     const handleDeleteMember = async (personId: string) => {
         if (!treeId || !userId) return;
         const toastId = showToast.loading("Đang xoá thành viên…");
+
         try {
+            const parentLinks = rels.filter(
+                (r) => String(r.type).toUpperCase() === "PARENT" && r.fromPersonId === personId
+            );
+            const spouseIds = rels
+                .filter(
+                    (r) =>
+                        String(r.type).toUpperCase() === "SPOUSE" &&
+                        (r.fromPersonId === personId || r.toPersonId === personId)
+                )
+                .map((r) => (r.fromPersonId === personId ? r.toPersonId : r.fromPersonId))
+                .filter((id) => id && id !== personId);
+
+            const existingParentKeys = new Set(
+                rels
+                    .filter((r) => String(r.type).toUpperCase() === "PARENT")
+                    .map((r) => `PARENT:${r.fromPersonId}->${r.toPersonId}`)
+            );
+
+            const newParentRels: Relationship[] = [];
+
+            for (const link of parentLinks) {
+                const childId = link.toPersonId;
+
+                for (const sp of spouseIds) {
+                    const key = `PARENT:${sp}->${childId}`;
+                    if (existingParentKeys.has(key)) continue;
+
+                    const created = await api.createRelationship(userId, treeId, {
+                        person1Id: sp,
+                        person2Id: childId,
+                        relationshipType: "PARENT",
+                    });
+
+                    newParentRels.push({
+                        id: created?.id ?? (crypto as any).randomUUID?.() ?? `${sp}-${childId}-PARENT`,
+                        fromPersonId: sp,
+                        toPersonId: childId,
+                        type: "PARENT",
+                    } as Relationship);
+
+                    existingParentKeys.add(key);
+                }
+            }
+
             await api.deleteMember(userId, treeId, personId);
 
-            setPersons(prev => prev.filter(p => p.id !== personId));
-            setRels(prev => prev.filter(r => r.fromPersonId !== personId && r.toPersonId !== personId));
+            setPersons((prev) => prev.filter((p) => p.id !== personId));
+            setRels((prev) => {
+                const filtered = prev.filter((r) => r.fromPersonId !== personId && r.toPersonId !== personId);
+                return [...filtered, ...newParentRels];
+            });
 
             setIsViewingDetails(false);
             setSelectedPerson(null);
@@ -669,7 +753,7 @@ export default function TreeDetails() {
                 setPendingNew(null);
             }
 
-            setGraphVersion(v => v + 1);
+            setGraphVersion((v) => v + 1);
             showToast.success("Đã xoá thành viên khỏi cây.");
         } catch (e: any) {
             showToast.error(e?.message || "Xoá thành viên thất bại");

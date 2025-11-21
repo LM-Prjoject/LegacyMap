@@ -1,22 +1,10 @@
 import type { RenderCustomNodeElementFn, CustomNodeElementProps } from "react-d3-tree";
 import type { CustomNodeDatum } from "../TreeGraph";
 import avt from "@/assets/avt.jpg";
+import { truncateByWidth } from "@/lib/truncate";
 
 const uniqueClipId = (base?: string) =>
     `avatarClip-${(base && String(base)) || Math.random().toString(36).slice(2)}`;
-
-const truncateByWidth = (text: string, maxWidth: number, font = "10px sans-serif") => {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return text;
-    ctx.font = font;
-    if (ctx.measureText(text).width <= maxWidth) return text;
-    let truncated = text;
-    while (ctx.measureText(truncated + "…").width > maxWidth && truncated.length > 0) {
-        truncated = truncated.slice(0, -1);
-    }
-    return truncated + "…";
-};
 
 export const MemberCard = (
     onClick?: (id: string) => void,
