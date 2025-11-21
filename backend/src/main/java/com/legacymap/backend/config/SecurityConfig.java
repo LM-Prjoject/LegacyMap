@@ -86,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, "/**").permitAll()
 
                         .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/*/basic").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
@@ -93,7 +94,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/heartbeat").authenticated()  // ✅ THÊM DÒNG NÀY
                         .requestMatchers(HttpMethod.POST, "/api/auth/password/forgot").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/password/reset").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/persons/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/persons/*/links/self/verified").permitAll()
+                        .requestMatchers("/api/persons/**").permitAll()
                         .requestMatchers("/api/notifications/stream").permitAll()
+                        .requestMatchers("/api/support/**").permitAll()
                         .requestMatchers("/api/trees/**").permitAll()
                         .requestMatchers("/api/events/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()

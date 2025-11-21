@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,6 +51,20 @@ public class UserController {
 
         User user = userService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.success(user));
+    }
+
+    // Public minimal info for display (no auth required)
+    @GetMapping("/{id}/basic")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBasicUserInfo(
+            @PathVariable UUID id
+    ) {
+        User user = userService.getUserById(id);
+        UserProfile profile = userService.getUserProfileOnly(id);
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("id", user.getId());
+        resp.put("username", user.getUsername());
+        resp.put("fullName", profile != null ? profile.getFullName() : null);
+        return ResponseEntity.ok(ApiResponse.success(resp));
     }
 
     @PutMapping("/{id}")

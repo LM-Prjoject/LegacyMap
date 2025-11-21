@@ -74,6 +74,21 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         if (token) handleEmailVerification(token);
     }, []);
 
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasVerificationToken = urlParams.get('token');
+        if (hasVerificationToken) return;
+        const existingToken = localStorage.getItem('authToken');
+        if (existingToken) {
+            const redirect = urlParams.get('redirect');
+            if (redirect && redirect.startsWith('/')) {
+                navigate(redirect);
+            } else {
+                navigate('/');
+            }
+        }
+    }, []);
+
     const handleEmailVerification = async (token: string) => {
         try {
             setLoading(true);

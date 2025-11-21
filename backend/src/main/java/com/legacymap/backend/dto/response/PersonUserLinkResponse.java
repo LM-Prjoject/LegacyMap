@@ -13,7 +13,7 @@ public class PersonUserLinkResponse {
     private UUID personId;
     private UUID userId;
     private PersonUserLink.LinkType linkType;
-    private boolean verified;
+    private PersonUserLink.Status status;
     private OffsetDateTime linkedAt;
     private OffsetDateTime verifiedAt;
 }

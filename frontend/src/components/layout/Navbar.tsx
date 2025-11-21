@@ -34,9 +34,18 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [chatUnreadCount, setChatUnreadCount] = useState(0);
     const eventSourceRef = useRef<EventSource | null>(null);
 
-    const { openWidget } = useChat();
+    const { openWidget, closeWidget, isWidgetOpen, totalUnread: chatTotalUnread } = useChat();
+    const handleMessengerToggle = () => {
+        if (isWidgetOpen) {
+            closeWidget();
+        } else {
+            openWidget();
+        }
+    };
+
 
     useAutoLogout(30);
 
@@ -92,6 +101,11 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
         window.addEventListener('storage', checkAuth);
         return () => window.removeEventListener('storage', checkAuth);
     }, [checkAuth]);
+
+    // Sync chat unread count from context on mount/auth change
+    useEffect(() => {
+        setChatUnreadCount(chatTotalUnread);
+    }, [chatTotalUnread]);
 
     useEffect(() => {
         if (!isAuthenticated || !user?.id) {
@@ -234,10 +248,18 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
             localStorage.setItem(UNREAD_COUNT_KEY, newCount.toString());
         };
 
+        const handleChatUnreadChange = (e: Event) => {
+            const customEvent = e as CustomEvent<number>;
+            const newCount = customEvent.detail ?? 0;
+            setChatUnreadCount(newCount);
+        };
+
         window.addEventListener('unreadCountChanged', handleCountChange);
+        window.addEventListener('chatUnreadChanged', handleChatUnreadChange);
 
         return () => {
             window.removeEventListener('unreadCountChanged', handleCountChange);
+            window.removeEventListener('chatUnreadChanged', handleChatUnreadChange);
         };
     }, []);
 
@@ -448,11 +470,16 @@ const Navbar: React.FC<NavbarProps> = ({ onLoginClick, onSignupClick }) => {
 
                                 {/* Messenger */}
                                 <button
-                                    onClick={openWidget}
+                                    onClick={handleMessengerToggle}
                                     className="relative p-2.5 rounded-full hover:bg-white/10 transition-all"
                                     title="Tin nhắn"
                                 >
                                     <MessageCircle className="w-6 h-6 text-white" />
+                                    {chatUnreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center shadow-lg">
+                                            {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                                        </span>
+                                    )}
                                 </button>
                             </>
                         ) : isHomePage ? (

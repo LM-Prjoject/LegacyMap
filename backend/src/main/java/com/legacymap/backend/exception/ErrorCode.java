@@ -34,21 +34,29 @@ public enum ErrorCode {
     RELATIONSHIP_NOT_SAME_TREE("Hai người không thuộc cùng một gia phả", 1104),
     RELATIONSHIP_NOT_FOUND("Không tìm thấy mối quan hệ", 1105),
     RELATIONSHIP_SELF_LINK("Không thể tạo quan hệ với chính bản thân", 1106),
-    TREE_NOT_FOUND("Không thể tìm thấy gia phả", 1111),
+    TREE_NOT_FOUND("Không thể tìm thấy gia phả", 1107),
 
     // Admin related
-    USER_BANNED("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ", 1107),
-    USER_ALREADY_BANNED("Người dùng này đã bị khóa", 1108),
-    USER_NOT_BANNED("Người dùng này chưa bị khóa", 1109),
-    CANNOT_BAN_ADMIN("Cannot ban admin users", 1111),
-    ADMIN_ACTION_FORBIDDEN("Admin action forbidden", 1110),
+    USER_BANNED("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ", 1110),
+    USER_ALREADY_BANNED("Người dùng này đã bị khóa", 1111),
+    USER_NOT_BANNED("Người dùng này chưa bị khóa", 1112),
+    CANNOT_BAN_ADMIN("Không thể khóa tài khoản admin", 1113),
+    ADMIN_ACTION_FORBIDDEN("Hành động bị cấm với tài khoản admin", 1114),
 
     // Event related
-    EVENT_NOT_FOUND("Event not found", 1111),
-    INVALID_INPUT_DATA("Invalid input data", 1112),
+    EVENT_NOT_FOUND("Event not found", 1120),
+    INVALID_INPUT_DATA("Invalid input data", 1121),
 
     // Notification related
-    NOTIFICATION_NOT_FOUND("Notification not found", 1113);
+    NOTIFICATION_NOT_FOUND("Notification not found", 1130),
+
+    // Person email uniqueness within a family tree
+    PERSON_EMAIL_EXISTS_IN_TREE("Email đã tồn tại trong cây", 1140),
+
+    // Resource related
+    RESOURCE_ALREADY_EXISTS("Tài nguyên đã tồn tại", 1141),
+    RESOURCE_NOT_FOUND("Không tìm thấy tài nguyên", 1142),
+    ACCESS_DENIED("Không có quyền truy cập", 1143);
 
     private final int code;
     private final String message;
@@ -57,5 +65,4 @@ public enum ErrorCode {
         this.message = message;
         this.code = code;
     }
-
 }

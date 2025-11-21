@@ -183,15 +183,27 @@ public class AuthController {
                 return ResponseEntity.status(401).build();
             }
 
-            String email = auth.getName();
-            authenticationService.updateUserActivity(email);
+            String principal = auth.getName(); // hiện tại là userId.toString()
+            UUID userId;
+            try {
+                userId = UUID.fromString(principal);
+            } catch (IllegalArgumentException ex) {
+                log.error("Invalid principal UUID: {}", principal, ex);
+                return ResponseEntity.status(401).build();
+            }
 
-            log.debug("💓 Heartbeat received from: {}", email);
+            // Lấy user từ DB, rồi update activity
+            userRepository.findById(userId).ifPresent(user -> {
+                authenticationService.updateUserActivity(user.getEmail());
+                log.debug("💓 Heartbeat received from: {}", user.getEmail());
+            });
+
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {
-            log.error("❌ Heartbeat error: {}", e.getMessage());
+            log.error("❌ Heartbeat error", e);
             return ResponseEntity.status(500).build();
         }
     }
+
 }
