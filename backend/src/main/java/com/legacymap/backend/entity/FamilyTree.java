@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @ToString(exclude = "createdBy")
+@ToString(exclude = "createdBy") // Tránh infinite loop khi log
 public class FamilyTree {
 
     @Id
@@ -32,6 +34,10 @@ public class FamilyTree {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false, referencedColumnName = "id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    // CRITICAL: Đảm bảo relationship đúng
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", nullable = false, referencedColumnName = "id")
+    @JsonIgnore
     private User createdBy;
 
     @Column(name = "is_public")

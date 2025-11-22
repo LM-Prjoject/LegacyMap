@@ -38,7 +38,7 @@ public class CustomOidcUserService extends OidcUserService {
         String name = Optional.ofNullable(oidc.getFullName()).orElse("User");
         String picture = Optional.ofNullable(oidc.getPicture()).orElse(null);
 
-        log.info("🔐 Google OIDC login for email: {}", email);
+        log.info("Google OIDC login for email: {}", email);
 
         // CHECK BAN TRƯỚC - QUAN TRỌNG NHẤT
         // FIXED: Throw Spring Security exception để failureHandler catch được

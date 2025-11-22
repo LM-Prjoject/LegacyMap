@@ -26,7 +26,36 @@ type Props = {
 };
 
 const MAX_SIZE = 5 * 1024 * 1024;
+const email_regrex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9-]+\.[a-zA-Z.]{2,}$/;
 
+const hasInvalidNameChars = (raw: string): boolean => {
+    const trimmed = raw.trim();
+    if (!trimmed) return false;
+    return /[^\p{L}\s]/u.test(trimmed);
+};
+
+const getNameError = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (!trimmed) return "Vui lòng nhập họ và tên.";
+    if (hasInvalidNameChars(trimmed)) {
+        return "Tên không được chứa các kí tự đặc biệt và số.";
+    }
+    return "";
+};
+
+const normalizeFullName = (raw: string): string => {
+    return raw
+        .replace(/\s+/g, " ")
+        .trim()
+        .split(" ")
+        .filter(Boolean)
+        .map(
+            (w) =>
+                w.charAt(0).toLocaleUpperCase("vi-VN") +
+                w.slice(1).toLocaleLowerCase("vi-VN")
+        )
+        .join(" ");
+};
 export default function MemberModal({
                                         open,
                                         title = "Thêm thành viên",
@@ -57,7 +86,7 @@ export default function MemberModal({
         setPreview(initialValues?.avatarUrl || "");
         setIsDeceased(Boolean(initialValues?.deathDate));
         setSubmitted(false);
-    }, [open, initialValues]);
+    }, [open]);
 
     useEffect(() => {
         if (!form.avatarFile) return;
@@ -67,7 +96,7 @@ export default function MemberModal({
     }, [form.avatarFile]);
 
     const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-    const nameError = form.fullName.trim().length === 0 ? "Vui lòng nhập họ và tên." : "";
+    const nameError = getNameError(form.fullName);
     const birthDateError =
         !form.birthDate
             ? "Vui lòng chọn ngày sinh."
@@ -84,7 +113,17 @@ export default function MemberModal({
         return "";
     })();
 
-    const canSubmitAll = !nameError && !birthDateError && !deathDateError && !genderError;
+    const emailError = (() => {
+        if (!form.email) return "";
+        const value = form.email.trim();
+        if (!value) return "";
+        if (!email_regrex.test(value)) {
+            return "Email không đúng định dạng.";
+        }
+        return "";
+    })();
+
+    const canSubmitAll = !nameError && !birthDateError && !deathDateError && !genderError && !emailError;
 
     const handlePickFile = (file?: File) => {
         if (!file) return;
@@ -131,9 +170,17 @@ export default function MemberModal({
             else if (birthDateError) showToast.error(birthDateError);
             else if (deathDateError) showToast.error(deathDateError);
             else if (genderError) showToast.error(genderError);
+            else if (emailError) showToast.error(emailError);
             return;
         }
-        onSubmit({ ...form, gender: (form.gender || "") as any });
+
+        const normalizedFullName = normalizeFullName(form.fullName);
+
+        onSubmit({
+            ...form,
+            fullName: normalizedFullName,
+            gender: (form.gender || "") as any,
+        });
     };
 
     if (!open) return null;
@@ -171,8 +218,8 @@ export default function MemberModal({
                             />
                             {submitted && nameError && (
                                 <span id="name-error" className="text-xs text-red-600 mt-1">
-                  {nameError}
-                </span>
+                                    {nameError}
+                                </span>
                             )}
                         </label>
 
@@ -181,7 +228,9 @@ export default function MemberModal({
                                 <span className="text-red-600">*</span>
                             </span>
                             <select
-                                className={`border rounded-lg px-3 py-2 ${submitted && genderError ? "border-red-500 focus-visible:outline-red-500" : ""}`}
+                                className={`border rounded-lg px-3 py-2 ${
+                                    submitted && genderError ? "border-red-500 focus-visible:outline-red-500" : ""
+                                }`}
                                 value={form.gender || ""}
                                 onChange={(e) => setForm((f) => ({ ...f, gender: (e.target.value as any) || "" }))}
                                 required
@@ -210,15 +259,17 @@ export default function MemberModal({
                                     }`}
                                     max={today}
                                     value={form.birthDate || ""}
-                                    onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value || undefined }))}
+                                    onChange={(e) =>
+                                        setForm((f) => ({ ...f, birthDate: e.target.value || undefined }))
+                                    }
                                     required
                                     aria-invalid={submitted && !!birthDateError}
                                     aria-describedby={submitted && birthDateError ? "birth-error" : undefined}
                                 />
                                 {submitted && birthDateError && (
                                     <span id="birth-error" className="text-xs text-red-600 mt-1">
-                    {birthDateError}
-                  </span>
+                                        {birthDateError}
+                                    </span>
                                 )}
                             </label>
 
@@ -227,7 +278,9 @@ export default function MemberModal({
                                 <input
                                     className="border rounded-lg px-3 py-2"
                                     value={form.birthPlace || ""}
-                                    onChange={(e) => setForm((f) => ({ ...f, birthPlace: e.target.value || undefined }))}
+                                    onChange={(e) =>
+                                        setForm((f) => ({ ...f, birthPlace: e.target.value || undefined }))
+                                    }
                                 />
                             </label>
                         </div>
@@ -238,7 +291,7 @@ export default function MemberModal({
                                 <input
                                     className="border rounded-lg px-3 py-2"
                                     value={form.phone || ""}
-                                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value || undefined }))}
+                                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value}))}
                                     placeholder="0901234567"
                                 />
                             </label>
@@ -248,9 +301,14 @@ export default function MemberModal({
                                     type="email"
                                     className="border rounded-lg px-3 py-2"
                                     value={form.email || ""}
-                                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value || undefined }))}
+                                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                                     placeholder="ten@example.com"
                                 />
+                                {submitted && emailError && (
+                                    <span id="email-error" className="text-xs text-red-600 mt-1">
+                                        {emailError}
+                                    </span>
+                                )}
                             </label>
                         </div>
 
@@ -280,15 +338,17 @@ export default function MemberModal({
                                         max={today}
                                         min={form.birthDate || undefined}
                                         value={form.deathDate || ""}
-                                        onChange={(e) => setForm((f) => ({ ...f, deathDate: e.target.value || undefined }))}
+                                        onChange={(e) =>
+                                            setForm((f) => ({ ...f, deathDate: e.target.value || undefined }))
+                                        }
                                         required
                                         aria-invalid={submitted && !!deathDateError}
                                         aria-describedby={submitted && deathDateError ? "death-error" : undefined}
                                     />
                                     {submitted && deathDateError && (
                                         <span id="death-error" className="text-xs text-red-600 mt-1">
-                      {deathDateError}
-                    </span>
+                                            {deathDateError}
+                                        </span>
                                     )}
                                 </label>
 
@@ -297,7 +357,9 @@ export default function MemberModal({
                                     <input
                                         className="border rounded-lg px-3 py-2"
                                         value={form.deathPlace || ""}
-                                        onChange={(e) => setForm((f) => ({ ...f, deathPlace: e.target.value || undefined }))}
+                                        onChange={(e) =>
+                                            setForm((f) => ({ ...f, deathPlace: e.target.value || undefined }))
+                                        }
                                     />
                                 </label>
                             </div>
@@ -308,7 +370,9 @@ export default function MemberModal({
                             <textarea
                                 className="border rounded-lg px-3 py-2 min-h-[96px]"
                                 value={form.biography || ""}
-                                onChange={(e) => setForm((f) => ({ ...f, biography: e.target.value || undefined }))}
+                                onChange={(e) =>
+                                    setForm((f) => ({ ...f, biography: e.target.value || undefined }))
+                                }
                                 placeholder="Một vài dòng mô tả..."
                             />
                         </label>
@@ -381,8 +445,8 @@ export default function MemberModal({
                     >
                         {submitting ? (
                             <span className="inline-flex items-center gap-2">
-                <Loader2 className="animate-spin" /> Đang lưu…
-              </span>
+                                <Loader2 className="animate-spin" /> Đang lưu…
+                            </span>
                         ) : (
                             "Lưu"
                         )}

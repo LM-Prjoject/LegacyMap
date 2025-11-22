@@ -199,8 +199,9 @@ public class AuthController {
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {
-            log.error("❌ Heartbeat error: {}", e.getMessage());
+            log.error("❌ Heartbeat error", e);
             return ResponseEntity.status(500).build();
         }
     }
+
 }

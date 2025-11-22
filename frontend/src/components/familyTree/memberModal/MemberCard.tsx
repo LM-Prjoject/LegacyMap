@@ -1,14 +1,9 @@
 import type { RenderCustomNodeElementFn, CustomNodeElementProps } from "react-d3-tree";
 import type { CustomNodeDatum } from "../TreeGraph";
-import avt from "@/assets/avt.jpg";
+import { truncateByWidth } from "@/lib/truncate";
 
 const uniqueClipId = (base?: string) =>
     `avatarClip-${(base && String(base)) || Math.random().toString(36).slice(2)}`;
-
-const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength - 1) + "…";
-};
 
 export const MemberCard = (
     onClick?: (id: string) => void,
@@ -17,10 +12,11 @@ export const MemberCard = (
     return (rd3tNode: CustomNodeElementProps) => {
         const nodeDatum = rd3tNode.nodeDatum as unknown as CustomNodeDatum;
         const attrs = nodeDatum.attributes || {};
-        const id = attrs.id || "";
-        const avatar = attrs.avatar || avt;
-        const life = attrs.life || "—";
-        const name = nodeDatum.name || '';
+        const id = (attrs.id as string) || "";
+        const rawAvatar = (attrs.avatar as string) || "";
+        const avatar = rawAvatar && rawAvatar.trim().length > 0 ? rawAvatar : undefined;
+        const life = (attrs.life as string) || "—";
+        const name = nodeDatum.name || "";
         const cid = uniqueClipId(id);
 
         return (
@@ -46,19 +42,21 @@ export const MemberCard = (
                     strokeWidth={isSelected ? 2.5 : 1.4}
                     className={isSelected ? "shadow-lg" : ""}
                     style={{
-                        filter: isSelected ? 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.5))' : 'none'
+                        filter: isSelected ? "drop-shadow(0 0 8px rgba(99, 102, 241, 0.5))" : "none",
                     }}
                 />
 
-                <image
-                    href={avatar}
-                    x={-40}
-                    y={-64}
-                    width={80}
-                    height={80}
-                    clipPath={`url(#${cid})`}
-                    preserveAspectRatio="xMidYMid slice"
-                />
+                {avatar && (
+                    <image
+                        href={avatar}
+                        x={-40}
+                        y={-64}
+                        width={80}
+                        height={80}
+                        clipPath={`url(#${cid})`}
+                        preserveAspectRatio="xMidYMid slice"
+                    />
+                )}
 
                 <rect
                     x={-40}
@@ -78,9 +76,9 @@ export const MemberCard = (
                     textAnchor="middle"
                     fontSize={10}
                     fill="#111827"
-                    style={{ fontWeight: 300 }}
+                    style={{ fontWeight: 100 }}
                 >
-                    {truncateText(name, 10)}
+                    {truncateByWidth(name, 70)}
                 </text>
 
                 <text
@@ -89,7 +87,7 @@ export const MemberCard = (
                     textAnchor="middle"
                     fontSize={9}
                     fill="#4b5563"
-                    style={{ fontWeight: 200 }}
+                    style={{ fontWeight: 100 }}
                 >
                     {life}
                 </text>

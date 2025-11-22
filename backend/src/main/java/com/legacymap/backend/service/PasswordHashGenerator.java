@@ -22,6 +22,6 @@ public class PasswordHashGenerator {
 
         // Verify hash có hoạt động không
         boolean matches = encoder.matches(rawPassword, hashedPassword);
-        System.out.println("Verification test: " + (matches ? "✅ SUCCESS" : "❌ FAILED"));
+        System.out.println("Verification test: " + (matches ? "SUCCESS" : "FAILED"));
     }
 }

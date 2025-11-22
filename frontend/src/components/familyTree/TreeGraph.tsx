@@ -2,7 +2,6 @@ import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import Tree, { type RawNodeDatum, type RenderCustomNodeElementFn, type CustomNodeElementProps } from "react-d3-tree";
 import type { Person, Relationship } from "@/api/trees";
 import { MemberCard } from "@/components/familyTree/memberModal/MemberCard.tsx";
-import avtFallback from "@/assets/avt.jpg";
 
 export interface CustomNodeAttributes {
     id: string;
@@ -49,7 +48,7 @@ const toRawAttrs = (a: Partial<CustomNodeAttributes>): Record<string, string | n
 
 const COLOR_FATHER = "#3b82f6";
 const COLOR_MOTHER = "#ec4899";
-const COLOR_OTHER  = "#cc33ff";
+const COLOR_OTHER = "#cc33ff";
 
 export default function TreeGraph({ persons, relationships, onNodeClick, selectedNodeId, onEmptyClick }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -87,7 +86,13 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
     const parentsByChild = useMemo(() => {
         const out = new Map<string, { fathers: Set<string>; mothers: Set<string>; others: Set<string> }>();
         const ensure = (id: string) => {
-            if (!out.has(id)) out.set(id, { fathers: new Set(), mothers: new Set(), others: new Set() });
+            if (!out.has(id)) {
+                out.set(id, {
+                    fathers: new Set<string>(),
+                    mothers: new Set<string>(),
+                    others: new Set<string>(),
+                });
+            }
             return out.get(id)!;
         };
         for (const r of relationships) {
@@ -99,8 +104,49 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             const bucket = ensure(childId);
             if (g === "MALE") bucket.fathers.add(parentId);
             else if (g === "FEMALE") bucket.mothers.add(parentId);
-            else if (g === "OTHER") bucket.mothers.add(parentId);
+            else if (g === "OTHER") bucket.others.add(parentId);
+            else bucket.others.add(parentId);
         }
+
+        const spouses = new Map<string, Set<string>>();
+        const ensureSpouse = (id: string) => {
+            if (!spouses.has(id)) spouses.set(id, new Set<string>());
+            return spouses.get(id)!;
+        };
+
+        for (const r of relationships) {
+            const t = String(r.type).toUpperCase();
+            if (t !== "SPOUSE") continue;
+            ensureSpouse(r.fromPersonId).add(r.toPersonId);
+            ensureSpouse(r.toPersonId).add(r.fromPersonId);
+        }
+
+        for (const [_childId, buckets] of out.entries()) {
+            const allParents = new Set<string>([
+                ...buckets.fathers,
+                ...buckets.mothers,
+                ...buckets.others,
+            ]);
+
+            for (const pid of Array.from(allParents)) {
+                const spSet = spouses.get(pid);
+                if (!spSet) continue;
+
+                for (const sp of spSet) {
+                    if (allParents.has(sp)) continue;
+
+                    const g = genderOf.get(sp);
+                    if (g === "MALE") {
+                        buckets.fathers.add(sp);
+                    } else if (g === "FEMALE") {
+                        buckets.mothers.add(sp);
+                    } else {
+                        buckets.others.add(sp);
+                    }
+                }
+            }
+        }
+
         return out;
     }, [relationships, genderOf]);
 
@@ -114,11 +160,17 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             if (!id) return null;
             if (id === hoveredId) {
                 const g = genderOf.get(id);
-                return g === "FEMALE" ? COLOR_MOTHER : g === "MALE" ? COLOR_FATHER : g === "OTHER" ? COLOR_OTHER :null;
+                return g === "FEMALE"
+                    ? COLOR_MOTHER
+                    : g === "MALE"
+                        ? COLOR_FATHER
+                        : g === "OTHER"
+                            ? COLOR_OTHER
+                            : null;
             }
             if (highlightSets.fathers.has(id)) return COLOR_FATHER;
             if (highlightSets.mothers.has(id)) return COLOR_MOTHER;
-            if (highlightSets.others.has(id))  return COLOR_OTHER;
+            if (highlightSets.others.has(id)) return COLOR_OTHER;
             return null;
         },
         [hoveredId, genderOf, highlightSets]
@@ -132,7 +184,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             height={118}
             rx={5}
             ry={5}
-            fill={`${color}`}
+            fill={color}
             stroke={color}
             strokeWidth={3}
         />
@@ -162,7 +214,18 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             }
         });
 
-        const rootsRaw = persons.filter((p) => !(parentMap.get(p.id)?.size ?? 0));
+        const rootsRaw = persons.filter((p) => {
+            const hasParents = (parentMap.get(p.id)?.size ?? 0) > 0;
+            if (hasParents) return false;
+
+            const spouseId = spouseMap.get(p.id);
+            if (spouseId) {
+                const spouseHasParents = (parentMap.get(spouseId)?.size ?? 0) > 0;
+                if (spouseHasParents) return false;
+            }
+            return true;
+        });
+
         const seenCouple = new Set<string>();
         const roots = rootsRaw.filter((p) => {
             const s = spouseMap.get(p.id);
@@ -173,37 +236,59 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             return true;
         });
 
-        const built = new Set<string>();
-        const buildNode = (id: string): CustomNodeDatum => {
-            if (built.has(id)) return { name: "(dup)", attributes: { id }, children: [] };
-            built.add(id);
+        const buildNode = (id: string, path: Set<string>): CustomNodeDatum => {
+            if (path.has(id)) {
+                return {
+                    name: "(loop)",
+                    attributes: { id },
+                    children: [],
+                };
+            }
 
-            const p = byId.get(id)!;
+            const p = byId.get(id);
+            if (!p) {
+                return {
+                    name: "(missing)",
+                    attributes: { id },
+                    children: [],
+                };
+            }
+
+            const nextPath = new Set(path);
+            nextPath.add(id);
+
             const spouseId = spouseMap.get(id);
 
-            if (spouseId && !built.has(spouseId)) {
-                built.add(spouseId);
-                const spouse = byId.get(spouseId)!;
-                const husband = p.gender === "MALE" ? p : spouse;
-                const wife = p.gender === "MALE" ? spouse : p;
+            if (spouseId) {
+                const spouse = byId.get(spouseId);
+                if (spouse) {
+                    const husband = p.gender === "MALE" ? p : spouse;
+                    const wife = p.gender === "MALE" ? spouse : p;
 
-                const coupleChildren = Array.from(
-                    new Set([...(children.get(husband.id) || []), ...(children.get(wife.id) || [])])
-                ).map(buildNode);
+                    const coupleChildren = Array.from(
+                        new Set([
+                            ...(children.get(husband.id) || []),
+                            ...(children.get(wife.id) || []),
+                        ])
+                    ).map((cid) => buildNode(cid, nextPath));
 
-                return {
-                    name: husband.fullName + " & " + wife.fullName,
-                    attributes: {
-                        id: husband.id,
-                        couple: true,
-                        husbandId: husband.id,
-                        wifeId: wife.id,
-                        avatars: [(husband as any).avatarUrl || avtFallback, (wife as any).avatarUrl || avtFallback],
-                        names: [husband.fullName, wife.fullName],
-                        lifes: [lifeTextOf(husband), lifeTextOf(wife)],
-                    },
-                    children: coupleChildren,
-                };
+                    return {
+                        name: husband.fullName + " & " + wife.fullName,
+                        attributes: {
+                            id: husband.id,
+                            couple: true,
+                            husbandId: husband.id,
+                            wifeId: wife.id,
+                            avatars: [
+                                (husband as any).avatarUrl ?? "",
+                                (wife as any).avatarUrl ?? "",
+                            ],
+                            names: [husband.fullName, wife.fullName],
+                            lifes: [lifeTextOf(husband), lifeTextOf(wife)],
+                        },
+                        children: coupleChildren,
+                    };
+                }
             }
 
             const childIds = Array.from(children.get(id) || []);
@@ -212,21 +297,31 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                 attributes: {
                     id: p.id,
                     couple: false,
-                    avatar: (p as any).avatarUrl || avtFallback,
+                    avatar: (p as any).avatarUrl ?? "",
                     life: lifeTextOf(p),
                     names: [p.fullName],
                     lifes: [lifeTextOf(p)],
                 },
-                children: childIds.map(buildNode),
+                children: childIds.map((cid) => buildNode(cid, nextPath)),
             };
         };
 
-        return roots.map((r) => buildNode(r.id));
+        return roots.map((r) => buildNode(r.id, new Set()));
     }, [persons, relationships]);
 
     const EmptyCard: RenderCustomNodeElementFn = () => (
         <g onClick={onEmptyClick} style={{ cursor: onEmptyClick ? "pointer" : "default" }}>
-            <rect x={-60} y={-80} width={120} height={160} rx={10} ry={10} fill="#e5e7eb" stroke="#cbd5e1" strokeWidth={1.5} />
+            <rect
+                x={-60}
+                y={-80}
+                width={120}
+                height={160}
+                rx={10}
+                ry={10}
+                fill="#e5e7eb"
+                stroke="#cbd5e1"
+                strokeWidth={1.5}
+            />
             <text x={0} y={0} textAnchor="middle" fontSize={14} fill="#111827">
                 Trống
             </text>
@@ -293,7 +388,11 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                     ...rd3tNode,
                     nodeDatum: {
                         ...rd3tNode.nodeDatum,
-                        attributes: toRawAttrs({ id, avatar: (attrs.avatar as string) || avtFallback, life: (attrs.life as string) || "—" }),
+                        attributes: toRawAttrs({
+                            id,
+                            avatar: (attrs.avatar as string) || "",
+                            life: (attrs.life as string) || "—",
+                        }),
                     } as RawNodeDatum,
                 } as CustomNodeElementProps)}
             </g>

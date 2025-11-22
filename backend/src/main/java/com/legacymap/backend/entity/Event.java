@@ -3,12 +3,10 @@ package com.legacymap.backend.entity;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -80,9 +78,6 @@ public class Event {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "reminder", columnDefinition = "jsonb")
     private JsonNode reminder;
-
-    @Column(name = "is_public")
-    private Boolean isPublic = true;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 20)

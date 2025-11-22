@@ -2,6 +2,8 @@ import { X, Pencil, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Relationship } from "@/api/trees";
 import PopupModal from "@/components/popupModal/PopupModal"
+import { personLinkApi } from "@/api/personLink";
+import { showToast } from "@/lib/toast";
 
 interface PersonDetailsModalProps {
     isOpen: boolean;
@@ -11,6 +13,7 @@ interface PersonDetailsModalProps {
     onClose: () => void;
     onEditClick: () => void;
     onDelete?: (personId: string) => Promise<void> | void;
+    readOnly?: boolean;
 }
 
 const formatDate = (dateString?: string | null) => {
@@ -75,10 +78,8 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
                     } else if (othDOB > curDOB) {
                         relationshipText = g === "FEMALE" ? `Em gái: ${otherPersonName}` : `Em trai: ${otherPersonName}`;
                     } else {
-                        relationshipText = `Anh/Chị/Em: ${otherPersonName}`;
+                        relationshipText = g === "FEMALE" ?`Chị/Em gái: ${otherPersonName}`:  `Anh/em trai: ${otherPersonName}`;
                     }
-                } else {
-                    relationshipText = g === "FEMALE" ? `Chị/Em gái: ${otherPersonName}` : `Anh/Em trai: ${otherPersonName}`;
                 }
                 break;
             }
@@ -100,6 +101,7 @@ export default function PersonDetailsModal({
                                                onClose,
                                                onEditClick,
                                                onDelete,
+                                               readOnly = false,
                                            }: PersonDetailsModalProps) {
     const [filteredRelationships, setFilteredRelationships] = useState<
         Array<{ text: string; person: any; type: string; relationshipId?: string; isParent?: boolean }>
@@ -107,6 +109,64 @@ export default function PersonDetailsModal({
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [inviteOpen, setInviteOpen] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState<string>("");
+    const [inviting, setInviting] = useState(false);
+    const [canInvite, setCanInvite] = useState(true);
+    const [invitedPending, setInvitedPending] = useState(false);
+
+    useEffect(() => {
+        setInviteEmail(person?.email || "");
+        // Reset state when switching to a different person to avoid leaking previous verified state
+        setCanInvite(true);
+        setInvitedPending(false);
+        const currentId = person?.id as string | undefined;
+        let cancelled = false;
+        if (currentId) {
+            const key = `person_verified_${person.id}`;
+            const verified = localStorage.getItem(key) === 'true';
+            if (verified) {
+                setCanInvite(false);
+                setInvitedPending(false);
+            }
+            // Backend check to ensure accuracy even if NotificationsPage wasn't opened
+            personLinkApi.checkVerified(currentId)
+                .then((res: any) => {
+                    if (cancelled) return;
+                    if (person?.id !== currentId) return; // ignore stale response
+                    const result = res?.result ?? res; // ApiResponse wrapper or raw boolean
+                    if (result === true) {
+                        setCanInvite(false);
+                        setInvitedPending(false);
+                        try { localStorage.setItem(key, 'true'); } catch {}
+                    } else if (result === false) {
+                        // Ensure invite is possible for a non-verified person and clear any stale local cache
+                        setCanInvite(true);
+                        setInvitedPending(false);
+                        try { localStorage.removeItem(key); } catch {}
+                    }
+                })
+                .catch(() => {/* ignore, keep UI as-is */});
+        }
+        return () => { cancelled = true; };
+    }, [person?.email, person?.id]);
+
+    useEffect(() => {
+        const handler = (e: any) => {
+            const pid = e?.detail?.personId;
+            if (pid && person?.id && pid === person.id) {
+                setCanInvite(false);
+                setInvitedPending(false);
+            }
+        };
+        window.addEventListener('person-verified', handler as EventListener);
+        return () => window.removeEventListener('person-verified', handler as EventListener);
+    }, [person?.id]);
+
+    const isValidEmail = (value: string) => {
+        const v = (value || "").trim();
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    };
 
     const handleDeleteConfirm = async () => {
         if (!person?.id) return;
@@ -117,6 +177,53 @@ export default function PersonDetailsModal({
             onClose();
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleInviteConfirm = async () => {
+        if (!person?.id) return;
+        const email = (inviteEmail || "").trim();
+        if (!email) {
+            showToast.warning("Vui lòng nhập email người được mời");
+            return;
+        }
+        if (!isValidEmail(email)) {
+            showToast.warning("Email không hợp lệ");
+            return;
+        }
+        try {
+            setInviting(true);
+            const userRaw = localStorage.getItem("user");
+            const inviterId = userRaw ? (JSON.parse(userRaw)?.id as string) : undefined;
+            if (!inviterId) {
+                showToast.error("Không xác định được người mời. Vui lòng đăng nhập lại.");
+                return;
+            }
+            await personLinkApi.invite(person.id, inviterId, email);
+            showToast.success("Đã gửi lời mời xác minh (thông báo + email)");
+            setInvitedPending(true);
+            // If person currently has no email, reflect invited email locally for immediate UX
+            try {
+                if (!person.email) {
+                    person.email = email;
+                    setInviteEmail(email);
+                }
+            } catch {}
+            setInviteOpen(false);
+        } catch (e: any) {
+            const code = e?.response?.data?.code;
+            const backendMsg = e?.response?.data?.message;
+            if (code === 1008) {
+                // VALIDATION_FAILED từ BE: có thể do hồ sơ đã có self-verified hoặc email không hợp lệ
+                const hint = backendMsg || "Dữ liệu không hợp lệ. Có thể hồ sơ đã có xác nhận hoặc email không hợp lệ.";
+                showToast.error(hint);
+                setCanInvite(false);
+            } else {
+                const msg = backendMsg || "Gửi lời mời thất bại";
+                showToast.error(msg);
+            }
+        } finally {
+            setInviting(false);
         }
     };
 
@@ -217,26 +324,47 @@ export default function PersonDetailsModal({
                         <h2 className="text-xl font-semibold text-black">Thông tin chi tiết</h2>
 
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={onEditClick}
-                                className="p-2 rounded-full hover:bg-gray-100 text-gray-700"
-                                aria-label="Chỉnh sửa"
-                                title="Chỉnh sửa"
-                            >
-                                <Pencil className="h-5 w-5" />
-                            </button>
-                            <button
-                                onClick={() => setShowDeleteModal(true)}
-                                className="p-2 rounded-full hover:bg-red-50 text-red-600"
-                                aria-label="Xoá khỏi cây"
-                                title="Xoá khỏi cây"
-                            >
-                                <Trash2 className="h-5 w-5" />
-                            </button>
+                            {!readOnly && invitedPending && (
+                                <span className="px-2 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">Đang chờ xác minh</span>
+                            )}
+                            {!readOnly && !canInvite && (
+                                <span className="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">Đã xác minh</span>
+                            )}
+                            {!readOnly && canInvite && (
+                                <button
+                                    onClick={() => setInviteOpen(true)}
+                                    className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+                                    aria-label="Mời xác minh hồ sơ"
+                                    title="Mời xác minh hồ sơ"
+                                >
+                                    Mời xác minh hồ sơ
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button
+                                    onClick={onEditClick}
+                                    className="p-2 rounded-full hover:bg-gray-100 text-gray-700"
+                                    aria-label="Chỉnh sửa"
+                                    title="Chỉnh sửa"
+                                >
+                                    <Pencil className="h-5 w-5" />
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button
+                                    onClick={() => setShowDeleteModal(true)}
+                                    className="p-2 rounded-full hover:bg-red-50 text-red-600"
+                                    aria-label="Xoá khỏi cây"
+                                    title="Xoá khỏi cây"
+                                >
+                                    <Trash2 className="h-5 w-5" />
+                                </button>
+                            )}
                             <button onClick={() => { onClose(); }} className="p-1 rounded-full hover:bg-gray-100" aria-label="Đóng">
                                 <X className="h-5 w-5 text-black" />
                             </button>
                         </div>
+
                     </div>
 
                     <div className="p-6">
@@ -256,7 +384,7 @@ export default function PersonDetailsModal({
                             <div className="flex-1">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h1 className="text-2xl font-bold">{person.fullName}</h1>
+                                        <h1 className="text-2xl font-bold text-gray-700">{person.fullName}</h1>
                                         <p className="text-gray-600">
                                             <span className="font-bold">Giới tính: </span>
                                             {String(person.gender).toUpperCase() === "MALE"
@@ -268,7 +396,7 @@ export default function PersonDetailsModal({
                                     </div>
                                 </div>
 
-                                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className=" grid grid-cols-1 md:grid-cols-2 gap-1">
                                     <div>
                                         <p className="text-sm font-medium text-gray-500">Ngày sinh</p>
                                         <p className="text-slate-500">{formatDate(person.birthDate)}</p>
@@ -277,21 +405,21 @@ export default function PersonDetailsModal({
                                     {person.deathDate && (
                                         <div>
                                             <p className="text-sm font-medium text-gray-500">Ngày mất</p>
-                                            <p>{formatDate(person.deathDate)}</p>
+                                            <p className="text-slate-500">{formatDate(person.deathDate)}</p>
                                         </div>
                                     )}
 
                                     {person.birthPlace && (
                                         <div>
                                             <p className="text-sm font-medium text-gray-500">Nơi sinh</p>
-                                            <p>{person.birthPlace}</p>
+                                            <p className="text-slate-500">{person.birthPlace}</p>
                                         </div>
                                     )}
 
                                     {person.deathPlace && (
                                         <div>
                                             <p className="text-sm font-medium text-gray-500">Nơi mất</p>
-                                            <p>{person.deathPlace}</p>
+                                            <p className="text-slate-500">{person.deathPlace}</p>
                                         </div>
                                     )}
 
@@ -317,7 +445,7 @@ export default function PersonDetailsModal({
                                     </div>
                                 )}
 
-                                <div className="mt-6">
+                                <div className="mt-2">
                                     <p className="text-sm font-medium text-gray-500 mb-3">Mối quan hệ</p>
                                     {filteredRelationships.length > 0 ? (
                                         <div className="space-y-3">
@@ -376,6 +504,33 @@ export default function PersonDetailsModal({
                     variant="danger"
                     loading={deleting}
                 />
+                <PopupModal
+                    show={inviteOpen}
+                    onClose={() => (!inviting ? setInviteOpen(false) : undefined)}
+                    onConfirm={handleInviteConfirm}
+                    title="Mời xác minh hồ sơ"
+                    confirmButtonProps={{ disabled: inviting || !isValidEmail(inviteEmail) }}
+                    body={
+                        <div className="space-y-3">
+                            <p>Gửi lời mời xác minh danh tính đến email của người này. Hệ thống sẽ gửi thông báo trong ứng dụng (nếu đã có tài khoản) và email.</p>
+                            <div>
+                                <label className="block text-sm text-gray-600 mb-1">Email</label>
+                                <input
+                                    type="email"
+                                    className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    value={inviteEmail}
+                                    onChange={(e) => setInviteEmail(e.target.value)}
+                                    placeholder="nhapemail@domain.com"
+                                />
+                            </div>
+                        </div>
+                    }
+                    confirmText="Gửi lời mời xác minh"
+                    cancelText="Huỷ"
+                    variant="default"
+                    loading={inviting}
+                />
+
         </div>
     );
 }

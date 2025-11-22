@@ -1,23 +1,37 @@
 package com.legacymap.backend.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.legacymap.backend.dto.request.EventCreateRequest;
-import com.legacymap.backend.dto.response.EventReminderResponse;
-import com.legacymap.backend.entity.*;
-import com.legacymap.backend.exception.AppException;
-import com.legacymap.backend.exception.ErrorCode;
-import com.legacymap.backend.repository.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.time.*;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legacymap.backend.dto.request.EventCreateRequest;
+import com.legacymap.backend.dto.response.EventReminderResponse;
+import com.legacymap.backend.entity.Event;
+import com.legacymap.backend.entity.EventReminder;
+import com.legacymap.backend.entity.Person;
+import com.legacymap.backend.entity.PersonUserLink;
+import com.legacymap.backend.entity.User;
+import com.legacymap.backend.exception.AppException;
+import com.legacymap.backend.exception.ErrorCode;
+import com.legacymap.backend.repository.EventReminderRepository;
+import com.legacymap.backend.repository.EventRepository;
+import com.legacymap.backend.repository.PersonRepository;
+import com.legacymap.backend.repository.PersonUserLinkRepository;
+import com.legacymap.backend.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -42,9 +56,12 @@ public class EventReminderService {
         List<String> methods = reminderCfg.getMethods();
         if (daysBefore == null || methods == null || methods.isEmpty()) return;
 
-        OffsetDateTime reminderTimeUtc = daysBefore == 0
-                ? OffsetDateTime.now(ZoneOffset.UTC)
-                : event.getStartDate().minusDays(daysBefore);
+        OffsetDateTime reminderTimeUtc;
+        if (daysBefore == 0) {
+            reminderTimeUtc = event.getStartDate();
+        } else {
+            reminderTimeUtc = event.getStartDate().minusDays(daysBefore);
+        }
 
         createReminderForRecipient(event, EventReminder.RecipientType.user, event.getCreatedBy().getId(), methods, reminderTimeUtc);
 
@@ -93,12 +110,15 @@ public class EventReminderService {
         createRemindersForEvent(event);
     }
 
-    @Scheduled(fixedRate = 30_000)
+    @Scheduled(fixedRateString = "${app.reminders.poll-interval-ms:300000}")
     @Transactional
     public void processPendingReminders() {
         OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
 
-        List<EventReminder> pending = eventReminderRepository.findPendingReminders(nowUtc);
+        OffsetDateTime nowPlusBuffer = nowUtc.plusSeconds(30);
+        OffsetDateTime ninetySecondsAgo = nowUtc.minusSeconds(90);
+
+        List<EventReminder> pending = eventReminderRepository.findPendingReminders(nowPlusBuffer, ninetySecondsAgo);
 
         if (pending.isEmpty()) return;
 
@@ -193,7 +213,7 @@ public class EventReminderService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new AppException(ErrorCode.EVENT_NOT_FOUND));
 
-        if (!event.getCreatedBy().getId().equals(userId) && !event.getIsPublic()) {
+        if (!event.getCreatedBy().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 

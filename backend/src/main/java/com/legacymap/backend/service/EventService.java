@@ -1,5 +1,19 @@
 package com.legacymap.backend.service;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legacymap.backend.dto.request.EventCreateRequest;
 import com.legacymap.backend.dto.request.EventUpdateRequest;
 import com.legacymap.backend.dto.response.EventResponse;
@@ -11,20 +25,9 @@ import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.EventRepository;
 import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -74,7 +77,6 @@ public class EventService {
                 .isRecurring(request.getIsRecurring() != null ? request.getIsRecurring() : false)
                 .recurrenceRule(request.getRecurrenceRule() != null ? request.getRecurrenceRule() : Event.RecurrenceRule.NONE)
                 .location(request.getLocation())
-                .isPublic(request.getIsPublic() != null ? request.getIsPublic() : true)
                 .status(Event.EventStatus.active)
                 .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
@@ -121,7 +123,6 @@ public class EventService {
         if (request.getIsRecurring() != null) event.setIsRecurring(request.getIsRecurring());
         if (request.getRecurrenceRule() != null) event.setRecurrenceRule(request.getRecurrenceRule());
         if (request.getLocation() != null) event.setLocation(request.getLocation());
-        if (request.getIsPublic() != null) event.setIsPublic(request.getIsPublic());
         if (request.getStatus() != null) event.setStatus(request.getStatus());
 
         try {
@@ -163,7 +164,12 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new AppException(ErrorCode.EVENT_NOT_FOUND));
 
-        if (!event.getIsPublic() && !event.getCreatedBy().getId().equals(userId)) {
+        boolean isCreator = event.getCreatedBy().getId().equals(userId);
+        boolean hasTreeAccess = event.getFamilyTree() != null && 
+                familyTreeRepository.findByIdAndCreatedBy(event.getFamilyTree().getId(), loadUserOrThrow(userId))
+                        .isPresent();
+
+        if (!isCreator && !hasTreeAccess) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
@@ -247,7 +253,6 @@ public class EventService {
         response.setIsRecurring(event.getIsRecurring());
         response.setRecurrenceRule(event.getRecurrenceRule());
         response.setLocation(event.getLocation());
-        response.setIsPublic(event.getIsPublic());
         response.setStatus(event.getStatus());
         response.setCreatedAt(event.getCreatedAt() != null ? event.getCreatedAt().atZoneSameInstant(vietnamZone).toOffsetDateTime() : null);
         response.setUpdatedAt(event.getUpdatedAt() != null ? event.getUpdatedAt().atZoneSameInstant(vietnamZone).toOffsetDateTime() : null);

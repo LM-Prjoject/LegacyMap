@@ -16,4 +16,8 @@ public interface PersonRepository extends JpaRepository<Person, UUID> {
     // NEW: Count all persons across all family trees
     @Query("SELECT COUNT(p) FROM Person p")
     long countAllPersons();
+
+    // Email helpers within a tree
+    boolean existsByFamilyTree_IdAndEmailIgnoreCase(UUID familyTreeId, String email);
+    Person findFirstByFamilyTree_IdAndEmailIgnoreCase(UUID familyTreeId, String email);
 }

@@ -12,6 +12,61 @@ export interface ApiResponse<T> {
   items?: T extends any[] ? T : never;
 }
 
+export async function getPublicUserBasic(userId: string): Promise<{ id: string; username?: string; fullName?: string } | null> {
+  const res = await fetch(
+      `${API_BASE}/users/${encodeURIComponent(userId)}/basic`,
+      { headers: authHeaders() }
+  );
+  const json = await safeJson<ApiResponse<{ id: string; username?: string; fullName?: string }>>(res);
+  if (!res.ok) return null;
+  const data = pickData<{ id: string; username?: string; fullName?: string }>(json);
+  return data as any;
+}
+
+async function getTreeOwner(treeId: string): Promise<string | null> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/owner`,
+      { headers: authHeaders() }
+  );
+  const json = await safeJson<ApiResponse<{ ownerId: string }>>(res);
+  if (!res.ok) {
+    throw new Error((json as any)?.message || 'Không lấy được chủ sở hữu cây');
+  }
+  const data = pickData<{ ownerId: string }>(json);
+  return (data as any)?.ownerId ?? null;
+}
+
+async function listViewableTrees(userId: string): Promise<FamilyTree[]> {
+  const res = await fetch(
+      `${API_BASE}/trees/viewable?userId=${encodeURIComponent(userId)}`,
+      {
+        headers: authHeaders(),
+      }
+  );
+  const json = await safeJson<ApiResponse<FamilyTree[]>>(res);
+  if (!res.ok) throw new Error(json?.message || 'Không lấy được danh sách cây được liên kết');
+  const picked = pickData<FamilyTree[] | { items: FamilyTree[] }>(json);
+  return Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
+}
+
+async function listMembersForViewer(
+    userId: string,
+    treeId: string
+): Promise<Person[]> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(
+          treeId
+      )}/viewer/members?userId=${encodeURIComponent(userId)}`,
+      {
+        headers: authHeaders(),
+      }
+  );
+  const json = await safeJson<ApiResponse<Person[]>>(res);
+  if (!res.ok) throw new Error(json?.message || 'Không tải được thành viên (viewer)');
+  const picked = pickData<Person[] | { items: Person[] }>(json);
+  return Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
+}
+
 function getToken(): string | null {
   return localStorage.getItem("authToken");
 }
@@ -261,6 +316,9 @@ async function listMembers(
       }
   );
   const json = await safeJson<ApiResponse<Person[]>>(res);
+  if (!res.ok) {
+    throw new Error((json as any)?.message || 'Không tải được thành viên');
+  }
   const picked = pickData<Person[] | { items: Person[] }>(json);
   return Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
 }
@@ -329,6 +387,28 @@ async function listRelationships(
       }
   );
   const json = await safeJson<ApiResponse<any[]>>(res);
+  if (!res.ok) {
+    throw new Error((json as any)?.message || 'Không tải được mối quan hệ');
+  }
+  const picked = pickData<any[] | { items: any[] }>(json);
+  const raw = Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
+  return raw.map(mapRelationship);
+}
+
+async function listRelationshipsForViewer(
+    userId: string,
+    treeId: string
+): Promise<Relationship[]> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(
+          treeId
+      )}/viewer/relationships?userId=${encodeURIComponent(userId)}`,
+      {
+        headers: authHeaders(),
+      }
+  );
+  const json = await safeJson<ApiResponse<any[]>>(res);
+  if (!res.ok) throw new Error(json?.message || 'Không tải được mối quan hệ (viewer)');
   const picked = pickData<any[] | { items: any[] }>(json);
   const raw = Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
   return raw.map(mapRelationship);
@@ -832,15 +912,20 @@ async function getSharedTreeAccessInfo(
 
 const api = {
   listTrees,
+  listViewableTrees,
   createTree,
   updateTree,
   deleteTree,
   listMembers,
+  listMembersForViewer,
   addMember,
   updateMember,
   deleteMember,
   listRelationships,
+  listRelationshipsForViewer,
   listPersonRelationships,
+  getTreeOwner,
+  getPublicUserBasic,
   createRelationship,
   suggestRelationship,
   // ✅ Thêm các API mới

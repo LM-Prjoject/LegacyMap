@@ -1,13 +1,10 @@
 package com.legacymap.backend.config;
 
-import com.legacymap.backend.repository.UserRepository;
-import com.legacymap.backend.service.JwtUtil;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,10 +12,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.service.JwtUtil;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -128,22 +130,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.equals("/api/users/register") ||
                         path.equals("/legacy/api/users/register") ||
                         path.equals("/api/auth/forgot-password") ||
-                        path.equals("/legacy/api/auth/forgot-password") ||
                         path.equals("/api/auth/reset-password") ||
-                        path.equals("/legacy/api/auth/reset-password")
+                        path.startsWith("/api/support")
         )) return true;
 
         // ✅ GET endpoints không cần auth
         if ("GET".equalsIgnoreCase(method) && (
-                path.startsWith("/api/auth/verify") ||
-                        path.startsWith("/legacy/api/auth/verify") ||
-                        // ✅ CHỈ cho phép shared trees (public share)
-                        path.matches(".*/api/trees/shared/[^/]+/?") ||
-                        path.matches(".*/api/trees/shared/[^/]+/members") ||
-                        path.matches(".*/api/trees/shared/[^/]+/relationships") || // ✅ THÊM
-                        path.startsWith("/v3/api-docs") ||
-                        path.startsWith("/swagger-ui") ||
-                        path.startsWith("/actuator")
+            path.startsWith("/api/auth/verify") ||
+                path.startsWith("/api/trees") ||
+                path.equals("/api/notifications/stream") ||
+                path.startsWith("/v3/api-docs") ||
+                path.startsWith("/swagger-ui") ||
+                    path.startsWith("/actuator") ||
+                    path.startsWith("/api/support")
         )) return true;
 
         // ✅ Static resources

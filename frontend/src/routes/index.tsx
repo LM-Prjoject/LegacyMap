@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
 import SignIn from '@/pages/auth/SignIn'
 import SignUp from '@/pages/auth/SignUp'
 import PasswordReset from '@/pages/auth/password-reset'
@@ -22,11 +22,18 @@ import SharedTreeView from '@/pages/SharedTreeView'
 // 🧱 Layout để giữ Navbar & gradient cố định
 import AppLayout from '@/components/layout/AppLayout'
 
+// Alias component to redirect /login -> /signin while preserving query string
+function LoginAlias() {
+    const location = useLocation();
+    const search = location.search || '';
+    return <Navigate to={`/signin${search}` } replace />
+}
+
 export const router = createBrowserRouter([
     // 🌐 Main app layout (Navbar cố định, tránh flash trắng)
     {
         path: '/',
-        element: <AppLayout />, // ✅ Bọc toàn bộ các trang người dùng
+        element: <AppLayout />,
         children: [
             {
                 index: true,
@@ -111,6 +118,10 @@ export const router = createBrowserRouter([
                 onShowSignUp={() => (window.location.href = '/signup')}
             />
         ),
+    },
+    {
+        path: '/login',
+        element: <LoginAlias />,
     },
     {
         path: '/signup',

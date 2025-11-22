@@ -169,7 +169,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/", "/index.html",
                                 "/oauth2/**", "/login/**", "/login/oauth2/**",
-                                "/error", "/default-ui.css", "/assets/**", "/favicon.ico"
+                                "/error", "/default-ui.css", "/assets/**", "/favicon.ico",
+                                "/ws/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
