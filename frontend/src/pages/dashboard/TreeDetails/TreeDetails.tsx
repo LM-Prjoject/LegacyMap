@@ -9,7 +9,6 @@ import api, { type Person, type Relationship } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
-import bg from "@/assets/bg.jpg";
 import Navbar from "@/components/layout/Navbar";
 import { ArrowLeft, LucideUserPlus } from "lucide-react";
 
@@ -797,7 +796,6 @@ export default function TreeDetails() {
 
     return (
         <div className="relative min-h-screen">
-            <img src={bg} alt="" className="absolute inset-0 w-full h-full object-cover -z-10" />
             <div className="absolute inset-0 bg-slate-900/40 -z-10" />
 
             <div className="relative z-20">

@@ -78,10 +78,8 @@ const getRelationshipText = (rel: Relationship, currentPersonId: string, persons
                     } else if (othDOB > curDOB) {
                         relationshipText = g === "FEMALE" ? `Em gái: ${otherPersonName}` : `Em trai: ${otherPersonName}`;
                     } else {
-                        relationshipText = g === "FEMALE" ?`Chị/Em: ${otherPersonName}`:  `Anh/em: ${otherPersonName}`;
+                        relationshipText = g === "FEMALE" ?`Chị/Em gái: ${otherPersonName}`:  `Anh/em trai: ${otherPersonName}`;
                     }
-                } else {
-                    relationshipText = g === "FEMALE" ? `Chị/Em gái: ${otherPersonName}` : `Anh/Em trai: ${otherPersonName}`;
                 }
                 break;
             }

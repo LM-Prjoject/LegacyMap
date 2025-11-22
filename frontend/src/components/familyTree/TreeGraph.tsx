@@ -2,7 +2,6 @@ import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import Tree, { type RawNodeDatum, type RenderCustomNodeElementFn, type CustomNodeElementProps } from "react-d3-tree";
 import type { Person, Relationship } from "@/api/trees";
 import { MemberCard } from "@/components/familyTree/memberModal/MemberCard.tsx";
-import avtFallback from "@/assets/avt.jpg";
 
 export interface CustomNodeAttributes {
     id: string;
@@ -281,8 +280,8 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                             husbandId: husband.id,
                             wifeId: wife.id,
                             avatars: [
-                                (husband as any).avatarUrl || avtFallback,
-                                (wife as any).avatarUrl || avtFallback,
+                                (husband as any).avatarUrl ?? "",
+                                (wife as any).avatarUrl ?? "",
                             ],
                             names: [husband.fullName, wife.fullName],
                             lifes: [lifeTextOf(husband), lifeTextOf(wife)],
@@ -298,7 +297,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                 attributes: {
                     id: p.id,
                     couple: false,
-                    avatar: (p as any).avatarUrl || avtFallback,
+                    avatar: (p as any).avatarUrl ?? "",
                     life: lifeTextOf(p),
                     names: [p.fullName],
                     lifes: [lifeTextOf(p)],
@@ -391,7 +390,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                         ...rd3tNode.nodeDatum,
                         attributes: toRawAttrs({
                             id,
-                            avatar: (attrs.avatar as string) || avtFallback,
+                            avatar: (attrs.avatar as string) || "",
                             life: (attrs.life as string) || "—",
                         }),
                     } as RawNodeDatum,
