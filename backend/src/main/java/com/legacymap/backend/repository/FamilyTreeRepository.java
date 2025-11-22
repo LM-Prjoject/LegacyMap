@@ -4,6 +4,7 @@ import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -33,4 +34,22 @@ public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
     Optional<FamilyTree> findByIdAndCreatedBy(UUID id, User user);
 
     long count();
+
+    // ✅ Thêm method tìm tree bằng shareToken
+    Optional<FamilyTree> findByShareToken(UUID shareToken);
+
+    // ✅ THÊM MỚI: Query tất cả cây user có quyền truy cập (sở hữu + được chia sẻ)
+    @Query("""
+        SELECT DISTINCT ft FROM FamilyTree ft
+        LEFT JOIN FETCH ft.createdBy
+        LEFT JOIN TreeAccess ta ON ta.familyTreeId = ft.id
+        WHERE ft.createdBy.id = :userId 
+           OR ta.userId = :userId
+        ORDER BY ft.createdAt DESC
+    """)
+    List<FamilyTree> findAllAccessibleByUser(@Param("userId") UUID userId);
+
+    // ✅ THÊM MỚI: Query bằng user ID (thay vì User entity)
+    @Query("SELECT ft FROM FamilyTree ft WHERE ft.createdBy.id = :userId")
+    List<FamilyTree> findAllByCreatedBy_Id(@Param("userId") UUID userId);
 }

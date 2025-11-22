@@ -17,13 +17,13 @@ import EventFormPage from "@/pages/event/EventFormPage.tsx"
 import { EventProvider } from '@/contexts/EventContext'
 import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx'
 import NotificationsPage from "@/pages/auth/NotificationsPage.tsx"
-
+import SharedTreeView from '@/pages/SharedTreeView'
 
 // 🧱 Layout để giữ Navbar & gradient cố định
 import AppLayout from '@/components/layout/AppLayout'
 
 export const router = createBrowserRouter([
-    // 🌍 Main app layout (Navbar cố định, tránh flash trắng)
+    // 🌐 Main app layout (Navbar cố định, tránh flash trắng)
     {
         path: '/',
         element: <AppLayout />, // ✅ Bọc toàn bộ các trang người dùng
@@ -95,6 +95,12 @@ export const router = createBrowserRouter([
         ],
     },
 
+    // ✅ SHARED TREE ROUTE (Công khai - không cần đăng nhập)
+    {
+        path: '/trees/shared/:shareToken',
+        element: <SharedTreeView />,
+    },
+
     // 🔐 Auth routes (ngoài layout)
     {
         path: '/signin',
@@ -129,7 +135,7 @@ export const router = createBrowserRouter([
         ),
     },
 
-    // 🧩 Admin routes — GIỮ NGUYÊN KHÔNG ĐỤNG TỚI
+    // 🧩 Admin routes – GIỮ NGUYÊN KHÔNG ĐỘNG TỚI
     {
         path: '/admin',
         element: (
@@ -157,7 +163,7 @@ export const router = createBrowserRouter([
         ],
     },
 
-    // 🔁 Redirect routes
+    // 🔀 Redirect routes
     { path: '/app', element: <Navigate to="/dashboard" replace /> },
     { path: '/forgot-password', element: <Navigate to="/password-reset" replace /> },
     { path: '/reset-password', element: <Navigate to="/password-reset" replace /> },

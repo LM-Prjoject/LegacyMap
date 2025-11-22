@@ -37,7 +37,6 @@ public class SecurityConfig {
     public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
-
     }
 
     @Bean
@@ -71,7 +70,6 @@ public class SecurityConfig {
         log.info("Configuring API Security Chain");
 
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository);
-        log.info("JwtAuthenticationFilter created");
 
         http
                 .securityMatcher("/api/**", "/legacy/api/**")
@@ -81,35 +79,76 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .authorizeHttpRequests(auth -> auth
-                        // Permit các HEAD & OPTIONS request cho tất cả endpoint
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/**").permitAll()
 
-                        .requestMatchers(HttpMethod.POST, "/api/users/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/verify/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/heartbeat").authenticated()  // ✅ THÊM DÒNG NÀY
-                        .requestMatchers(HttpMethod.POST, "/api/auth/password/forgot").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/password/reset").permitAll()
-                        .requestMatchers("/api/notifications/stream").permitAll()
-                        .requestMatchers("/api/trees/**").permitAll()
-                        .requestMatchers("/api/events/**").authenticated()
-                        .requestMatchers("/api/notifications/**").authenticated()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
-                        .requestMatchers("/api/debug/**").permitAll()
+                        // ==================== PUBLIC ENDPOINTS (phải đặt TRƯỚC) ====================
 
-                        .requestMatchers(HttpMethod.GET, "/api/admin/users").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/admin/users/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/ban").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/unban").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Authentication endpoints
+                        .requestMatchers(HttpMethod.POST, "/api/users/register", "/legacy/api/users/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/legacy/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/verify/**", "/legacy/api/auth/verify/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password", "/legacy/api/auth/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password", "/legacy/api/auth/reset-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/heartbeat", "/legacy/api/auth/heartbeat").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/password/forgot", "/legacy/api/auth/password/forgot").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/password/reset", "/legacy/api/auth/password/reset").permitAll()
+                        .requestMatchers("/api/notifications/stream", "/legacy/api/notifications/stream").permitAll()
+
+                        // PUBLIC SHARED TREE ENDPOINTS – PHẢI ĐẶT TRƯỚC CÁC RULE /api/trees/*
+                        .requestMatchers("/api/trees/shared/**", "/legacy/api/trees/shared/**").permitAll()
+
+                        // ==================== PROTECTED ENDPOINTS ====================
+
+                        // Save tree vào dashboard (cần auth)
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/save").authenticated()
+
+                        // Tree CRUD (private trees) – cần auth
+                        .requestMatchers(HttpMethod.GET, "/api/trees").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/trees/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*").authenticated()
+
+                        // Members & Relationships (private trees)
+                        .requestMatchers(HttpMethod.GET, "/api/trees/*/members").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/members").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/trees/*/members/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/members/**").authenticated()
+
+                        .requestMatchers(HttpMethod.GET, "/api/trees/*/relationships/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/relationships").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/relationships/*").authenticated()
+
+                        // Share management (owner only)
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/share/public").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/share/public").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/share/user").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/trees/*/share/users").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/share/users/*").authenticated()
+
+                        // Authenticated actions on shared trees (edit via link)
+                        .requestMatchers(HttpMethod.POST, "/api/trees/shared/*/members").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/trees/shared/*/members/*").authenticated()
+
+                        // Events & Notifications
+                        .requestMatchers("/api/events/**", "/legacy/api/events/**").authenticated()
+                        .requestMatchers("/api/notifications/**", "/legacy/api/notifications/**").authenticated()
+
+                        // Debug & Docs
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
+                        .requestMatchers("/api/debug/**", "/legacy/api/debug/**").permitAll()
+
+                        // Admin
+                        .requestMatchers(HttpMethod.GET, "/api/admin/users", "/legacy/api/admin/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/admin/users/*", "/legacy/api/admin/users/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/ban", "/legacy/api/admin/users/*/ban").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/unban", "/legacy/api/admin/users/*/unban").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**", "/legacy/api/admin/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated()
                 );
 
-        log.info("API Security Chain configured");
+        log.info("API Security Chain configured successfully – shared tree endpoints are public");
         return http.build();
     }
 
@@ -141,47 +180,22 @@ public class SecurityConfig {
                                 .oidcUserService(oidcUserService)
                         )
                         .successHandler(successHandler)
-                        // FIXED: Handle OAuth2 authentication errors
                         .failureHandler((req, res, ex) -> {
                             log.error("OAuth2 login failed: {}", ex.getMessage());
 
                             String errorParam = "auth_failed";
+                            String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+                            String causeMsg = ex.getCause() != null && ex.getCause().getMessage() != null
+                                    ? ex.getCause().getMessage().toLowerCase() : "";
 
-                            // FIXED: Check cả direct exception message và cause
-                            String exceptionMessage = ex.getMessage();
-
-                            // Check direct exception message first
-                            if (exceptionMessage != null && exceptionMessage.toLowerCase().contains("banned")) {
+                            if (msg.contains("banned") || causeMsg.contains("banned")) {
                                 errorParam = "banned";
-                                log.warn("Detected banned account (from direct message)");
-                            } else if (exceptionMessage != null && exceptionMessage.toLowerCase().contains("disabled")) {
+                            } else if (msg.contains("disabled") || causeMsg.contains("disabled")) {
                                 errorParam = "disabled";
-                                log.warn("⚠Detected disabled account (from direct message)");
-                            }
-                            // Then check cause if not found
-                            else if (ex.getCause() != null) {
-                                String causeMsg = ex.getCause().getMessage();
-                                log.error("Cause: {}", causeMsg);
-
-                                if (causeMsg != null) {
-                                    String lowerMsg = causeMsg.toLowerCase();
-
-                                    if (lowerMsg.contains("banned")) {
-                                        errorParam = "banned";
-                                        log.warn("Detected banned account (from cause)");
-                                    } else if (lowerMsg.contains("disabled")) {
-                                        errorParam = "disabled";
-                                        log.warn("Detected disabled account (from cause)");
-                                    }
-                                }
                             }
 
-                            // FIXED: Redirect về homepage thay vì /signin
-                            // Frontend sẽ tự hiển thị modal SignIn với error message
-                            String redirectUrl =    frontendUrl + "/?error="
-                                    + URLEncoder.encode(errorParam, StandardCharsets.UTF_8);
-                            log.info("Redirecting to: {}", redirectUrl);
-
+                            String redirectUrl = frontendUrl + "/?error=" + URLEncoder.encode(errorParam, StandardCharsets.UTF_8);
+                            log.info("OAuth2 failure → redirect to: {}", redirectUrl);
                             res.sendRedirect(redirectUrl);
                         })
                 );

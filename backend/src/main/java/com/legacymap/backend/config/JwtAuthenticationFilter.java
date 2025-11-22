@@ -121,21 +121,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicEndpoint(String path, String method) {
+        // ✅ POST endpoints không cần auth
         if ("POST".equalsIgnoreCase(method) && (
                 path.equals("/api/auth/login") ||
+                        path.equals("/legacy/api/auth/login") ||
                         path.equals("/api/users/register") ||
+                        path.equals("/legacy/api/users/register") ||
                         path.equals("/api/auth/forgot-password") ||
-                        path.equals("/api/auth/reset-password")
+                        path.equals("/legacy/api/auth/forgot-password") ||
+                        path.equals("/api/auth/reset-password") ||
+                        path.equals("/legacy/api/auth/reset-password")
         )) return true;
 
+        // ✅ GET endpoints không cần auth
         if ("GET".equalsIgnoreCase(method) && (
                 path.startsWith("/api/auth/verify") ||
-                        path.startsWith("/api/trees") ||
+                        path.startsWith("/legacy/api/auth/verify") ||
+                        // ✅ CHỈ cho phép shared trees (public share)
+                        path.matches(".*/api/trees/shared/[^/]+/?") ||
+                        path.matches(".*/api/trees/shared/[^/]+/members") ||
+                        path.matches(".*/api/trees/shared/[^/]+/relationships") || // ✅ THÊM
                         path.startsWith("/v3/api-docs") ||
                         path.startsWith("/swagger-ui") ||
                         path.startsWith("/actuator")
         )) return true;
 
+        // ✅ Static resources
         if (path.equals("/") ||
                 path.equals("/index.html") ||
                 path.startsWith("/oauth2/") ||
@@ -144,6 +155,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/favicon.ico") ||
                 path.equals("/error")) return true;
 
+        // ✅ OPTIONS requests
         return "OPTIONS".equalsIgnoreCase(method);
     }
 }

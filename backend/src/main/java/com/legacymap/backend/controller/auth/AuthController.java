@@ -175,18 +175,27 @@ public class AuthController {
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         return authenticationService.changePassword(request);
     }
+
     @PostMapping("/heartbeat")
     public ResponseEntity<Void> heartbeat() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth == null || !auth.isAuthenticated()) {
+                log.warn("⚠️ Heartbeat: Not authenticated");
                 return ResponseEntity.status(401).build();
             }
 
             String email = auth.getName();
-            authenticationService.updateUserActivity(email);
 
-            log.debug("💓 Heartbeat received from: {}", email);
+            // ✅ SỬA: Check user existence trước khi update
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                log.error("❌ Heartbeat: User not found - {}", email);
+                return ResponseEntity.status(404).build();
+            }
+
+            authenticationService.updateUserActivity(email);
+            log.debug("💚 Heartbeat OK: {}", email);
             return ResponseEntity.ok().build();
 
         } catch (Exception e) {

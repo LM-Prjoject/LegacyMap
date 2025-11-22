@@ -53,6 +53,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
 
     if (!isAuthenticated()) {
         console.log('Redirecting to login - Not authenticated');
+
+        // ✅ Lưu URL hiện tại để redirect lại sau khi đăng nhập
+        if (location.pathname !== '/signin' && location.pathname !== '/signup') {
+            const fullPath = location.pathname + location.search + location.hash;
+            localStorage.setItem('redirectAfterLogin', fullPath);
+            console.log('Saved redirect URL:', fullPath);
+        }
+
         return (
             <Navigate
                 to="/signin"
