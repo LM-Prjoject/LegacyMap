@@ -5,12 +5,20 @@ import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
 import com.legacymap.backend.dto.request.PersonUpdateRequest;
 import com.legacymap.backend.dto.request.RelationshipCreateRequest;
+import com.legacymap.backend.dto.request.TreeShareRequest;
 import com.legacymap.backend.dto.response.ApiResponse;
+import com.legacymap.backend.dto.response.FamilyTreeResponse;
+import com.legacymap.backend.dto.response.PersonResponse;
 import com.legacymap.backend.dto.response.RelationshipDTO;
 import com.legacymap.backend.dto.response.RelationshipSuggestion;
+import com.legacymap.backend.dto.response.SharedTreeAccessInfoResponse;
+import com.legacymap.backend.dto.response.TreeAccessResponse;
+import com.legacymap.backend.dto.response.TreeShareResponse;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.entity.Relationship;
+import com.legacymap.backend.entity.TreeAccess;
+import com.legacymap.backend.entity.User;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.FamilyTreeRepository;
@@ -30,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -64,7 +73,7 @@ public class FamilyTreeController {
         }
     }
 
-    private com.legacymap.backend.entity.User loadUserOrThrow(UUID userId) {
+    private User loadUserOrThrow(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }

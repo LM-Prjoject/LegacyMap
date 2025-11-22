@@ -53,4 +53,11 @@ public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
     // ✅ THÊM MỚI: Query bằng user ID (thay vì User entity)
     @Query("SELECT ft FROM FamilyTree ft WHERE ft.createdBy.id = :userId")
     List<FamilyTree> findAllByCreatedBy_Id(@Param("userId") UUID userId);
+
+    // ✅ THÊM MỚI: Method kiểm tra tồn tại bằng ID và User
+    boolean existsByIdAndCreatedBy(UUID id, User user);
+
+    // ✅ THÊM MỚI: Method kiểm tra tồn tại bằng ID và User ID
+    @Query("SELECT COUNT(ft) > 0 FROM FamilyTree ft WHERE ft.id = :treeId AND ft.createdBy.id = :userId")
+    boolean existsByIdAndCreatedBy_Id(@Param("treeId") UUID treeId, @Param("userId") UUID userId);
 }

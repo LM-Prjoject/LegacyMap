@@ -17,8 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "createdBy")
-@ToString(exclude = "createdBy") // Tránh infinite loop khi log
+@ToString(exclude = "createdBy") // CHỈ MỘT @ToString
 public class FamilyTree {
 
     @Id
@@ -31,10 +30,7 @@ public class FamilyTree {
     @Column(columnDefinition = "text")
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false, referencedColumnName = "id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    // CRITICAL: Đảm bảo relationship đúng
+    // CHỈ MỘT @ManyToOne - xóa cái bị trùng
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false, referencedColumnName = "id")
     @JsonIgnore
@@ -85,15 +81,5 @@ public class FamilyTree {
             return baseUrl + "/trees/shared/" + shareToken;
         }
         return null;
-    }
-
-    // ✅ THÊM: Đảm bảo có getter cho sharePermission (Lombok đã tạo nhưng explicit thêm nếu cần)
-    public String getSharePermission() {
-        return sharePermission;
-    }
-
-    // ✅ THÊM: Setter cho sharePermission
-    public void setSharePermission(String sharePermission) {
-        this.sharePermission = sharePermission;
     }
 }

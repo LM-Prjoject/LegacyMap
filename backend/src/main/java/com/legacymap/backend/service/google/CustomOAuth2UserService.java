@@ -5,6 +5,7 @@ import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.entity.UserProfile;
 import com.legacymap.backend.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -17,6 +18,7 @@ import java.time.OffsetDateTime;
 import java.util.*;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
@@ -36,56 +38,80 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String name = Optional.ofNullable(oauth.getAttribute("name")).map(Object::toString).orElse("User");
         String picture = Optional.ofNullable(oauth.getAttribute("picture")).map(Object::toString).orElse(null);
 
+        log.info("Processing OAuth2 login for email: {}", email);
+
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user == null) {
+            log.info("Creating new user for OAuth2 email: {}", email);
             String base = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9._-]", "");
             String username = suggestUniqueUsername(base);
 
-            user = new User();
-            user.setEmail(email);
-            user.setUsername(username);
-            user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
-            user.setRoleName("user");
-            user.setIsActive(true);
-            user.setIsVerified(true);
-            user.setCreatedAt(OffsetDateTime.now());
-            user.setUpdatedAt(OffsetDateTime.now());
-            user.setProvider("google");
+            user = User.builder()
+                    .email(email)
+                    .username(username)
+                    .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                    .roleName("user")
+                    .isActive(true)
+                    .isVerified(true)
+                    .provider("google")
+                    .build();
+
             user = userRepository.save(user);
 
-            UserProfile profile = new UserProfile();
-            profile.setUser(user);
-            profile.setFullName(name);
-            profile.setAvatarUrl(picture);
+            UserProfile profile = UserProfile.builder()
+                    .user(user)
+                    .fullName(name)
+                    .avatarUrl(picture)
+                    .build();
             userProfileRepository.save(profile);
 
+            log.info("Created new user with ID: {}", user.getId());
+
         } else {
-            UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+            log.info("Existing user found for OAuth2 email: {}", email);
+            UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElse(null);
             if (profile == null) {
-                profile = new UserProfile();
-                profile.setUser(user);
-            }
-            boolean changed = false;
-            if (isBlank(profile.getFullName()) && !isBlank(name)) {
-                profile.setFullName(name);
-                changed = true;
-            }
-            if (isBlank(profile.getAvatarUrl()) && !isBlank(picture)) {
-                profile.setAvatarUrl(picture);
-                changed = true;
-            }
-            if (changed || profile.getUserId() == null) {
+                profile = UserProfile.builder()
+                        .user(user)
+                        .fullName(name)
+                        .avatarUrl(picture)
+                        .build();
                 userProfileRepository.save(profile);
+                log.info("Created new profile for existing user");
+            } else {
+                boolean changed = false;
+                if (isBlank(profile.getFullName()) && !isBlank(name)) {
+                    profile.setFullName(name);
+                    changed = true;
+                    log.debug("Updated full name for user: {}", user.getId());
+                }
+                if (isBlank(profile.getAvatarUrl()) && !isBlank(picture)) {
+                    profile.setAvatarUrl(picture);
+                    changed = true;
+                    log.debug("Updated avatar URL for user: {}", user.getId());
+                }
+                if (changed) {
+                    userProfileRepository.save(profile);
+                    log.info("Updated profile for user: {}", user.getId());
+                }
             }
 
-             if (Boolean.TRUE.equals(user.getIsBanned()) || Boolean.FALSE.equals(user.getIsActive())) {
-                 throw new IllegalStateException("Account is disabled or banned");
-             }
+            // Check if user is banned or inactive
+            if (Boolean.TRUE.equals(user.getIsBanned())) {
+                log.warn("Banned user attempted OAuth2 login: {}", user.getId());
+                throw new IllegalStateException("Account is banned");
+            }
+            if (Boolean.FALSE.equals(user.getIsActive())) {
+                log.warn("Inactive user attempted OAuth2 login: {}", user.getId());
+                throw new IllegalStateException("Account is inactive");
+            }
         }
 
         Map<String, Object> attrs = new HashMap<>(oauth.getAttributes());
-        attrs.put("dbUserId", user.getId().toString()); // nếu front cần
+        attrs.put("dbUserId", user.getId().toString());
+
+        log.info("OAuth2 authentication successful for user: {}", user.getId());
 
         return new DefaultOAuth2User(
                 Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRoleName().toUpperCase())),
@@ -101,6 +127,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             i++;
             candidate = base + i;
         }
+        log.debug("Generated unique username: {}", candidate);
         return candidate;
     }
 

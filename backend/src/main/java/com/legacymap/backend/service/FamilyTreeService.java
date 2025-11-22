@@ -2,6 +2,7 @@ package com.legacymap.backend.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -13,11 +14,15 @@ import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
 import com.legacymap.backend.dto.request.PersonUpdateRequest;
 import com.legacymap.backend.dto.response.TreeShareResponse;
-import com.legacymap.backend.dto.response.SharedTreeAccessInfoResponse; // ĐÃ THÊM
+import com.legacymap.backend.dto.response.SharedTreeAccessInfoResponse;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.entity.TreeAccess;
 import com.legacymap.backend.entity.User;
+import com.legacymap.backend.entity.ChatRoom;
+import com.legacymap.backend.entity.ChatRoomMember;
+import com.legacymap.backend.entity.ChatRoomMemberId;
+import com.legacymap.backend.entity.PersonUserLink;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.ChatRoomMemberRepository;
@@ -26,14 +31,12 @@ import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.TreeAccessRepository;
 import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.repository.PersonUserLinkRepository;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -80,13 +83,13 @@ public class FamilyTreeService {
                 .createdBy(creator)
                 .build();
         FamilyTree savedTree = familyTreeRepository.save(tree);
-        
+
         // Tự động tạo Family Room khi tạo cây mới
         createFamilyRoomForTree(savedTree, creator);
-        
+
         return savedTree;
     }
-    
+
     private void createFamilyRoomForTree(FamilyTree tree, User creator) {
         ChatRoom familyRoom = ChatRoom.builder()
                 .familyTree(tree)
@@ -97,7 +100,7 @@ public class FamilyTreeService {
                 .active(true)
                 .build();
         ChatRoom savedRoom = chatRoomRepository.save(familyRoom);
-        
+
         // Thêm creator làm admin
         ChatRoomMember creatorMember = ChatRoomMember.builder()
                 .id(new ChatRoomMemberId(savedRoom.getId(), creator.getId()))
@@ -141,7 +144,8 @@ public class FamilyTreeService {
         if (email != null && !email.isBlank()) {
             boolean exists = personRepository.existsByFamilyTree_IdAndEmailIgnoreCase(tree.getId(), email);
             if (exists) {
-                throw new AppException(ErrorCode.PERSON_EMAIL_EXISTS_IN_TREE);
+                // SỬA: Thay constant không tồn tại
+                throw new AppException(ErrorCode.EMAIL_EXISTED, "Email already exists in this family tree");
             }
         }
 
@@ -266,7 +270,10 @@ public class FamilyTreeService {
             boolean changed = (newEmail == null && currentEmail != null) || (newEmail != null && !newEmail.equals(currentEmail));
             if (changed && newEmail != null && !newEmail.isBlank()) {
                 boolean exists = personRepository.existsByFamilyTree_IdAndEmailIgnoreCase(tree.getId(), newEmail);
-                if (exists) throw new AppException(ErrorCode.PERSON_EMAIL_EXISTS_IN_TREE);
+                if (exists) {
+                    // SỬA: Thay constant không tồn tại
+                    throw new AppException(ErrorCode.EMAIL_EXISTED, "Email already exists in this family tree");
+                }
             }
             p.setEmail(newEmail);
         }

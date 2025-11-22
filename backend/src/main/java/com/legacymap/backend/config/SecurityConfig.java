@@ -24,6 +24,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 
 @Slf4j
 @Configuration
@@ -31,7 +32,8 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
-    @Value("${app.frontend.url}")
+
+    @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
     public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository) {
@@ -85,50 +87,68 @@ public class SecurityConfig {
                         // ==================== PUBLIC ENDPOINTS (phải đặt TRƯỚC) ====================
 
                         // Authentication endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/users/register", "/legacy/api/users/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/legacy/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/verify/**", "/legacy/api/auth/verify/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password", "/legacy/api/auth/forgot-password").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password", "/legacy/api/auth/reset-password").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/heartbeat", "/legacy/api/auth/heartbeat").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/password/forgot", "/legacy/api/auth/password/forgot").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/password/reset", "/legacy/api/auth/password/reset").permitAll()
-                        .requestMatchers("/api/notifications/stream", "/legacy/api/notifications/stream").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/users/register",
+                                "/legacy/api/users/register",
+                                "/api/auth/login",
+                                "/legacy/api/auth/login",
+                                "/api/auth/forgot-password",
+                                "/legacy/api/auth/forgot-password",
+                                "/api/auth/reset-password",
+                                "/legacy/api/auth/reset-password",
+                                "/api/auth/password/forgot",
+                                "/legacy/api/auth/password/forgot",
+                                "/api/auth/password/reset",
+                                "/legacy/api/auth/password/reset"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/auth/verify/**",
+                                "/legacy/api/auth/verify/**"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/auth/heartbeat",
+                                "/legacy/api/auth/heartbeat"
+                        ).authenticated()
 
                         // PUBLIC SHARED TREE ENDPOINTS – PHẢI ĐẶT TRƯỚC CÁC RULE /api/trees/*
                         .requestMatchers("/api/trees/shared/**", "/legacy/api/trees/shared/**").permitAll()
 
+                        // Notifications stream
+                        .requestMatchers("/api/notifications/stream", "/legacy/api/notifications/stream").permitAll()
+
                         // ==================== PROTECTED ENDPOINTS ====================
 
-                        // Save tree vào dashboard (cần auth)
-                        .requestMatchers(HttpMethod.POST, "/api/trees/*/save").authenticated()
-
                         // Tree CRUD (private trees) – cần auth
-                        .requestMatchers(HttpMethod.GET, "/api/trees").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/trees").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/trees/*").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/trees", "/legacy/api/trees").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees", "/legacy/api/trees").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/trees/*", "/legacy/api/trees/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*", "/legacy/api/trees/*").authenticated()
+
+                        // Save tree vào dashboard (cần auth)
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/save", "/legacy/api/trees/*/save").authenticated()
 
                         // Members & Relationships (private trees)
-                        .requestMatchers(HttpMethod.GET, "/api/trees/*/members").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/trees/*/members").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/trees/*/members/*").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/members/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/trees/*/members", "/legacy/api/trees/*/members").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/members", "/legacy/api/trees/*/members").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/trees/*/members/*", "/legacy/api/trees/*/members/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/members/**", "/legacy/api/trees/*/members/**").authenticated()
 
-                        .requestMatchers(HttpMethod.GET, "/api/trees/*/relationships/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/trees/*/relationships").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/relationships/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/trees/*/relationships/**", "/legacy/api/trees/*/relationships/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/relationships", "/legacy/api/trees/*/relationships").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/relationships/*", "/legacy/api/trees/*/relationships/*").authenticated()
 
                         // Share management (owner only)
-                        .requestMatchers(HttpMethod.POST, "/api/trees/*/share/public").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/share/public").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/trees/*/share/user").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/trees/*/share/users").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/share/users/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/share/public", "/legacy/api/trees/*/share/public").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/share/public", "/legacy/api/trees/*/share/public").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/*/share/user", "/legacy/api/trees/*/share/user").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/trees/*/share/users", "/legacy/api/trees/*/share/users").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/trees/*/share/users/*", "/legacy/api/trees/*/share/users/*").authenticated()
 
                         // Authenticated actions on shared trees (edit via link)
-                        .requestMatchers(HttpMethod.POST, "/api/trees/shared/*/members").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/trees/shared/*/members/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/trees/shared/*/members", "/legacy/api/trees/shared/*/members").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/trees/shared/*/members/*", "/legacy/api/trees/shared/*/members/*").authenticated()
 
                         // Events & Notifications
                         .requestMatchers("/api/events/**", "/legacy/api/events/**").authenticated()
@@ -139,10 +159,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/debug/**", "/legacy/api/debug/**").permitAll()
 
                         // Admin
-                        .requestMatchers(HttpMethod.GET, "/api/admin/users", "/legacy/api/admin/users").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/admin/users/*", "/legacy/api/admin/users/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/ban", "/legacy/api/admin/users/*/ban").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/admin/users/*/unban", "/legacy/api/admin/users/*/unban").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**", "/legacy/api/admin/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated()
@@ -191,7 +207,8 @@ public class SecurityConfig {
 
                             if (msg.contains("banned") || causeMsg.contains("banned")) {
                                 errorParam = "banned";
-                            } else if (msg.contains("disabled") || causeMsg.contains("disabled")) {
+                            } else if (msg.contains("disabled") || causeMsg.contains("disabled") ||
+                                    msg.contains("inactive") || causeMsg.contains("inactive")) {
                                 errorParam = "disabled";
                             }
 

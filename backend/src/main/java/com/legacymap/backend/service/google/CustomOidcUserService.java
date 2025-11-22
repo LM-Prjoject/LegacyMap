@@ -41,10 +41,9 @@ public class CustomOidcUserService extends OidcUserService {
         log.info("Google OIDC login for email: {}", email);
 
         // CHECK BAN TRƯỚC - QUAN TRỌNG NHẤT
-        // FIXED: Throw Spring Security exception để failureHandler catch được
         if (isEmailBanned(email)) {
             log.warn("BLOCKED: Email {} is banned", email);
-            throw new DisabledException("BANNED: Account is banned"); // Thêm prefix để dễ detect
+            throw new DisabledException("BANNED: Account is banned");
         }
 
         User user = userRepository.findByEmail(email).orElse(null);
@@ -54,44 +53,58 @@ public class CustomOidcUserService extends OidcUserService {
             String base = email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9._-]", "");
             String username = suggestUniqueUsername(base);
 
-            user = new User();
-            user.setEmail(email);
-            user.setUsername(username);
-            user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
-            user.setRoleName("user");
-            user.setIsActive(true);
-            user.setIsVerified(true);
-            user.setIsBanned(false);
-            user.setCreatedAt(OffsetDateTime.now());
-            user.setUpdatedAt(OffsetDateTime.now());
-            user.setProvider("google");
+            // SỬA: Sử dụng Builder pattern thay vì setter trực tiếp
+            user = User.builder()
+                    .email(email)
+                    .username(username)
+                    .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                    .roleName("user")
+                    .isActive(true)
+                    .isVerified(true)
+                    .isBanned(false)
+                    .provider("google")
+                    .build();
+
             user = userRepository.save(user);
 
-            UserProfile profile = new UserProfile();
-            profile.setUser(user);
-            profile.setFullName(name);
-            profile.setAvatarUrl(picture);
+            // SỬA: Sử dụng Builder pattern cho UserProfile
+            UserProfile profile = UserProfile.builder()
+                    .user(user)
+                    .fullName(name)
+                    .avatarUrl(picture)
+                    .build();
             userProfileRepository.save(profile);
+
+            log.info("Created new Google user with ID: {}", user.getId());
 
         } else {
             log.info("Existing user found: {}", email);
 
-            UserProfile profile = userProfileRepository.findById(user.getId()).orElse(null);
+            UserProfile profile = userProfileRepository.findByUserId(user.getId()).orElse(null);
             if (profile == null) {
-                profile = new UserProfile();
-                profile.setUser(user);
-            }
-            boolean changed = false;
-            if (isBlank(profile.getFullName()) && !isBlank(name)) {
-                profile.setFullName(name);
-                changed = true;
-            }
-            if (isBlank(profile.getAvatarUrl()) && !isBlank(picture)) {
-                profile.setAvatarUrl(picture);
-                changed = true;
-            }
-            if (changed || profile.getUserId() == null) {
+                profile = UserProfile.builder()
+                        .user(user)
+                        .fullName(name)
+                        .avatarUrl(picture)
+                        .build();
                 userProfileRepository.save(profile);
+                log.info("Created new profile for existing user: {}", user.getId());
+            } else {
+                boolean changed = false;
+                if (isBlank(profile.getFullName()) && !isBlank(name)) {
+                    profile.setFullName(name);
+                    changed = true;
+                    log.debug("Updated full name for user: {}", user.getId());
+                }
+                if (isBlank(profile.getAvatarUrl()) && !isBlank(picture)) {
+                    profile.setAvatarUrl(picture);
+                    changed = true;
+                    log.debug("Updated avatar URL for user: {}", user.getId());
+                }
+                if (changed) {
+                    userProfileRepository.save(profile);
+                    log.info("Updated profile for user: {}", user.getId());
+                }
             }
 
             // FIXED: Throw Spring Security exceptions
@@ -109,6 +122,8 @@ public class CustomOidcUserService extends OidcUserService {
         List<SimpleGrantedAuthority> authorities =
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRoleName().toUpperCase()));
 
+        log.info("OIDC authentication successful for user: {}", user.getId());
+
         return new DefaultOidcUser(authorities, oidc.getIdToken(), oidc.getUserInfo(), "email");
     }
 
@@ -117,22 +132,17 @@ public class CustomOidcUserService extends OidcUserService {
      */
     private boolean isEmailBanned(String email) {
         try {
-            List<User> allAccounts = userRepository.findAllByEmail(email);
+            Optional<User> user = userRepository.findByEmail(email);
 
-            log.info("Found {} account(s) with email: {}", allAccounts.size(), email);
-
-            // Nếu CÓ BẤT KỲ account nào bị ban → email bị ban
-            boolean isBanned = allAccounts.stream()
-                    .anyMatch(u -> Boolean.TRUE.equals(u.getIsBanned()));
-
-            if (isBanned) {
-                log.warn("Email {} has banned account(s)", email);
-                for (User u : allAccounts) {
-                    log.info("   - Account: Provider={}, isBanned={}", u.getProvider(), u.getIsBanned());
+            if (user.isPresent()) {
+                boolean isBanned = Boolean.TRUE.equals(user.get().getIsBanned());
+                if (isBanned) {
+                    log.warn("Email {} has banned account(s)", email);
                 }
+                return isBanned;
             }
 
-            return isBanned;
+            return false;
 
         } catch (Exception e) {
             log.error("Error checking ban status: {}", e.getMessage());
@@ -147,6 +157,7 @@ public class CustomOidcUserService extends OidcUserService {
             i++;
             candidate = base + i;
         }
+        log.debug("Generated unique username: {}", candidate);
         return candidate;
     }
 

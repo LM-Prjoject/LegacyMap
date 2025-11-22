@@ -65,7 +65,8 @@ public class PersonLinkService {
         if (!sameAsCurrent) {
             boolean existsInTree = personRepository.existsByFamilyTree_IdAndEmailIgnoreCase(person.getFamilyTree().getId(), email);
             if (existsInTree) {
-                throw new AppException(ErrorCode.PERSON_EMAIL_EXISTS_IN_TREE);
+                // SỬA: Thay constant không tồn tại
+                throw new AppException(ErrorCode.EMAIL_EXISTED, "Email already exists in this family tree");
             }
         }
 
@@ -232,7 +233,8 @@ public class PersonLinkService {
         User user = loadUserOrThrow(userId);
 
         if (personUserLinkRepository.existsByPersonIdAndUserId(personId, userId)) {
-            throw new AppException(ErrorCode.RESOURCE_ALREADY_EXISTS, "User is already linked to this person");
+            // SỬA: Thay constant không tồn tại
+            throw new AppException(ErrorCode.RELATIONSHIP_ALREADY_EXISTS, "User is already linked to this person");
         }
 
         PersonUserLink.LinkType resolvedType = resolveLinkType(linkType);
@@ -272,7 +274,8 @@ public class PersonLinkService {
     @Transactional(readOnly = true)
     public PersonUserLink getLink(UUID personId, UUID userId) {
         return personUserLinkRepository.findByPersonIdAndUserId(personId, userId)
-                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Link not found"));
+                // SỬA: Thay constant không tồn tại
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Link not found"));
     }
 
     private PersonUserLink.LinkType resolveLinkType(String linkType) {
