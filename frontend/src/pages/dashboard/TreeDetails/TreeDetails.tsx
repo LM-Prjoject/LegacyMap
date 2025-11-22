@@ -4,13 +4,14 @@ import TreeGraph from "@/components/familyTree/TreeGraph";
 import RelationshipModal, { type RelationUpper } from "@/components/familyTree/relaModal/RelationshipModal";
 import MemberModal, { type MemberFormValues } from "@/components/familyTree/memberModal/MemberModal";
 import PersonDetailsModal from "@/components/familyTree/PersonDetailsModal";
+import ShareTreeModal from "@/components/familyTree/ShareTreeModal";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
 import api, { type Person, type Relationship } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
-import { ArrowLeft, LucideUserPlus } from "lucide-react";
+import { ArrowLeft, LucideUserPlus, Share2 } from "lucide-react";
 
 type TreeView = {
     coverImageUrl?: string | null;
@@ -62,8 +63,32 @@ export default function TreeDetails() {
     const [readOnly, setReadOnly] = useState(false);
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
 
-    const [isInAddFlow, setIsInAddFlow] = useState(false);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+
     useEffect(() => {
+        // ✅ CHECK: Nếu có fromShare parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromShare = urlParams.get('fromShare') === 'true';
+
+        if (fromShare && treeId && userId) {
+            console.log('💾 Saving shared tree to dashboard:', { treeId, userId });
+
+            // Lưu tree vào dashboard
+            api.saveSharedTreeToDashboard(userId, treeId)
+                .then(() => {
+                    showToast.success("Đã lưu cây vào dashboard của bạn");
+                    // Remove parameter khỏi URL để tránh lặp lại
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, '', newUrl);
+                })
+                .catch(e => {
+                    console.error('❌ Failed to save shared tree:', e);
+                    showToast.error(e?.message || "Không thể lưu cây");
+                });
+        }
+
+        // Tiếp tục load tree như bình thường...
+        localStorage.removeItem('pendingTreeId');
         if (!treeId) {
             setLoading(false);
             return;
@@ -813,7 +838,17 @@ export default function TreeDetails() {
                             <ArrowLeft className="w-4 h-4" />
                             <span>Quay lại</span>
                         </button>
-                        {!loading && !readOnly && (
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShareModalOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                title="Chia sẻ cây gia phả"
+                            >
+                                <Share2 className="w-5 h-5" />
+                                <span className="hidden sm:inline">Chia sẻ</span>
+                            </button>
+
                             <button
                                 onClick={handleAddClick}
                                 className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
@@ -821,7 +856,7 @@ export default function TreeDetails() {
                             >
                                 <LucideUserPlus className="w-5 h-5" />
                             </button>
-                        )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -878,6 +913,7 @@ export default function TreeDetails() {
                         : undefined
                 }
             />
+
             <PersonDetailsModal
                 isOpen={isViewingDetails}
                 person={selectedPerson}
@@ -888,6 +924,7 @@ export default function TreeDetails() {
                 onDelete={readOnly ? () => {} : handleDeleteMember}
                 readOnly={readOnly}
             />
+
             {source && (
                 <RelationshipModal
                     isOpen={modalOpen}
@@ -911,6 +948,14 @@ export default function TreeDetails() {
                     onConfirm={confirmRelationship}
                 />
             )}
+
+            <ShareTreeModal
+                isOpen={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                treeId={treeId || ""}
+                userId={userId}
+                treeName={tree?.name || undefined}
+            />
         </div>
     );
 }

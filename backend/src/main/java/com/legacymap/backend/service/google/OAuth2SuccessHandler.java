@@ -22,7 +22,7 @@ import java.util.Optional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
+public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
     private final AuthenticationService authenticationService;
@@ -95,8 +95,36 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             String jwt = authenticationService.generateAccessToken(user);
             log.info("Generated JWT token for user: {}", email);
 
-            // 7. Redirect với token
+
+            // 7. Redirect với token và hỗ trợ returnUrl
             String targetUrl = frontendUrl + "/auth/google-success?token=" + jwt;
+
+            // ✅ THÊM: Lấy returnUrl từ session nếu có
+            String returnUrl = (String) request.getSession().getAttribute("returnUrl");
+            if (returnUrl != null) {
+                request.getSession().removeAttribute("returnUrl"); // Clear sau khi lấy
+
+                // Validate returnUrl
+                if (returnUrl.startsWith("/") && !returnUrl.contains("//")) {
+                    targetUrl += "&returnUrl=" + URLEncoder.encode(returnUrl, StandardCharsets.UTF_8);
+                    log.info("Added returnUrl from session: {}", returnUrl);
+                } else {
+                    log.warn("Invalid returnUrl detected in session: {}", returnUrl);
+                }
+            }
+
+            // ✅ THÊM: Lấy returnUrl từ request parameter (nếu không có trong session)
+            String paramReturnUrl = request.getParameter("returnUrl");
+            if (paramReturnUrl != null && !paramReturnUrl.isEmpty() && returnUrl == null) {
+                // ✅ Validate returnUrl cơ bản (chỉ cho phép relative URLs)
+                if (paramReturnUrl.startsWith("/") && !paramReturnUrl.contains("//")) {
+                    targetUrl += "&returnUrl=" + URLEncoder.encode(paramReturnUrl, StandardCharsets.UTF_8);
+                    log.info("Added returnUrl from request parameter: {}", paramReturnUrl);
+                } else {
+                    log.warn("Invalid returnUrl detected in parameter: {}", paramReturnUrl);
+                }
+            }
+
             log.info("Redirecting to: {}", targetUrl);
             response.sendRedirect(targetUrl);
 

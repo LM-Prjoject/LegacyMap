@@ -101,13 +101,22 @@ export type RelationshipType =
 
 export interface FamilyTree {
   id: string;
-  userId: string;
   name: string;
   description?: string | null;
-  coverImageUrl?: string | null;
+  createdBy?: string;          // ✅ THÊM: từ backend
+  createdByEmail?: string;     // ✅ THÊM: từ backend
+  createdByUsername?: string;  // ✅ THÊM: từ backend
   isPublic: boolean;
+  coverImageUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  shareToken?: string;
+  shareUrl?: string;
+  sharePermission?: 'view' | 'edit';
+  memberCount?: number;        // ✅ THÊM: từ backend
+
+  // ✅ GIỮ LẠI cho tương thích
+  userId?: string;             // Alias cho createdBy
 }
 
 export interface FamilyTreeCreateRequest {
@@ -515,6 +524,392 @@ async function listPersonRelationships(
   return raw.map(mapRelationship);
 }
 
+// ==================== SHARING API ====================
+
+export interface TreeShareResponse {
+  treeId: string;
+  treeName: string;
+  shareToken: string;
+  shareUrl: string;
+  publicShareUrl: string;
+  sharedWithCount: number;
+  sharePermission?: 'view' | 'edit'; // ✅ THÊM
+
+}
+
+export interface TreeAccessResponse {
+  userId: string;
+  userEmail: string;
+  userName: string;
+  accessLevel: "view" | "edit" | "admin";
+  grantedBy: string | null;
+  grantedByEmail: string | null;
+  grantedAt: string;
+}
+
+export interface TreeShareRequest {
+  email: string;
+  accessLevel: "view" | "edit" | "admin";
+  message?: string;
+}
+
+/**
+ * Tạo link chia sẻ PUBLIC (ai cũng xem được)
+ */
+async function generatePublicShareLink(
+    userId: string,
+    treeId: string,
+    permission: "view" | "edit" = "view" // ✅ Thêm param này
+): Promise<TreeShareResponse> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/share/public?userId=${encodeURIComponent(userId)}&permission=${permission}`, // ✅ Thêm &permission=${permission}
+      {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+      }
+  );
+  const json = await safeJson<ApiResponse<TreeShareResponse>>(res);
+  if (!res.ok) throw new Error(json?.message || "Tạo link chia sẻ thất bại");
+  return pickData<TreeShareResponse>(json);
+}
+
+/**
+ * Tắt chia sẻ PUBLIC
+ */
+async function disablePublicSharing(
+    userId: string,
+    treeId: string
+): Promise<void> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/share/public?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      }
+  );
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<unknown>>(res);
+    throw new Error(j?.message || "Tắt chia sẻ thất bại");
+  }
+}
+
+/**
+ * Chia sẻ tree với user cụ thể (yêu cầu email)
+ */
+async function shareWithUser(
+    userId: string,
+    treeId: string,
+    req: TreeShareRequest
+): Promise<TreeAccessResponse> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/share/user?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(req),
+      }
+  );
+  const json = await safeJson<ApiResponse<TreeAccessResponse>>(res);
+  if (!res.ok) throw new Error(json?.message || "Chia sẻ thất bại");
+  return pickData<TreeAccessResponse>(json);
+}
+
+/**
+ * Lấy danh sách người được chia sẻ
+ */
+async function getSharedUsers(
+    userId: string,
+    treeId: string
+): Promise<TreeAccessResponse[]> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/share/users?userId=${encodeURIComponent(userId)}`,
+      {
+        headers: authHeaders(),
+      }
+  );
+  const json = await safeJson<ApiResponse<TreeAccessResponse[]>>(res);
+  if (!res.ok) throw new Error(json?.message || "Lấy danh sách thất bại");
+  const picked = pickData<TreeAccessResponse[] | { items: TreeAccessResponse[] }>(json);
+  return Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
+}
+
+/**
+ * Thu hồi quyền truy cập
+ */
+async function revokeAccess(
+    userId: string,
+    treeId: string,
+    targetUserId: string
+): Promise<void> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/share/users/${encodeURIComponent(targetUserId)}?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      }
+  );
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<unknown>>(res);
+    throw new Error(j?.message || "Thu hồi quyền thất bại");
+  }
+}
+
+/**
+ * PUBLIC: Xem tree qua share token (không cần đăng nhập nếu public)
+ */
+async function getSharedTree(
+    shareToken: string,
+    userId?: string | null
+): Promise<FamilyTree> {
+  const url = userId
+      ? `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}?userId=${encodeURIComponent(userId)}`
+      : `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}`;
+
+  console.log('🔗 Fetching shared tree from:', url);
+
+  const res = await fetch(url, {
+    headers: userId ? authHeaders() : { Accept: "application/json" },
+  });
+
+  const json = await safeJson<ApiResponse<FamilyTree>>(res);
+
+  if (!res.ok) {
+    console.error('❌ API Error:', res.status, json);
+    throw new Error(json?.message || "Không thể truy cập cây gia phả");
+  }
+
+  // ✅ SỬA: Extract data từ response
+  const treeData = pickData<FamilyTree>(json);
+
+  // ✅ CRITICAL FIX: Đảm bảo có ID
+  if (!treeData.id) {
+    console.error('⚠️ Missing tree.id in response');
+
+    // Thử extract từ nhiều nguồn
+    const possibleId =
+        json?.data?.id ||
+        json?.result?.id ||
+        json?.payload?.id ||
+        (json as any)?.id;
+
+    if (possibleId) {
+      treeData.id = String(possibleId);
+      console.log('✅ Recovered tree.id:', possibleId);
+    } else {
+      throw new Error('Tree ID not found in response'); // ✅ Throw error thay vì tạo temp ID
+    }
+  }
+
+  console.log('✅ Final tree data:', {
+    id: treeData.id,
+    name: treeData.name,
+    sharePermission: treeData.sharePermission
+  });
+
+  return treeData;
+}
+
+/**
+ * PUBLIC: Lấy members của shared tree
+ */
+async function getSharedTreeMembers(
+    shareToken: string,
+    userId?: string | null
+): Promise<Person[]> {
+  const url = userId
+      ? `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/members?userId=${encodeURIComponent(userId)}`
+      : `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/members`;
+
+  const res = await fetch(url, {
+    headers: userId ? authHeaders() : { Accept: "application/json" },
+  });
+
+  const json = await safeJson<ApiResponse<Person[]>>(res);
+  if (!res.ok) throw new Error(json?.message || "Không lấy được danh sách thành viên");
+  const picked = pickData<Person[] | { items: Person[] }>(json);
+  return Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
+}
+
+/**
+ * AUTHENTICATED: Thêm member qua share link (cần quyền EDIT)
+ */
+async function addSharedTreeMember(
+    shareToken: string,
+    userId: string,
+    req: PersonCreateRequest
+): Promise<Person> {
+  const res = await fetch(
+      `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/members?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(req),
+      }
+  );
+  const json = await safeJson<ApiResponse<Person>>(res);
+  if (!res.ok) throw new Error(json?.message || "Thêm thành viên thất bại");
+  return pickData<Person>(json);
+}
+
+/**
+ * AUTHENTICATED: Cập nhật member qua share link (cần quyền EDIT)
+ */
+async function updateSharedTreeMember(
+    shareToken: string,
+    userId: string,
+    personId: string,
+    req: Partial<PersonCreateRequest>
+): Promise<Person> {
+  const res = await fetch(
+      `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/members/${encodeURIComponent(personId)}?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "PUT",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(req),
+      }
+  );
+  const json = await safeJson<ApiResponse<Person>>(res);
+  if (!res.ok) throw new Error(json?.message || "Cập nhật thông tin thất bại");
+  return pickData<Person>(json);
+}
+
+/**
+ * PUBLIC: Lấy relationships của shared tree
+ */
+async function getSharedTreeRelationships(
+    shareToken: string,
+    userId?: string | null
+): Promise<Relationship[]> {
+  const url = userId
+      ? `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/relationships?userId=${encodeURIComponent(userId)}`
+      : `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/relationships`;
+
+  const res = await fetch(url, {
+    headers: userId ? authHeaders() : { Accept: "application/json" },
+  });
+
+  const json = await safeJson<ApiResponse<any[]>>(res);
+  if (!res.ok) throw new Error(json?.message || "Không lấy được danh sách quan hệ");
+
+  const picked = pickData<any[] | { items: any[] }>(json);
+  const raw = Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
+  return raw.map(mapRelationship);
+}
+
+/**
+ * Check user's access level to a tree
+ */
+async function checkTreeAccess(
+    treeId: string,
+    userId: string
+): Promise<{ accessLevel: 'view' | 'edit' | 'admin' }> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/access?userId=${encodeURIComponent(userId)}`,
+      {
+        headers: authHeaders(),
+      }
+  );
+
+  const json = await safeJson<ApiResponse<any>>(res);
+  if (!res.ok) {
+    return { accessLevel: 'view' }; // Default fallback
+  }
+
+  return pickData(json);
+}
+
+/**
+ * Lưu shared tree vào dashboard của user
+ */
+async function saveSharedTreeToDashboard(
+    userId: string,
+    treeId: string
+): Promise<void> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/save?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+      }
+  );
+
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<unknown>>(res);
+    throw new Error(j?.message || "Lưu cây thất bại");
+  }
+}
+
+// ✅ THÊM: API để lưu shared tree vào dashboard (phiên bản dùng shareToken)
+export const saveSharedTreeByToken = async (
+    userId: string,
+    shareToken: string
+): Promise<string> => {
+  const response = await fetch(
+      `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/save?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+      }
+  );
+
+  const json = await safeJson<ApiResponse<string>>(response);
+  if (!response.ok) {
+    throw new Error(json?.message || "Lưu cây thất bại");
+  }
+
+  return pickData<string>(json);
+};
+
+// ✅ THÊM: API để lấy relationships của shared tree (phiên bản export riêng)
+export const getSharedTreeRelationshipsExport = async (
+    shareToken: string,
+    userId?: string
+): Promise<Relationship[]> => {
+  const params = userId ? `?userId=${userId}` : '';
+  const response = await fetch(
+      `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/relationships${params}`,
+      {
+        headers: userId ? authHeaders() : { Accept: "application/json" },
+      }
+  );
+
+  const json = await safeJson<ApiResponse<Relationship[]>>(response);
+  if (!response.ok) {
+    throw new Error(json?.message || "Không lấy được danh sách quan hệ");
+  }
+
+  return pickData<Relationship[]>(json);
+};
+
+/**
+ * ✅ MỚI: Lấy thông tin access từ shareToken
+ */
+async function getSharedTreeAccessInfo(
+    shareToken: string,
+    userId?: string | null
+): Promise<{
+  treeId: string;
+  treeName: string;
+  canEdit: boolean;
+  canView: boolean;
+  role: 'OWNER' | 'EDITOR' | 'VIEWER';
+}> {
+  const url = userId
+      ? `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/access-info?userId=${encodeURIComponent(userId)}`
+      : `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/access-info`;
+
+  const res = await fetch(url, {
+    headers: userId ? authHeaders() : { Accept: "application/json" },
+  });
+
+  const json = await safeJson<ApiResponse<any>>(res);
+  if (!res.ok) {
+    throw new Error(json?.message || "Không lấy được thông tin access");
+  }
+
+  return pickData(json);
+}
+
 const api = {
   listTrees,
   listViewableTrees,
@@ -533,6 +928,24 @@ const api = {
   getPublicUserBasic,
   createRelationship,
   suggestRelationship,
+  // ✅ Thêm các API mới
+  generatePublicShareLink, // ✅ Đã có signature mới
+  disablePublicSharing,
+  shareWithUser,
+  getSharedUsers,
+  revokeAccess,
+  getSharedTree,
+  getSharedTreeMembers,
+  addSharedTreeMember,
+  updateSharedTreeMember,
+  getSharedTreeRelationships,
+  checkTreeAccess,
+  saveSharedTreeToDashboard,
+  // ✅ Thêm các API export mới
+  saveSharedTreeByToken,
+  getSharedTreeRelationshipsExport,
+  // ✅ THÊM API mới
+  getSharedTreeAccessInfo,
 };
 
 export default api;

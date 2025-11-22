@@ -13,6 +13,7 @@ public enum ErrorCode {
     ACCOUNT_DISABLED("Tài khoản đã bị vô hiệu hóa", 1007),
     VALIDATION_FAILED("Dữ liệu không hợp lệ", 1008),
     INTERNAL_ERROR("Lỗi hệ thống nội bộ", 1009),
+    INTERNAL_SERVER_ERROR("Lỗi máy chủ nội bộ", 5000), // ✅ THÊM: Error code mới
     INVALID_TOKEN("Mã xác thực không hợp lệ", 1010),
     TOKEN_EXPIRED("Mã xác thực đã hết hạn", 1011),
     TOKEN_ALREADY_USED("Mã xác thực đã được sử dụng", 1012),
@@ -48,15 +49,12 @@ public enum ErrorCode {
     INVALID_INPUT_DATA("Invalid input data", 1121),
 
     // Notification related
-    NOTIFICATION_NOT_FOUND("Notification not found", 1130),
+    NOTIFICATION_NOT_FOUND("Notification not found", 1113),
 
-    // Person email uniqueness within a family tree
-    PERSON_EMAIL_EXISTS_IN_TREE("Email đã tồn tại trong cây", 1140),
-
-    // Resource related
-    RESOURCE_ALREADY_EXISTS("Tài nguyên đã tồn tại", 1141),
-    RESOURCE_NOT_FOUND("Không tìm thấy tài nguyên", 1142),
-    ACCESS_DENIED("Không có quyền truy cập", 1143);
+    // Sharing related
+    PERMISSION_DENIED("Bạn không có quyền thực hiện hành động này", 4030),
+    USER_ALREADY_HAS_ACCESS("Người dùng đã có quyền truy cập vào gia phả này", 4031),
+    CANNOT_SHARE_TO_SELF("Không thể chia sẻ gia phả cho chính mình", 4032);
 
     private final int code;
     private final String message;

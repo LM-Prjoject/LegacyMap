@@ -123,14 +123,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicEndpoint(String path, String method) {
+        // ✅ POST endpoints không cần auth
         if ("POST".equalsIgnoreCase(method) && (
                 path.equals("/api/auth/login") ||
+                        path.equals("/legacy/api/auth/login") ||
                         path.equals("/api/users/register") ||
+                        path.equals("/legacy/api/users/register") ||
                         path.equals("/api/auth/forgot-password") ||
                         path.equals("/api/auth/reset-password") ||
                         path.startsWith("/api/support")
         )) return true;
 
+        // ✅ GET endpoints không cần auth
         if ("GET".equalsIgnoreCase(method) && (
             path.startsWith("/api/auth/verify") ||
                 path.startsWith("/api/trees") ||
@@ -141,6 +145,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     path.startsWith("/api/support")
         )) return true;
 
+        // ✅ Static resources
         if (path.equals("/") ||
                 path.equals("/index.html") ||
                 path.startsWith("/oauth2/") ||
@@ -149,6 +154,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/favicon.ico") ||
                 path.equals("/error")) return true;
 
+        // ✅ OPTIONS requests
         return "OPTIONS".equalsIgnoreCase(method);
     }
 }

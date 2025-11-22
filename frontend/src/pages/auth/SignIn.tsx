@@ -38,6 +38,9 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
     const [userName, setUserName] = useState('');
     const navigate = useNavigate();
 
+    // Không cần kiểm tra pendingShareToken nữa → loại bỏ hoàn toàn
+    // const isFromSharedTree = !!localStorage.getItem('pendingShareToken');
+
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
 
@@ -69,7 +72,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             window.history.replaceState({}, '', window.location.pathname);
         }
 
-        // Xử lý email verification
         const token = urlParams.get('token');
         if (token) handleEmailVerification(token);
     }, []);
@@ -109,7 +111,16 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                     setCountdown((prev) => {
                         if (prev <= 1) {
                             clearInterval(countdownInterval);
-                            navigate('/');
+
+                            // ƯU TIÊN: Check redirectAfterLogin
+                            const redirectUrl = localStorage.getItem('redirectAfterLogin');
+
+                            if (redirectUrl) {
+                                localStorage.removeItem('redirectAfterLogin');
+                                window.location.href = redirectUrl;
+                            } else {
+                                navigate('/');
+                            }
                             return 0;
                         }
                         return prev - 1;
@@ -144,12 +155,20 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
                 localStorage.setItem('authToken', token);
                 localStorage.setItem('user', JSON.stringify(user));
-                window.location.href = '/';
+
+                // ƯU TIÊN: redirectAfterLogin (được set từ SharedTreeView)
+                const redirectUrl = localStorage.getItem('redirectAfterLogin');
+
+                if (redirectUrl) {
+                    localStorage.removeItem('redirectAfterLogin');
+                    window.location.href = redirectUrl;
+                } else {
+                    window.location.href = '/';
+                }
             } else {
                 throw new Error('No token received from server');
             }
         } catch (error: any) {
-
             let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
 
             if (error.response?.data?.message) {
@@ -244,7 +263,15 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     )}
                                 </div>
                                 <button
-                                    onClick={() => navigate('/')}
+                                    onClick={() => {
+                                        const redirectUrl = localStorage.getItem('redirectAfterLogin');
+                                        if (redirectUrl) {
+                                            localStorage.removeItem('redirectAfterLogin');
+                                            window.location.href = redirectUrl;
+                                        } else {
+                                            navigate('/');
+                                        }
+                                    }}
                                     className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl"
                                     style={{
                                         background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
@@ -256,6 +283,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                 </button>
                             </div>
                         ) : (
+                            // ... phần form đăng nhập giữ nguyên
                             <>
                                 {error && (
                                     <div className="mb-4 p-3 rounded-xl flex items-center gap-2 text-sm" style={{
@@ -268,6 +296,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                 )}
 
                                 <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+                                    {/* ... input fields giữ nguyên ... */}
                                     <div>
                                         <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>TÀI KHOẢN</label>
                                         <div className="relative">
