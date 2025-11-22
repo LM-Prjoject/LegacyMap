@@ -40,6 +40,7 @@ public class FamilyTreeService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final PersonUserLinkRepository personUserLinkRepository;
+    private final AvatarGenerationService avatarGenerationService;
 
     private User loadUserOrThrow(UUID userId) {
         return userRepository.findById(userId)
@@ -117,9 +118,10 @@ public class FamilyTreeService {
 
     @Transactional
     public Person addMember(UUID treeId, UUID userId, PersonCreateRequest req) {
+
         FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         User creator = loadUserOrThrow(userId);
-        // Validate unique email within the same tree (if provided)
+
         String email = req.getEmail() != null ? req.getEmail().trim().toLowerCase() : null;
         if (email != null && !email.isBlank()) {
             boolean exists = personRepository.existsByFamilyTree_IdAndEmailIgnoreCase(tree.getId(), email);
@@ -127,6 +129,18 @@ public class FamilyTreeService {
                 throw new AppException(ErrorCode.PERSON_EMAIL_EXISTS_IN_TREE);
             }
         }
+
+        String avatarUrl = req.getAvatarUrl();
+
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            avatarUrl = avatarGenerationService.generateAvatar(
+                    req.getFullName(),
+                    req.getGender(),
+                    req.getBirthDate(),
+                    req.getDeathDate()
+            );
+        }
+
         Person p = Person.builder()
                 .familyTree(tree)
                 .fullName(req.getFullName())
@@ -136,11 +150,12 @@ public class FamilyTreeService {
                 .birthPlace(req.getBirthPlace())
                 .deathPlace(req.getDeathPlace())
                 .biography(req.getBiography())
-                .avatarUrl(req.getAvatarUrl())
+                .avatarUrl(avatarUrl)
                 .email(email)
                 .phone(req.getPhone())
                 .createdBy(creator)
                 .build();
+
         return personRepository.save(p);
     }
 
@@ -196,7 +211,6 @@ public class FamilyTreeService {
         }
         // Fetch managed entities from repository
         List<FamilyTree> fetched = familyTreeRepository.findAllById(distinctIds);
-        // Keep original order of distinctIds
         Map<UUID, FamilyTree> map = fetched.stream().collect(Collectors.toMap(FamilyTree::getId, t -> t));
         List<FamilyTree> ordered = new java.util.ArrayList<>();
         for (UUID id : distinctIds) {
