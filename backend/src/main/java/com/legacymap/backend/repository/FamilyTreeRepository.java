@@ -36,10 +36,11 @@ public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
 
     long count();
 
-    // ✅ Thêm method tìm tree bằng shareToken
+    @Query("SELECT COUNT(ft) > 0 FROM FamilyTree ft WHERE ft.id = :treeId AND (ft.createdBy.id = :userId OR EXISTS (SELECT p FROM Person p WHERE p.familyTree.id = :treeId AND EXISTS (SELECT pul FROM PersonUserLink pul WHERE pul.person.id = p.id AND pul.user.id = :userId)))")
+    boolean existsByIdAndUserHasAccess(@Param("treeId") UUID treeId, @Param("userId") UUID userId);
+
     Optional<FamilyTree> findByShareToken(UUID shareToken);
 
-    // ✅ THÊM MỚI: Query tất cả cây user có quyền truy cập (sở hữu + được chia sẻ)
     @Query("""
         SELECT DISTINCT ft FROM FamilyTree ft
         LEFT JOIN FETCH ft.createdBy
@@ -50,14 +51,11 @@ public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
     """)
     List<FamilyTree> findAllAccessibleByUser(@Param("userId") UUID userId);
 
-    // ✅ THÊM MỚI: Query bằng user ID (thay vì User entity)
     @Query("SELECT ft FROM FamilyTree ft WHERE ft.createdBy.id = :userId")
     List<FamilyTree> findAllByCreatedBy_Id(@Param("userId") UUID userId);
 
-    // ✅ THÊM MỚI: Method kiểm tra tồn tại bằng ID và User
     boolean existsByIdAndCreatedBy(UUID id, User user);
 
-    // ✅ THÊM MỚI: Method kiểm tra tồn tại bằng ID và User ID
     @Query("SELECT COUNT(ft) > 0 FROM FamilyTree ft WHERE ft.id = :treeId AND ft.createdBy.id = :userId")
     boolean existsByIdAndCreatedBy_Id(@Param("treeId") UUID treeId, @Param("userId") UUID userId);
 }

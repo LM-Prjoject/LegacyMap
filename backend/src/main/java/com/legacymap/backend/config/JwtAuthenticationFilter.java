@@ -24,7 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@Component // THÊM Annotation này
+@Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -130,7 +130,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicEndpoint(String path, String method) {
-        // ✅ POST endpoints không cần auth
+        // POST endpoints không cần auth
         if ("POST".equalsIgnoreCase(method) && (
                 path.equals("/api/auth/login") ||
                         path.equals("/legacy/api/auth/login") ||
@@ -141,10 +141,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.startsWith("/api/support")
         )) return true;
 
-        // ✅ GET endpoints không cần auth
+        // GET endpoints không cần auth
         if ("GET".equalsIgnoreCase(method) && (
                 path.startsWith("/api/auth/verify") ||
-                        path.startsWith("/api/trees/shared/") || // CHỈNH SỬA: chỉ public với trees shared
+                        path.startsWith("/api/trees/shared/") ||
                         path.equals("/api/notifications/stream") ||
                         path.startsWith("/v3/api-docs") ||
                         path.startsWith("/swagger-ui") ||
@@ -152,7 +152,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.startsWith("/api/support")
         )) return true;
 
-        // ✅ Static resources
+        // Static resources
         if (path.equals("/") ||
                 path.equals("/index.html") ||
                 path.startsWith("/oauth2/") ||
@@ -161,7 +161,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/favicon.ico") ||
                 path.equals("/error")) return true;
 
-        // ✅ OPTIONS requests
+        // OPTIONS requests
         return "OPTIONS".equalsIgnoreCase(method);
     }
 }
