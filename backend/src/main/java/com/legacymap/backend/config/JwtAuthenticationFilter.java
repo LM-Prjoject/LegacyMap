@@ -137,8 +137,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/notifications/stream") ||
                 path.startsWith("/v3/api-docs") ||
                 path.startsWith("/swagger-ui") ||
-                    path.startsWith("/actuator") ||
-                    path.startsWith("/api/support")
+                path.startsWith("/actuator") ||
+                path.startsWith("/api/support")
         )) return true;
 
         if (path.equals("/") ||

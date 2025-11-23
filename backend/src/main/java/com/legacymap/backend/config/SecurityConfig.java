@@ -91,7 +91,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/heartbeat").authenticated()  // ✅ THÊM DÒNG NÀY
+                        .requestMatchers(HttpMethod.POST, "/api/auth/heartbeat").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/auth/password/forgot").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/password/reset").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/persons/**").permitAll()
@@ -100,6 +100,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/stream").permitAll()
                         .requestMatchers("/api/support/**").permitAll()
                         .requestMatchers("/api/trees/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/events/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()

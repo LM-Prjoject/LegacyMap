@@ -26,7 +26,7 @@ public class ChatRoom {
     @JoinColumn(name = "family_tree_id")
     private FamilyTree familyTree;
 
-    @Column(nullable = false, length = 200)
+    @Column(length = 200)
     private String name;
 
     @Column(columnDefinition = "text")
@@ -51,6 +51,13 @@ public class ChatRoom {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    @Column(name = "last_message_at")
+    private OffsetDateTime lastMessageAt;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_message_id")
+    private ChatMessage lastMessage;
+
     @PrePersist
     void prePersist() {
         OffsetDateTime now = OffsetDateTime.now();
@@ -64,10 +71,6 @@ public class ChatRoom {
     @PreUpdate
     void preUpdate() {
         this.updatedAt = OffsetDateTime.now();
-    }
-
-    public void deactivate() {
-        this.active = Boolean.FALSE;
     }
 
     public enum ChatRoomType {

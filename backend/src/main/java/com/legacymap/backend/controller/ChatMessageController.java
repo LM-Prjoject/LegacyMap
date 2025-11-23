@@ -1,26 +1,39 @@
 package com.legacymap.backend.controller;
 
+import java.util.UUID;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.legacymap.backend.dto.request.MarkMessagesReadRequest;
+import com.legacymap.backend.dto.request.UpdateMessageRequest;
 import com.legacymap.backend.dto.response.AttachmentUploadResponse;
 import com.legacymap.backend.dto.response.ChatMessagePageResponse;
 import com.legacymap.backend.dto.response.ChatMessageResponse;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.ChatFileStorageService;
 import com.legacymap.backend.service.ChatMessageService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
+@Slf4j
 public class ChatMessageController {
 
     private final ChatMessageService chatMessageService;
@@ -57,11 +70,32 @@ public class ChatMessageController {
                 .message(message)
                 .build());
     }
+    
+    @PatchMapping("/rooms/{roomId}/messages/{messageId}")
+    public ResponseEntity<ChatMessageResponse> updateMessage(
+            @PathVariable UUID roomId,
+            @PathVariable UUID messageId,
+            @Valid @RequestBody UpdateMessageRequest request) {
+        
+        ChatMessageResponse response = chatMessageService.updateMessage(
+                getCurrentUserId(), roomId, messageId, request);
+        return ResponseEntity.ok(response);
+    }
+    
+    @DeleteMapping("/rooms/{roomId}/messages/{messageId}")
+    public ResponseEntity<Void> deleteMessage(
+            @PathVariable UUID roomId,
+            @PathVariable UUID messageId,
+            @RequestParam(defaultValue = "false") boolean isAdmin) {
+        
+        chatMessageService.deleteMessage(getCurrentUserId(), roomId, messageId, isAdmin);
+        return ResponseEntity.noContent().build();
+    }
 
     private UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("User is not authenticated");
+            throw new SecurityException("User not authenticated");
         }
 
         Object principal = authentication.getPrincipal();
@@ -75,7 +109,7 @@ public class ChatMessageController {
         String email = authentication.getName();
         return userRepository.findByEmail(email)
                 .map(user -> user.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new SecurityException("User not found"));
     }
 }
 

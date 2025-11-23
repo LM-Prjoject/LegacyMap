@@ -56,7 +56,11 @@ public enum ErrorCode {
     // Resource related
     RESOURCE_ALREADY_EXISTS("Tài nguyên đã tồn tại", 1141),
     RESOURCE_NOT_FOUND("Không tìm thấy tài nguyên", 1142),
-    ACCESS_DENIED("Không có quyền truy cập", 1143);
+    ACCESS_DENIED("Không có quyền truy cập", 1143),
+
+    // Chat related
+    MESSAGE_EDIT_FORBIDDEN("Bạn không có quyền chỉnh sửa tin nhắn này", 1200),
+    MESSAGE_DELETE_FORBIDDEN("Bạn không có quyền xóa tin nhắn này", 1201);
 
     private final int code;
     private final String message;
