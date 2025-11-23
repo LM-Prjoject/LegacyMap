@@ -35,6 +35,12 @@ public class ChatRoomMember {
     @Column(length = 20, nullable = false)
     private ChatMemberRole role = ChatMemberRole.member;
 
+    @Column(name = "is_muted", nullable = false)
+    private Boolean muted = Boolean.FALSE;
+
+    @Column(length = 100)
+    private String nickname;
+
     @Column(name = "joined_at", nullable = false)
     private OffsetDateTime joinedAt;
 

@@ -51,6 +51,17 @@ public enum ErrorCode {
     // Notification related
     NOTIFICATION_NOT_FOUND("Notification not found", 1113),
 
+    // Person email uniqueness within a family tree
+    PERSON_EMAIL_EXISTS_IN_TREE("Email đã tồn tại trong cây", 1140),
+
+    // Resource related
+    RESOURCE_ALREADY_EXISTS("Tài nguyên đã tồn tại", 1141),
+    RESOURCE_NOT_FOUND("Không tìm thấy tài nguyên", 1142),
+    ACCESS_DENIED("Không có quyền truy cập", 1143),
+
+    // Chat related
+    MESSAGE_EDIT_FORBIDDEN("Bạn không có quyền chỉnh sửa tin nhắn này", 1200),
+    MESSAGE_DELETE_FORBIDDEN("Bạn không có quyền xóa tin nhắn này", 1201);
     // Sharing related
     PERMISSION_DENIED("Bạn không có quyền thực hiện hành động này", 4030),
     USER_ALREADY_HAS_ACCESS("Người dùng đã có quyền truy cập vào gia phả này", 4031),

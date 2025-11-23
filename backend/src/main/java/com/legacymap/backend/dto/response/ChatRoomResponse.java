@@ -19,6 +19,8 @@ public class ChatRoomResponse {
     UUID familyTreeId;
     OffsetDateTime createdAt;
     OffsetDateTime updatedAt;
+    OffsetDateTime lastMessageAt;
+    UUID lastMessageId;
     List<ChatRoomMemberResponse> members;
 }
 

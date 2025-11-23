@@ -16,5 +16,6 @@ public class ChatRoomMemberResponse {
     ChatRoomMember.ChatMemberRole role;
     OffsetDateTime joinedAt;
     OffsetDateTime lastReadAt;
+    Boolean isMuted;
+    String nickname;
 }
-

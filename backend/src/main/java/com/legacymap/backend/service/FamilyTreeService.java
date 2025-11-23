@@ -121,11 +121,23 @@ public class FamilyTreeService {
     @Transactional
     public FamilyTree update(UUID treeId, UUID userId, FamilyTreeUpdateRequest req) {
         FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        boolean nameChanged = req.getName() != null && !req.getName().equals(tree.getName());
+
         if (req.getName() != null) tree.setName(req.getName());
         if (req.getDescription() != null) tree.setDescription(req.getDescription());
         if (req.getIsPublic() != null) tree.setIsPublic(req.getIsPublic());
         if (req.getCoverImageUrl() != null) tree.setCoverImageUrl(req.getCoverImageUrl());
-        return familyTreeRepository.save(tree);
+        FamilyTree saved = familyTreeRepository.save(tree);
+
+        if (nameChanged) {
+            chatRoomRepository.findByFamilyTreeIdAndRoomType(treeId, ChatRoom.ChatRoomType.family)
+                    .ifPresent(room -> {
+                        room.setName("Phòng chat gia đình: " + saved.getName());
+                        chatRoomRepository.save(room);
+                    });
+        }
+
+        return saved;
     }
 
     @Transactional

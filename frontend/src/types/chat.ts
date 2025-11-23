@@ -7,8 +7,10 @@ export interface ChatRoomMember {
   username: string;
   personId: string | null;
   role: ChatMemberRole;
+  muted: boolean;
   joinedAt: string;
   lastReadAt: string | null;
+  nickname?: string | null;
 }
 
 export interface ChatRoom {
@@ -43,11 +45,14 @@ export interface ChatMessage {
   fileSize?: number | null;
   fileType?: string | null;
   replyToId?: string | null;
+  replyToText?: string | null;
+  replyToSenderName?: string | null;
   edited: boolean;
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
   recipients: ChatMessageRecipientStatus[];
+  metadata?: Record<string, any> | null;
 }
 
 export interface ChatMessagePage {
@@ -89,11 +94,6 @@ export interface DirectRoomCreatePayload {
   name?: string;
 }
 
-export interface JoinRoomPayload {
-  personId?: string;
-  role?: ChatMemberRole;
-}
-
 export interface AttachmentUploadResponse {
   fileUrl: string;
   originalName: string;
@@ -109,5 +109,11 @@ export interface UserSearchResult {
   fullName?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
+}
+
+export interface ChatMessageReplyTo {
+  id: string;
+  text?: string;
+  senderName: string;
 }
 
