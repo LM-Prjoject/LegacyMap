@@ -38,6 +38,7 @@ export default function RelationshipModal({
                                               onConfirm,
                                           }: Props) {
     const [loading, setLoading] = useState(false);
+    const [confirming, setConfirming] = useState(false);
     const [suggestions, setSuggestions] = useState<PairSuggestion[]>([]);
     const [picked, setPicked] = useState<{ relation: RelationUpper | ""; candidateId: string | "" }>({
         relation: "",
@@ -79,13 +80,17 @@ export default function RelationshipModal({
 
     return (
         <div className={`fixed inset-0 z-50 ${isOpen ? "" : "hidden"}`}>
-            <div className="absolute inset-0 bg-black/40" onClick={() => {cancel();}}/>
+            <div className="absolute inset-0 bg-black/40" onClick={() => {
+                if (confirming) return;
+                cancel();
+            }}
+            />
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] max-w-[95vw] rounded-2xl bg-white shadow-xl">
                 <div className="p-4 border-b flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-700">
                         Xác nhận mối quan hệ cho <span className="text-emerald-700">{source.fullName}</span>
                     </h3>
-                    <button onClick={cancel} className="px-3 py-1 rounded hover:bg-gray-100">Đóng</button>
+                    <button onClick={() => !confirming && cancel()} className="px-3 py-1 rounded hover:bg-gray-100" disabled={confirming} >Đóng</button>
                 </div>
 
                 <div className="p-4 space-y-4">
@@ -150,12 +155,12 @@ export default function RelationshipModal({
 
                 <div className="p-4 border-t flex items-center justify-between">
                     <div>
-                        <button className="px-2 py-2 rounded-lg border text-black" onClick={onBack}>
+                        <button className="px-2 py-2 rounded-lg border text-black" onClick={onBack} disabled={confirming}>
                             <ArrowLeft className="w-4 h-4" />
                         </button>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button className="px-3 py-2 rounded-lg border text-black" onClick={cancel}>
+                        <button className="px-3 py-2 rounded-lg border text-black" onClick={cancel} disabled={confirming}>
                             Hủy
                         </button>
                         <button
@@ -164,14 +169,21 @@ export default function RelationshipModal({
                             onClick={async () => {
                                 if (!canConfirm) return;
                                 setError("");
-                                await onConfirm({
-                                    relation: effectiveRelation as RelationUpper,
-                                    candidateId: effectiveCandidateId,
-                                });
-                                onClose();
+                                setConfirming(true);
+                                try {
+                                    await onConfirm({
+                                        relation: effectiveRelation as RelationUpper,
+                                        candidateId: effectiveCandidateId,
+                                    });
+                                    onClose();
+                                } catch (e: any) {
+                                    setError(e?.message || "Có lỗi xảy ra khi tạo quan hệ.");
+                                } finally {
+                                    setConfirming(false);
+                                }
                             }}
                         >
-                            Xác nhận
+                            {confirming ? "Đang xác nhận…" : "Xác nhận"}
                         </button>
                     </div>
                 </div>

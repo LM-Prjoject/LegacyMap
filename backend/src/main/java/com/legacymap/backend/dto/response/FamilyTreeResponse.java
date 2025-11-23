@@ -1,4 +1,3 @@
-// src/main/java/com/legacymap/backend/dto/response/FamilyTreeResponse.java
 package com.legacymap.backend.dto.response;
 
 import com.legacymap.backend.entity.FamilyTree;
@@ -32,6 +31,9 @@ public class FamilyTreeResponse {
     // NEW: Member count field
     private Long memberCount;
 
+    // ✅ THÊM: Field sharePermission
+    private String sharePermission;
+
     // Static factory method để convert từ Entity sang DTO
     public static FamilyTreeResponse fromEntity(FamilyTree tree) {
         if (tree == null) {
@@ -39,7 +41,7 @@ public class FamilyTreeResponse {
         }
 
         return FamilyTreeResponse.builder()
-                .id(tree.getId())
+                .id(tree.getId())  // ✅ CRITICAL: Phải map ID
                 .name(tree.getName())
                 .description(tree.getDescription())
                 .createdBy(tree.getCreatedBy() != null ? tree.getCreatedBy().getId() : null)
@@ -51,6 +53,7 @@ public class FamilyTreeResponse {
                 .createdAt(tree.getCreatedAt())
                 .updatedAt(tree.getUpdatedAt())
                 .memberCount(0L) // Will be set by service layer
+                .sharePermission(tree.getSharePermission()) // ✅ THÊM: Map sharePermission từ entity
                 .build();
     }
 }

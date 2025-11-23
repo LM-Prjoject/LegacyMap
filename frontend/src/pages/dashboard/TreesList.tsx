@@ -3,10 +3,10 @@ import Navbar from "@/components/layout/Navbar";
 import FamilyTreeModal from "@/components/familyTree/familyTreeModal/FamilyTreeModal";
 import { uploadCoverToSupabase } from "@/lib/upload";
 import api, { FamilyTree } from "@/api/trees";
-import { Loader, Pencil, Trash2, Eye } from "lucide-react";
-import bg from "@/assets/bg.jpg";
+import {Loader, Pencil, Trash2, Eye, ArrowLeft, GitBranchPlus} from "lucide-react";
 import PopupModal from "@/components/popupModal/PopupModal";
 import { useNavigate } from "react-router-dom";
+import { truncateByWidth } from "@/lib/truncate";
 
 export default function TreesList() {
     const [showModal, setShowModal] = useState(false);
@@ -67,17 +67,26 @@ export default function TreesList() {
 
     return (
         <div className="relative min-h-screen flex flex-col overflow-hidden">
-            <img src={bg} alt="Background" className="absolute top-0 left-0 w-full h-full object-cover -z-10" />
             <div className="absolute inset-0 bg-slate-900/30 -z-10" />
             <Navbar />
             <main className="flex-1 w-full px-8 lg:px-20 py-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-ivory text-xl font-semibold">Cây của tôi</h2>
+                    <div className="flex-col items-center">
+                    <button
+                        onClick={() => navigate("/")}
+                        className="inline-flex items-center gap-2 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"
+                        title="Quay lại"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    <h2 className="text-ivory text-xl font-semibold ml-5">Cây của tôi</h2>
+                    </div>
                     <button
                         onClick={() => setShowModal(true)}
-                        className="px-4 py-2 rounded-lg font-semibold text-[#20283d] bg-gradient-to-br from-[#b49e7b] to-[#d1b98a] shadow-[0_6px_20px_rgba(209,185,138,0.35)] hover:brightness-110 transition-all h-11 px-5 text-[15px]"
+                        className="px-4 py-2 rounded-lg font-semibold text-[#20283d] bg-gradient-to-br from-[#b49e7b] to-[#d1b98a] shadow-[0_6px_20px_rgba(209,185,138,0.35)] hover:brightness-110 transition-all h-10"
+                        title="Tạo gia phả"
                     >
-                        Tạo gia phả
+                        <GitBranchPlus size={25}/>
                     </button>
                 </div>
                 <div className="rounded-xl p-2 sm:p-4">
@@ -109,12 +118,12 @@ export default function TreesList() {
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                             <h4 className="font-semibold text-slate-50 drop-shadow-sm">{t.name}</h4>
-                                            <p className="text-sm text-slate-100/80 line-clamp-2">{t.description || "—"}</p>
+                                            <p className="text-sm text-slate-100/80 line-clamp-2">{truncateByWidth(t.description || "—",200)}</p>
                                             <p className="mt-1 text-xs text-slate-200/70">{t.isPublic ? "Công khai" : "Riêng tư"}</p>
                                         </div>
                                         <div className="flex items-center gap-1 sm:gap-2">
-                                            <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => goToDetail(t.id)}>
-                                                <Eye size={16} />
+                                            <button title="Xem chi tiết" className="group p-2 rounded-xl hover:bg-white/20 transition" onClick={() => goToDetail(t.id)}>
+                                                <Eye size={16} className="stroke-white group-hover:stroke-black transition" />
                                             </button>
                                             {(() => {
                                                 const ownerId = (t as any)?.userId
@@ -125,10 +134,10 @@ export default function TreesList() {
                                                 return isOwner;
                                             })() && (
                                                 <>
-                                                    <button className="p-2 rounded-lg hover:bg-slate-100" onClick={() => startEdit(t)}>
-                                                        <Pencil size={16} />
+                                                    <button title="chỉnh sửa" className="group p-2 rounded-xl hover:bg-white/20 transition" onClick={() => startEdit(t)}>
+                                                        <Pencil size={16} className="stroke-white group-hover:stroke-black transition"/>
                                                     </button>
-                                                    <button className="p-2 rounded-lg hover:bg-red-50 text-red-500" onClick={() => setDeleteTarget(t)}>
+                                                    <button title="Xóa" className="p-2 rounded-lg hover:bg-white/20 text-red-500" onClick={() => setDeleteTarget(t)}>
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </>

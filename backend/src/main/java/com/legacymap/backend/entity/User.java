@@ -5,38 +5,46 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Data @NoArgsConstructor
+@Data
+@NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class User {
-        @Id @GeneratedValue
+        @Id
+        @GeneratedValue
         private UUID id;
 
         @Column(name = "email", nullable = false, unique = true, length = 255)
         private String email;
 
-        @Column(name = "password_hash", nullable = false, length = 255)  // ← Sửa tên column
+        @Column(name = "password_hash", nullable = false, length = 255)
         private String passwordHash;
 
         @Column(name = "username", nullable = false, unique = true, length = 50)
         private String username;
 
         @Column(name = "role_name", nullable = false, length = 20)
+        @Builder.Default
         private String roleName = "user";
 
         @Column(name = "is_verified", nullable = false)
+        @Builder.Default
         private Boolean isVerified = false;
 
         @Column(name = "is_active", nullable = false)
+        @Builder.Default
         private Boolean isActive = true;
 
         @Column(name = "is_banned", nullable = false)
+        @Builder.Default
         private Boolean isBanned = false;
 
         @Column(name = "banned_at")
@@ -45,9 +53,11 @@ public class User {
         @Column(name = "last_login")
         private OffsetDateTime lastLogin;
 
-        @Column(name = "created_at")
+        @CreationTimestamp
+        @Column(name = "created_at", updatable = false)
         private OffsetDateTime createdAt;
 
+        @UpdateTimestamp
         @Column(name = "updated_at")
         private OffsetDateTime updatedAt;
 
@@ -55,22 +65,14 @@ public class User {
         private String provider;
 
         @Column(name = "failed_attempts")
-        private Integer failedAttempts;
+        @Builder.Default
+        private Integer failedAttempts = 0;
 
-        @Column(name = "password_changedat")
+        // SỬA: Sử dụng đúng tên column trong database
+        @Column(name = "password_changedat") // Tên trong database là password_changedat (không có dấu gạch dưới)
         private OffsetDateTime passwordChangedAt;
 
-        @Column(name = "password_version", nullable = false, columnDefinition = "integer default 0")
+        @Column(name = "password_version", nullable = false)
+        @Builder.Default
         private Integer passwordVersion = 0;
-
-        @PrePersist
-        void prePersist() {
-                createdAt = OffsetDateTime.now();
-                updatedAt = createdAt;
-        }
-
-        @PreUpdate
-        void preUpdate() {
-                updatedAt = OffsetDateTime.now();
-        }
 }

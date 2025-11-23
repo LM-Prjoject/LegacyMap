@@ -1,10 +1,10 @@
-// password-reset.tsx - Đã cập nhật UI với background trong suốt
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
 import DragonsBackground from '@/components/visual/DragonsBackground';
+import { PasswordInput } from "@/pages/auth/AccountSecuritySection/AccountSecuritySection";
 
 const forgotPasswordSchema = z.object({
     email: z.string().email('Email không hợp lệ'),
@@ -48,7 +48,6 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         }
     }, [isResetSuccess, onShowSignIn]);
 
-    // FIXED: Quản lý scroll giống như SignUp
     useEffect(() => {
         const originalStyle = window.getComputedStyle(document.body).overflow;
         document.body.style.overflow = 'hidden';
@@ -89,9 +88,10 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
     };
 
     const {
-        register: registerReset,
         handleSubmit: handleResetSubmit,
         formState: { errors: resetErrors, isSubmitting: isResetting },
+        watch: watchReset,
+        setValue: setResetValue,
     } = useForm<ResetPasswordFormData>({ resolver: zodResolver(resetPasswordSchema) });
 
     const onResetPassword = async (data: ResetPasswordFormData) => {
@@ -178,38 +178,30 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                             ) : (
                                 <form className="mt-6 space-y-5" onSubmit={handleResetSubmit(onResetPassword)}>
                                     <div>
-                                        <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>MẬT KHẨU MỚI</label>
-                                        <input
-                                            {...registerReset('password')}
-                                            type="password"
-                                            className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium"
-                                            style={{
-                                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-                                                borderColor: 'rgba(42, 53, 72, 0.3)',
-                                                color: '#2a3548'
-                                            }}
-                                            placeholder="Nhập mật khẩu mới"
+                                        <PasswordInput
+                                            label="MẬT KHẨU MỚI"
+                                            value={watchReset("password") || ""}
+                                            onChange={(v) => setResetValue("password", v, { shouldValidate: true })}
+                                            variant="light"
                                         />
                                         {resetErrors.password && (
-                                            <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{resetErrors.password.message}</p>
+                                            <p className="text-sm mt-2 font-medium" style={{ color: "#2a3548" }}>
+                                                {resetErrors.password.message}
+                                            </p>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>XÁC NHẬN MẬT KHẨU</label>
-                                        <input
-                                            {...registerReset('confirmPassword')}
-                                            type="password"
-                                            className="w-full rounded-xl border-2 px-4 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium"
-                                            style={{
-                                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-                                                borderColor: 'rgba(42, 53, 72, 0.3)',
-                                                color: '#2a3548'
-                                            }}
-                                            placeholder="Nhập lại mật khẩu"
+                                        <PasswordInput
+                                            label="XÁC NHẬN MẬT KHẨU"
+                                            value={watchReset("confirmPassword") || ""}
+                                            onChange={(v) => setResetValue("confirmPassword", v, { shouldValidate: true })}
+                                            variant="light"
                                         />
                                         {resetErrors.confirmPassword && (
-                                            <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{resetErrors.confirmPassword.message}</p>
+                                            <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>
+                                                {resetErrors.confirmPassword.message}
+                                            </p>
                                         )}
                                     </div>
 
@@ -236,9 +228,7 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         );
     }
 
-    // Form nhập email để nhận link đặt lại
     return (
-        // FIXED: Background trong suốt giống SignUp
         <div className="fixed inset-0 z-50 overflow-hidden" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(8px)'}}>
             <div className="flex min-h-full items-center justify-center p-4">
                 <DragonsBackground
@@ -248,7 +238,6 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                     right={{ enabled: true, flipX: false, delayMs: 250 }}
                 />
 
-                {/* FIXED: Container scroll duy nhất giống SignUp */}
                 <div className="relative w-full max-w-md max-h-[90vh] z-10 mx-auto overflow-y-auto">
                     <div className="relative rounded-3xl shadow-2xl p-8" style={{
                         background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',

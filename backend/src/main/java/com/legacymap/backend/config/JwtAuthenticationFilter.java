@@ -10,6 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.legacymap.backend.repository.UserRepository;
@@ -23,6 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@Component // THÊM Annotation này
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -77,6 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             UUID userId = jwtUtil.validateToken(token);
             if (userId == null) {
+                log.warn("Invalid JWT token for endpoint: {} {}", method, path);
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -85,7 +88,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Integer currentPwdv = userRepository.findById(userId)
                     .map(u -> u.getPasswordVersion() == null ? 0 : u.getPasswordVersion())
                     .orElse(0);
+
             if (tokenPwdv == null || !tokenPwdv.equals(currentPwdv)) {
+                log.warn("Password version mismatch for user: {}", userId);
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -98,6 +103,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(userId.toString(), null, authorities);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                log.debug("Authenticated user: {} with roles: {}", userId, authorities);
             }
 
         } catch (Exception e) {
@@ -123,24 +130,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicEndpoint(String path, String method) {
+        // ✅ POST endpoints không cần auth
         if ("POST".equalsIgnoreCase(method) && (
                 path.equals("/api/auth/login") ||
+                        path.equals("/legacy/api/auth/login") ||
                         path.equals("/api/users/register") ||
+                        path.equals("/legacy/api/users/register") ||
                         path.equals("/api/auth/forgot-password") ||
                         path.equals("/api/auth/reset-password") ||
                         path.startsWith("/api/support")
         )) return true;
 
+        // ✅ GET endpoints không cần auth
         if ("GET".equalsIgnoreCase(method) && (
-            path.startsWith("/api/auth/verify") ||
-                path.startsWith("/api/trees") ||
-                path.equals("/api/notifications/stream") ||
-                path.startsWith("/v3/api-docs") ||
-                path.startsWith("/swagger-ui") ||
-                path.startsWith("/actuator") ||
-                path.startsWith("/api/support")
+                path.startsWith("/api/auth/verify") ||
+                        path.startsWith("/api/trees/shared/") || // CHỈNH SỬA: chỉ public với trees shared
+                        path.equals("/api/notifications/stream") ||
+                        path.startsWith("/v3/api-docs") ||
+                        path.startsWith("/swagger-ui") ||
+                        path.startsWith("/actuator") ||
+                        path.startsWith("/api/support")
         )) return true;
 
+        // ✅ Static resources
         if (path.equals("/") ||
                 path.equals("/index.html") ||
                 path.startsWith("/oauth2/") ||
@@ -149,6 +161,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/favicon.ico") ||
                 path.equals("/error")) return true;
 
+        // ✅ OPTIONS requests
         return "OPTIONS".equalsIgnoreCase(method);
     }
 }

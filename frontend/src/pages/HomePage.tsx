@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom'; // ✅ THÊM IMPORT
 import Navbar from '@/components/layout/Navbar';
 import HeroSection from '@/components/home/HeroSection';
 import StatsSection from '@/components/home/StatsSection';
@@ -16,6 +17,17 @@ type ModalType = 'signin' | 'signup' | 'password-reset' | null;
 export default function HomePage() {
     const [activeModal, setActiveModal] = useState<ModalType>(null);
     const [resetToken, setResetToken] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams(); // ✅ THÊM HOOK
+
+    // ✅ Tự động mở SignIn modal nếu có query param showSignIn=true
+    useEffect(() => {
+        if (searchParams.get('showSignIn') === 'true') {
+            setActiveModal('signin');
+            // Xóa query param sau khi đã xử lý
+            searchParams.delete('showSignIn');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
 
     // Tự động scroll mượt khi click anchor
     useEffect(() => {

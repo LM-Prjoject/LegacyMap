@@ -16,18 +16,19 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
+public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
     private final AuthenticationService authenticationService;
 
-    @Value("${app.frontend.url}")
+    @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
     @Override
@@ -35,7 +36,7 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
 
-        String redirectUrl = frontendUrl + "/signin";
+        String baseRedirectUrl = frontendUrl + "/signin";
 
         try {
             log.info("OAuth2 authentication success handler started");
@@ -48,7 +49,7 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
             if (email == null || email.trim().isEmpty()) {
                 log.error("Missing email from Google OAuth");
-                redirectUrl += "?error=" + URLEncoder.encode("missing_email", StandardCharsets.UTF_8);
+                String redirectUrl = baseRedirectUrl + "?error=" + URLEncoder.encode("missing_email", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
             }
@@ -57,7 +58,7 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             log.info("Checking if email is banned: {}", email);
             if (isEmailBanned(email)) {
                 log.warn("Email {} is BANNED - blocking login", email);
-                redirectUrl += "?error=" + URLEncoder.encode("banned", StandardCharsets.UTF_8);
+                String redirectUrl = baseRedirectUrl + "?error=" + URLEncoder.encode("banned", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
             }
@@ -69,7 +70,7 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
             if (userOpt.isEmpty()) {
                 log.error("User not found in database: {}", email);
-                redirectUrl += "?error=" + URLEncoder.encode("user_not_found", StandardCharsets.UTF_8);
+                String redirectUrl = baseRedirectUrl + "?error=" + URLEncoder.encode("user_not_found", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
             }
@@ -81,13 +82,13 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             // 4. Double check ban status (safety)
             if (Boolean.TRUE.equals(user.getIsBanned())) {
                 log.warn("User {} is banned (double check)", email);
-                redirectUrl += "?error=" + URLEncoder.encode("banned", StandardCharsets.UTF_8);
+                String redirectUrl = baseRedirectUrl + "?error=" + URLEncoder.encode("banned", StandardCharsets.UTF_8);
                 response.sendRedirect(redirectUrl);
                 return;
             }
 
             // 5. Update last login
-            user.setLastLogin(java.time.OffsetDateTime.now());
+            user.setLastLogin(OffsetDateTime.now());
             userRepository.save(user);
             log.info("Updated last login for user: {}", email);
 
@@ -95,18 +96,44 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             String jwt = authenticationService.generateAccessToken(user);
             log.info("Generated JWT token for user: {}", email);
 
-            // 7. Redirect với token
-            String targetUrl = frontendUrl + "/auth/google-success?token=" + jwt;
-            log.info("Redirecting to: {}", targetUrl);
+            // 7. Redirect với token và hỗ trợ returnUrl
+            String targetUrl = frontendUrl + "/auth/google-success?token=" + URLEncoder.encode(jwt, StandardCharsets.UTF_8);
+
+            // ✅ THÊM: Lấy returnUrl từ session nếu có
+            String returnUrl = (String) request.getSession().getAttribute("returnUrl");
+            if (returnUrl != null) {
+                request.getSession().removeAttribute("returnUrl"); // Clear sau khi lấy
+
+                // Validate returnUrl
+                if (returnUrl.startsWith("/") && !returnUrl.contains("//")) {
+                    targetUrl += "&returnUrl=" + URLEncoder.encode(returnUrl, StandardCharsets.UTF_8);
+                    log.info("Added returnUrl from session: {}", returnUrl);
+                } else {
+                    log.warn("Invalid returnUrl detected in session: {}", returnUrl);
+                }
+            }
+
+            // ✅ THÊM: Lấy returnUrl từ request parameter (nếu không có trong session)
+            String paramReturnUrl = request.getParameter("returnUrl");
+            if (paramReturnUrl != null && !paramReturnUrl.isEmpty() && returnUrl == null) {
+                // ✅ Validate returnUrl cơ bản (chỉ cho phép relative URLs)
+                if (paramReturnUrl.startsWith("/") && !paramReturnUrl.contains("//")) {
+                    targetUrl += "&returnUrl=" + URLEncoder.encode(paramReturnUrl, StandardCharsets.UTF_8);
+                    log.info("Added returnUrl from request parameter: {}", paramReturnUrl);
+                } else {
+                    log.warn("Invalid returnUrl detected in parameter: {}", paramReturnUrl);
+                }
+            }
+
+            log.info("Redirecting to: {}", targetUrl.replace(jwt, "JWT_TOKEN_REDACTED")); // Security log
             response.sendRedirect(targetUrl);
 
         } catch (Exception e) {
             log.error("CRITICAL ERROR in OAuth2SuccessHandler: {}", e.getMessage(), e);
             log.error("Exception type: {}", e.getClass().getName());
-            log.error("Stack trace: ", e);
 
             // Redirect về signin với error message
-            redirectUrl += "?error=" + URLEncoder.encode("auth_failed", StandardCharsets.UTF_8);
+            String redirectUrl = baseRedirectUrl + "?error=" + URLEncoder.encode("auth_failed", StandardCharsets.UTF_8);
 
             try {
                 response.sendRedirect(redirectUrl);
@@ -125,6 +152,7 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
      */
     private boolean isEmailBanned(String email) {
         try {
+            // SỬA: Sử dụng method đúng từ repository
             List<User> allAccountsWithEmail = userRepository.findAllByEmail(email);
 
             log.info("Found {} account(s) with email: {}", allAccountsWithEmail.size(), email);
@@ -144,7 +172,7 @@ public class    OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             return isBanned;
 
         } catch (Exception e) {
-            log.error("Error checking ban status for email {}: {}", email, e.getMessage(), e);
+            log.error("Error checking ban status for email {}: {}", email, e.getMessage());
             // Nếu có lỗi, coi như không bị ban để không block user nhầm
             return false;
         }
