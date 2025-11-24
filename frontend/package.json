@@ -23,6 +23,7 @@
     "bootstrap": "^5.3.8",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "html-to-image": "^1.11.13",
     "ics": "^3.8.1",
     "lucide-react": "^0.446.0",
     "lunar-javascript": "^1.7.6",

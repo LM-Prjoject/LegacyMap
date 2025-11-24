@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TreeGraph from "@/components/familyTree/TreeGraph";
 import RelationshipModal, { type RelationUpper } from "@/components/familyTree/relaModal/RelationshipModal";
@@ -6,12 +6,13 @@ import MemberModal, { type MemberFormValues } from "@/components/familyTree/memb
 import PersonDetailsModal from "@/components/familyTree/PersonDetailsModal";
 import ShareTreeModal from "@/components/familyTree/ShareTreeModal";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
-import api, { type Person, type Relationship } from "@/api/trees";
+import api, { type Person, type Relationship, exportTreePdfWithImage } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
-import { ArrowLeft, LucideUserPlus, Share2 } from "lucide-react";
+import { ArrowLeft, LucideUserPlus, Share2, Download} from "lucide-react";
+import * as htmlToImage from "html-to-image";
 
 type TreeView = {
     coverImageUrl?: string | null;
@@ -62,32 +63,28 @@ export default function TreeDetails() {
     const [graphVersion, setGraphVersion] = useState(0);
     const [readOnly, setReadOnly] = useState(false);
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
-
+    const [isInAddFlow, setIsInAddFlow] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
+    const treeWrapperRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        // ✅ CHECK: Nếu có fromShare parameter
+
         const urlParams = new URLSearchParams(window.location.search);
         const fromShare = urlParams.get('fromShare') === 'true';
 
         if (fromShare && treeId && userId) {
-            console.log('💾 Saving shared tree to dashboard:', { treeId, userId });
 
-            // Lưu tree vào dashboard
             api.saveSharedTreeToDashboard(userId, treeId)
                 .then(() => {
                     showToast.success("Đã lưu cây vào dashboard của bạn");
-                    // Remove parameter khỏi URL để tránh lặp lại
                     const newUrl = window.location.pathname;
                     window.history.replaceState({}, '', newUrl);
                 })
                 .catch(e => {
-                    console.error('❌ Failed to save shared tree:', e);
                     showToast.error(e?.message || "Không thể lưu cây");
                 });
         }
 
-        // Tiếp tục load tree như bình thường...
         localStorage.removeItem('pendingTreeId');
         if (!treeId) {
             setLoading(false);
@@ -109,7 +106,6 @@ export default function TreeDetails() {
                 const allTrees: any[] = [...owned, ...viewable];
                 const found: any = allTrees.find((t) => t.id === treeId) || null;
 
-                // Resolve owner via backend owner endpoint (authoritative)
                 let createdById: string | null = null;
                 try {
                     createdById = await api.getTreeOwner(treeId);
@@ -819,6 +815,39 @@ export default function TreeDetails() {
         }
     };
 
+    const handleExport = async () => {
+        if (!treeId) {
+            showToast.error("Thiếu ID cây gia phả.");
+            return;
+        }
+        if (!treeWrapperRef.current) {
+            showToast.error("Không tìm thấy khu vực cây để chụp.");
+            return;
+        }
+
+        try {
+            const dataUrl = await htmlToImage.toPng(treeWrapperRef.current, {
+                quality: 1,
+                pixelRatio: 2,
+            });
+
+            const res = await fetch(dataUrl);
+            const imgBlob = await res.blob();
+
+            const pdfBlob = await exportTreePdfWithImage(treeId, imgBlob);
+
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `cay-gia-pha-${treeId}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e: any) {
+            console.error(e);
+            showToast.error(e?.message || "Xuất PDF thất bại, vui lòng thử lại.");
+        }
+    };
+
     return (
         <div className="relative min-h-screen">
             <div className="absolute inset-0 bg-slate-900/40 -z-10" />
@@ -841,11 +870,19 @@ export default function TreeDetails() {
 
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setShareModalOpen(true)}
+                                onClick={handleExport}
                                 className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                title="Tải xuống"
+                                disabled={loading}
+                            >
+                                <Download size={20} />
+                            </button>
+                            <button
+                                onClick={() => setShareModalOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-1.5 shadow-sm hover:shadow transition-all"
                                 title="Chia sẻ cây gia phả"
                             >
-                                <Share2 className="w-5 h-5" />
+                                <Share2 size={20} />
                                 <span className="hidden sm:inline">Chia sẻ</span>
                             </button>
 
@@ -872,7 +909,8 @@ export default function TreeDetails() {
                     generationCount={loading ? 0 : generationCount}
                 />
 
-                <main className="col-span-12 md:col-span-9 bg-white rounded-xl shadow p-3">
+                <main ref={treeWrapperRef}
+                      className="col-span-12 md:col-span-9 bg-white rounded-xl shadow p-3">
                     {!treeId ? (
                         <div className="text-sm text-slate-500">Không tìm thấy treeId trong URL.</div>
                     ) : loading ? (
