@@ -531,6 +531,30 @@ async function listPersonRelationships(
   return raw.map(mapRelationship);
 }
 
+export async function exportTreePdfWithImage(
+    treeId: string,
+    imageBlob: Blob
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append("treeImage", imageBlob, "tree.png");
+
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/export/pdf`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+      }
+  );
+
+  if (!res.ok) {
+    const json = await safeJson<ApiResponse<any>>(res);
+    throw new Error(json?.message || "Xuất PDF thất bại");
+  }
+
+  return res.blob();
+}
+
 // ==================== SHARING API ====================
 
 export interface TreeShareResponse {
@@ -758,9 +782,6 @@ async function addSharedTreeMember(
   return pickData<Person>(json);
 }
 
-/**
- * AUTHENTICATED: Cập nhật member qua share link (cần quyền EDIT)
- */
 async function updateSharedTreeMember(
     shareToken: string,
     userId: string,
@@ -780,9 +801,6 @@ async function updateSharedTreeMember(
   return pickData<Person>(json);
 }
 
-/**
- * PUBLIC: Lấy relationships của shared tree
- */
 async function getSharedTreeRelationships(
     shareToken: string,
     userId?: string | null
@@ -803,9 +821,6 @@ async function getSharedTreeRelationships(
   return raw.map(mapRelationship);
 }
 
-/**
- * Check user's access level to a tree
- */
 async function checkTreeAccess(
     treeId: string,
     userId: string
@@ -825,9 +840,6 @@ async function checkTreeAccess(
   return pickData(json);
 }
 
-/**
- * Lưu shared tree vào dashboard của user
- */
 async function saveSharedTreeToDashboard(
     userId: string,
     treeId: string
@@ -846,7 +858,6 @@ async function saveSharedTreeToDashboard(
   }
 }
 
-// ✅ THÊM: API để lưu shared tree vào dashboard (phiên bản dùng shareToken)
 export const saveSharedTreeByToken = async (
     userId: string,
     shareToken: string
@@ -867,7 +878,6 @@ export const saveSharedTreeByToken = async (
   return pickData<string>(json);
 };
 
-// ✅ THÊM: API để lấy relationships của shared tree (phiên bản export riêng)
 export const getSharedTreeRelationshipsExport = async (
     shareToken: string,
     userId?: string
@@ -888,9 +898,6 @@ export const getSharedTreeRelationshipsExport = async (
   return pickData<Relationship[]>(json);
 };
 
-/**
- * ✅ MỚI: Lấy thông tin access từ shareToken
- */
 async function getSharedTreeAccessInfo(
     shareToken: string,
     userId?: string | null
@@ -936,8 +943,7 @@ const api = {
   createRelationship,
   suggestRelationship,
   suggestForSource,
-  // ✅ Thêm các API mới
-  generatePublicShareLink, // ✅ Đã có signature mới
+  generatePublicShareLink,
   disablePublicSharing,
   shareWithUser,
   getSharedUsers,
@@ -949,11 +955,10 @@ const api = {
   getSharedTreeRelationships,
   checkTreeAccess,
   saveSharedTreeToDashboard,
-  // ✅ Thêm các API export mới
   saveSharedTreeByToken,
   getSharedTreeRelationshipsExport,
-  // ✅ THÊM API mới
   getSharedTreeAccessInfo,
+  exportTreePdfWithImage,
 };
 
 export default api;

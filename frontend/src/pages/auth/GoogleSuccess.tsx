@@ -82,5 +82,5 @@ export default function GoogleSuccess() {
         }
     }, [navigate]);
 
-    return <p className="text-center py-10">Đang xử lý đăng nhập Google...</p>;
+    return ;
 }
