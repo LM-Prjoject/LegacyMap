@@ -42,13 +42,13 @@ public class ChatMessage {
     @Column(name = "file_url")
     private String fileUrl;
 
-    @Column(name = "file_name", length = 255)
+    @Column(name = "file_name", columnDefinition = "text")
     private String fileName;
 
     @Column(name = "file_size")
     private Long fileSize;
 
-    @Column(name = "file_type", length = 50)
+    @Column(name = "file_type", columnDefinition = "text")
     private String fileType;
 
     @ManyToOne(fetch = FetchType.LAZY)

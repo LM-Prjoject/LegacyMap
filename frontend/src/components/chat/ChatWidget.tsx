@@ -67,7 +67,6 @@ export const ChatWidget = () => {
   const [filter, setFilter] = useState<RoomFilter>('all');
   const [search, setSearch] = useState('');
   const [messageInput, setMessageInput] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [showDirect, setShowDirect] = useState(false);
   const [createState, setCreateState] = useState<CreateRoomFormState>(defaultCreateState);
@@ -96,6 +95,7 @@ export const ChatWidget = () => {
   const [tempNickname, setTempNickname] = useState('');
   const [showEditBranchNameModal, setShowEditBranchNameModal] = useState(false);
   const [tempBranchName, setTempBranchName] = useState('');
+  const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const messageEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -177,39 +177,85 @@ export const ChatWidget = () => {
 
   const renderMessageContent = useCallback((message: ChatMessage) => {
     if (message.deleted) {
-      return <p className="italic text-white/50">Tin nhắn đã bị xóa</p>;
+      return <p className="italic text-white/50 m-0">Tin nhắn đã bị xóa</p>;
     }
 
     if (message.messageType === 'image' && message.fileUrl) {
-      const width = message.metadata?.imageWidth
-        ? Math.min(message.metadata.imageWidth, 320)
-        : 'auto';
       return (
         <img
           src={message.fileUrl}
           alt={message.fileName || 'Ảnh'}
-          className="rounded-lg max-h-64 object-contain cursor-pointer"
-          style={{ width }}
+          loading="lazy"
+          className="rounded-lg w-full max-w-xs h-auto object-cover cursor-pointer hover:opacity-90 transition"
           onClick={() => window.open(message.fileUrl!, '_blank')}
         />
       );
     }
 
     if (message.messageType === 'file' && message.fileUrl) {
+      const fileExt = message.fileName?.split('.').pop()?.toLowerCase() || '';
+      const isPdf = fileExt === 'pdf';
+      const isDoc = ['doc', 'docx', 'docm'].includes(fileExt);
+      const isExcel = ['xls', 'xlsx', 'xlsm'].includes(fileExt);
+      const isPowerPoint = ['ppt', 'pptx'].includes(fileExt);
+
+      const iconBg = isPdf
+          ? 'bg-red-600'
+          : isDoc
+              ? 'bg-blue-600'
+              : isExcel
+                  ? 'bg-green-600'
+                  : isPowerPoint
+                      ? 'bg-orange-600'
+                      : 'bg-gray-600';
+
+      const iconText = isPdf
+          ? 'PDF'
+          : isDoc
+              ? 'DOC'
+              : isExcel
+                  ? 'XLS'
+                  : isPowerPoint
+                      ? 'PPT'
+                      : fileExt.toUpperCase().slice(0, 3);
+
       return (
-        <a
-          href={message.fileUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs underline flex items-center gap-1 hover:text-cyan-300"
-        >
-          <Paperclip size={12} />
-          {message.fileName || 'Tải tệp'}
-        </a>
+          <a
+              href={message.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2.5 px-3 py-2.5 bg-white/8 hover:bg-white/12 rounded-xl transition-all shadow-sm max-w-[180px]"          >
+
+            {/* Icon file */}
+            <div className={`w-8 h-9 ${iconBg} rounded flex flex-col items-center justify-center text-white text-[10px] font-bold leading-tight flex-shrink-0`}>
+              <span>{iconText}</span>
+            </div>
+
+            {/* Thông tin file */}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-white truncate leading-tight">
+                {message.fileName || 'Tệp đính kèm'}
+              </p>
+              <p className="text-[10px] text-white/50 mt-0.5">
+                {message.fileSize
+                    ? `${(message.fileSize / 1024 / 1024).toFixed(1).replace('.0', '')} MB`
+                    : 'Đang tải...'}
+              </p>
+            </div>
+
+            {/* Mũi tên tải xuống nhỏ */}
+            <div className="flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/60">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </div>
+          </a>
       );
     }
 
-    return <p className="whitespace-pre-line">{message.messageText}</p>;
+    return <p className="whitespace-pre-line m-0 break-words">{message.messageText}</p>;
   }, []);
 
   const filterTabs: { key: RoomFilter; label: string }[] = [
@@ -459,11 +505,21 @@ export const ChatWidget = () => {
     if (!currentRoom) return;
     const file = event.target.files?.[0];
     if (!file) return;
-    setIsUploading(true);
+
+    const fileId = `${Date.now()}-${file.name}`;
+    setUploadingFiles(prev => new Set(prev).add(fileId));
+
     try {
       await sendAttachment(currentRoom.id, file);
+      showToast.success('Đã gửi tệp!');
+    } catch (err) {
+      showToast.error('Gửi tệp thất bại');
     } finally {
-      setIsUploading(false);
+      setUploadingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
       event.target.value = '';
     }
   };
@@ -947,7 +1003,7 @@ export const ChatWidget = () => {
       <div className="fixed bottom-4 right-4 z-[1300] w-full max-w-sm">
         <div className="bg-gradient-to-br from-[#1e2a3a] via-[#253446] to-[#1a2633] text-white rounded-3xl shadow-2xl border-2 border-[#ffd89b]/30 overflow-hidden relative backdrop-blur-sm">
           {/* Header */}
-          <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+          <header className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setViewMode('list')}
@@ -1031,7 +1087,7 @@ export const ChatWidget = () => {
           {currentRoom ? (
             <>
               {/* Messages */}
-              <div className="h-[350px] overflow-y-auto px-4 py-4 space-y-1.5 bg-gradient-to-b from-[#1e2a3a]/30 to-transparent">
+              <div className="h-[350px] overflow-y-auto overflow-x-hidden px-2.5 py-2 space-y-1.5 bg-gradient-to-b from-[#1e2a3a]/30 to-transparent">
                 {/* Load more */}
                 {currentRoomState?.hasMore && (
                   <button
@@ -1102,7 +1158,7 @@ export const ChatWidget = () => {
                             />
                           ) : (
                             <>
-                              <p className={`text-[11px] mb-0 font-semibold ${isMine ? 'text-[#1e2a3a]/80' : 'text-[#ffd89b]/90'}`}>
+                              <p className={`text-[11px] m-0 font-semibold ${isMine ? 'text-[#1e2a3a]/80' : 'text-[#ffd89b]/90'}`}>
                                 {isMine ? 'Bạn' : message.senderName}
                               </p>
                               {renderMessageContent(message)}
@@ -1113,7 +1169,7 @@ export const ChatWidget = () => {
                           )}
 
                           {/* Timestamp */}
-                          <p className={`text-[10px] mt-0 mb-0 ${isMine ? 'text-[#1e2a3a]/60' : 'text-white/60'}`}>
+                          <p className={`text-[10px] m-0 ${isMine ? 'text-[#1e2a3a]/60' : 'text-white/60'}`}>
                             {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -1159,12 +1215,16 @@ export const ChatWidget = () => {
               <div className="px-4 py-3 border-t-2 border-[#ffd89b]/20 bg-gradient-to-r from-[#1e2a3a] to-[#2a3a4a]">
                 <div className="flex items-end gap-2">
                   <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-2.5 rounded-xl bg-[#ffd89b]/10 hover:bg-[#ffd89b]/20 transition"
-                    disabled={isUploading}
-                    title="Đính kèm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingFiles.size > 0}
+                      className="relative p-2.5 rounded-xl bg-[#ffd89b]/10 hover:bg-[#ffd89b]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
+                      title={uploadingFiles.size > 0 ? "Đang tải lên..." : "Gửi ảnh, file, video..."}
                   >
-                    {isUploading ? <Loader2 className="animate-spin" size={18} /> : <Paperclip size={18} />}
+                    {uploadingFiles.size > 0 ? (
+                        <Loader2 className="animate-spin text-[#ffd89b]" size={20} />
+                    ) : (
+                        <Paperclip size={20} className="text-white/80 group-hover:text-[#ffd89b] transition" />
+                    )}
                   </button>
 
                   <textarea

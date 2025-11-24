@@ -111,9 +111,3 @@ export interface UserSearchResult {
   avatarUrl?: string | null;
 }
 
-export interface ChatMessageReplyTo {
-  id: string;
-  text?: string;
-  senderName: string;
-}
-
