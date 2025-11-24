@@ -178,8 +178,6 @@ export default function TreeDetails() {
             }
         })();
     }, [treeId, userId]);
-
-    const [isInAddFlow, setIsInAddFlow] = useState(false);
     useEffect(() => {
         if (!treeId) {
             setLoading(false);
