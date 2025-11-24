@@ -50,7 +50,7 @@ public class ChatFileStorageService {
                     isImage
             );
         } catch (IOException e) {
-            log.error("Upload file thất bại", e);
+            log.error("File upload failed", e);
             throw new AppException(ErrorCode.INTERNAL_ERROR);
         }
     }

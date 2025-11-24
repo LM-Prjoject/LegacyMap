@@ -20,24 +20,8 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
     List<ChatRoomMember> findByUser_Id(UUID userId);
 
     Optional<ChatRoomMember> findByRoom_IdAndUser_Id(UUID roomId, UUID userId);
-    
-    @Query("SELECT m FROM ChatRoomMember m " +
-           "JOIN FETCH m.room r " +
-           "WHERE m.user.id = :userId AND r.active = true")
-    List<ChatRoomMember> findActiveMembershipsByUserId(@Param("userId") UUID userId);
-    
-    @Modifying
-    @Query("DELETE FROM ChatRoomMember m WHERE m.room.id = :roomId AND m.user.id = :userId")
-    int removeMember(@Param("roomId") UUID roomId, @Param("userId") UUID userId);
-    
-    @Modifying
-    @Query("UPDATE ChatRoomMember m SET m.lastReadAt = :lastReadAt " +
-           "WHERE m.room.id = :roomId AND m.user.id = :userId")
-    int updateLastReadAt(
-        @Param("roomId") UUID roomId, 
-        @Param("userId") UUID userId, 
-        @Param("lastReadAt") OffsetDateTime lastReadAt
-    );
+
+    Optional<ChatRoomMember> findByRoom_IdAndUser_IdNot(@Param("roomId") UUID roomId, @Param("userId") UUID userId);
 
     @Query("""
         SELECT CASE WHEN EXISTS (

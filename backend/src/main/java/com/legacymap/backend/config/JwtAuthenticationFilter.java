@@ -141,7 +141,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.startsWith("/api/support")
         )) return true;
 
-        // GET endpoints không cần auth
+        // GET endpoints không cần auth (including WebSocket handshake)
         if ("GET".equalsIgnoreCase(method) && (
                 path.startsWith("/api/auth/verify") ||
                         path.startsWith("/api/trees/shared/") ||
@@ -149,7 +149,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.startsWith("/v3/api-docs") ||
                         path.startsWith("/swagger-ui") ||
                         path.startsWith("/actuator") ||
-                        path.startsWith("/api/support")
+                        path.startsWith("/api/support") ||
+                        path.startsWith("/ws/") ||
+                        path.startsWith("/legacy/ws/")
         )) return true;
 
         // Static resources
