@@ -179,6 +179,103 @@ export default function TreeDetails() {
         })();
     }, [treeId, userId]);
 
+    const [isInAddFlow, setIsInAddFlow] = useState(false);
+    useEffect(() => {
+        if (!treeId) {
+            setLoading(false);
+            return;
+        }
+        if (!userId) {
+            setLoading(false);
+            showToast.error("Bạn cần đăng nhập để xem chi tiết cây");
+            return;
+        }
+
+        (async () => {
+            setLoading(true);
+            try {
+                const [owned, viewable] = await Promise.all([
+                    api.listTrees(userId).catch(() => []),
+                    api.listViewableTrees(userId).catch(() => [] as any[]),
+                ]);
+                const allTrees: any[] = [...owned, ...viewable];
+                const found: any = allTrees.find((t) => t.id === treeId) || null;
+
+                // Resolve owner via backend owner endpoint (authoritative)
+                let createdById: string | null = null;
+                try {
+                    createdById = await api.getTreeOwner(treeId);
+                } catch {
+                    createdById = null;
+                }
+
+                setTree(
+                    found
+                        ? {
+                            coverImageUrl: found.coverImageUrl ?? null,
+                            name: found.name ?? null,
+                            description: found.description ?? null,
+                            createdAt: found.createdAt ?? null,
+                            createdById,
+                        }
+                        : null
+                );
+
+                if (createdById) {
+                    try {
+                        const basic = await api.getPublicUserBasic(createdById);
+                        if (basic && (basic.fullName || basic.username)) {
+                            setOwnerProfile({
+                                ...(ownerProfile as any),
+                                fullName: basic.fullName || basic.username || "",
+                            } as any);
+                        } else {
+                            const owner = await authApi.getUser(createdById);
+                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
+                        }
+                    } catch {
+                        try {
+                            const owner = await authApi.getUser(createdById);
+                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
+                        } catch {
+                            setOwnerProfile(null);
+                        }
+                    }
+                } else {
+                    setOwnerProfile(null);
+                }
+
+                try {
+                    const [ps, rs] = await Promise.all([
+                        api.listMembers(userId, treeId),
+                        api.listRelationships(userId, treeId),
+                    ]);
+                    setPersons(ps);
+                    setRels(rs);
+                    setReadOnly(false);
+                } catch (err: any) {
+                    const msg = String(err?.message || "").toLowerCase();
+                    if (msg.includes("unauthorized") || msg.includes("không") || msg.includes("forbidden")) {
+                        const [psV, rsV] = await Promise.all([
+                            api.listMembersForViewer(userId, treeId),
+                            api.listRelationshipsForViewer(userId, treeId),
+                        ]);
+                        setPersons(psV);
+                        setRels(rsV);
+                        setReadOnly(true);
+                    } else {
+                        throw err;
+                    }
+                }
+            } catch (e: any) {
+                showToast.error(e?.message || "Không tải được dữ liệu");
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [treeId, userId]);
+
+
     const handleAddClick = () => {
         if (readOnly) return;
         setSelectedPerson(null);
@@ -557,9 +654,6 @@ export default function TreeDetails() {
         setGraphVersion((v) => v + 1);
         showToast.success("Đã cập nhật mối quan hệ");
         setModalOpen(false);
-        setSource(null);
-        setPendingNew(null);
-        setIsInAddFlow(false);
     };
 
     const fetchSuggestions = useMemo(() => {
@@ -568,19 +662,13 @@ export default function TreeDetails() {
             const t = new Date(d);
             return isNaN(t.getTime()) ? null : t.getUTCFullYear();
         };
-        const MIN_PARENT_GAP = 18;
 
-        const existingKeys = buildExistingRelationshipKeys(rels);
+        const MIN_PARENT_GAP = 18;
 
         return async (
             personId: string
         ): Promise<
-            Array<{
-                candidateId: string;
-                relation: "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
-                confidence: number;
-                reasons?: string[];
-            }>
+            Array<{ candidateId: string; relation: "PARENT" | "CHILD" | "SPOUSE" | "SIBLING"; confidence: number; reasons?: string[] }>
         > => {
             if (!treeId || !persons.length) return [];
 
@@ -590,76 +678,76 @@ export default function TreeDetails() {
             const others = persons.filter((p) => p.id !== personId);
             if (!others.length) return [];
 
-            const out: Array<{
-                candidateId: string;
-                relation: any;
-                confidence: number;
-                reasons?: string[];
-            }> = [];
+            // Build existingKeys each call to reflect latest rels
+            const existingKeys = new Set(
+                rels.map((r) => {
+                    const t = String(r.type).toUpperCase();
+                    if (t === "SPOUSE" || t === "SIBLING") {
+                        const [a, b] = [r.fromPersonId, r.toPersonId].sort();
+                        return `PAIR:${a}-${b}:${t}`;
+                    }
+                    const parent = t === "PARENT" ? r.fromPersonId : r.toPersonId;
+                    const child = t === "PARENT" ? r.toPersonId : r.fromPersonId;
+                    return `PARENT:${parent}->${child}`;
+                })
+            );
 
-            const BATCH = 5;
-            for (let i = 0; i < others.length; i += BATCH) {
-                const chunk = others.slice(i, i + BATCH);
-                const res = await Promise.all(
-                    chunk.map(async (cand) => {
-                        try {
-                            const raw = (await api.suggestRelationship(userId, treeId, personId, cand.id)) as Array<{
-                                type: string;
-                                confidence?: number;
-                                reasons?: string[];
-                            }>;
-                            if (!raw?.length) return null;
+            const out: Array<{ candidateId: string; relation: any; confidence: number; reasons?: string[] }> = [];
 
-                            const best = raw.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
-                            let rel = (best.type || "").toUpperCase() as "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
-                            let conf = best.confidence ?? 0;
-                            const reasons = best.reasons ?? [];
+            try {
+                const batch = await api.suggestForSource(userId, treeId, personId, others);
+                for (const item of batch) {
+                    const cand = others.find(p => p.id === item.candidateId);
+                    if (!cand) continue;
+                    let rel = (item.relation || "").toUpperCase() as "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
+                    let conf = item.confidence ?? 0;
 
-                            const yCand = year(cand.birthDate);
-                            if (ySrc != null && yCand != null) {
-                                const diff = yCand - ySrc;
-
-                                if (rel === "PARENT" || rel === "CHILD") {
-                                    if (Math.abs(diff) < MIN_PARENT_GAP) return null;
-                                    if (diff > 0 && rel !== "PARENT") {
-                                        rel = "PARENT";
-                                        conf *= 0.95;
-                                    }
-                                    if (diff < 0 && rel !== "CHILD") {
-                                        rel = "CHILD";
-                                        conf *= 0.95;
-                                    }
-                                }
+                    const yCand = year(cand.birthDate);
+                    if (ySrc != null && yCand != null) {
+                        const diff = yCand - ySrc;
+                        if (rel === "PARENT" || rel === "CHILD") {
+                            if (Math.abs(diff) < MIN_PARENT_GAP) {
+                                try { console.log("[fetchSuggestions] reject age-gap-too-small", { sourceId: personId, candId: cand.id, diff, MIN_PARENT_GAP, rel }); } catch {}
+                                continue;
                             }
-
-                            let key: string;
-                            if (rel === "SPOUSE" || rel === "SIBLING") {
-                                const [a, b] = [personId, cand.id].sort();
-                                key = `PAIR:${a}-${b}:${rel}`;
-                            } else {
-                                key =
-                                    rel === "PARENT"
-                                        ? `PARENT:${personId}->${cand.id}`
-                                        : `PARENT:${cand.id}->${personId}`;
+                            if (diff > 0 && rel !== "PARENT") {
+                                rel = "PARENT";
+                                conf *= 0.95;
+                                try { console.log("[fetchSuggestions] orient->PARENT", { sourceId: personId, candId: cand.id, diff, conf }); } catch {}
                             }
-                            if (existingKeys.has(key)) return null;
-
-                            if (conf <= 0.3) return null;
-                            return {
-                                candidateId: cand.id,
-                                relation: rel,
-                                confidence: conf,
-                                reasons,
-                            };
-                        } catch {
-                            return null;
+                            if (diff < 0 && rel !== "CHILD") {
+                                rel = "CHILD";
+                                conf *= 0.95;
+                                try { console.log("[fetchSuggestions] orient->CHILD", { sourceId: personId, candId: cand.id, diff, conf }); } catch {}
+                            }
                         }
-                    })
-                );
-                out.push(...(res.filter(Boolean) as any[]));
+                    }
+
+                    let key: string;
+                    if (rel === "SPOUSE" || rel === "SIBLING") {
+                        const [a, b] = [personId, cand.id].sort();
+                        key = `PAIR:${a}-${b}:${rel}`;
+                    } else {
+                        key = rel === "PARENT" ? `PARENT:${personId}->${cand.id}` : `PARENT:${cand.id}->${personId}`;
+                    }
+                    if (existingKeys.has(key)) {
+                        try { console.log("[fetchSuggestions] reject duplicate", { key }); } catch {}
+                        continue;
+                    }
+
+                    if (conf <= 0.3) {
+                        try { console.log("[fetchSuggestions] reject low-confidence", { conf }); } catch {}
+                        continue;
+                    }
+                    out.push({ candidateId: cand.id, relation: rel, confidence: conf });
+                }
+            } catch (e) {
+                try { console.log("[fetchSuggestions] batch-error", e); } catch {}
             }
 
-            return out.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+            const sorted = out.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+            try { console.log("[fetchSuggestions] final", { sourceId: personId, size: sorted.length, top: sorted[0] }); } catch {}
+            return sorted;
         };
     }, [treeId, userId, persons, rels]);
 

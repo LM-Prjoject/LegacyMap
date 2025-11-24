@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Paperclip, Plus, Send, X, ChevronDown, ChevronRight, Loader2, Users, Inbox, Edit, Trash, Reply, Settings, Bell, BellOff, MoreVertical } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
-import type { ChatRoomType, UserSearchResult, ChatMessage, ChatRoom } from '@/types/chat';
+import type {ChatRoomType, UserSearchResult, ChatMessage, ChatRoom, ChatRoomCreatePayload} from '@/types/chat';
 import treeApi, { FamilyTree, Person } from '@/api/trees';
 import { showToast } from '@/lib/toast';
 import { userLookupApi, chatApi } from '@/api/chatApi';
@@ -13,6 +13,7 @@ const ROOM_TYPE_LABEL_MAP: Record<ChatRoomType, string> = {
   family: 'Gia phả',
   branch: 'Nhánh',
   private_chat: 'Riêng tư',
+  group: 'Riêng tư',
 };
 
 interface CreateRoomFormState {
@@ -109,19 +110,14 @@ export const ChatWidget = () => {
 
   const currentRoomState = currentRoom ? roomMessageState[currentRoom.id] : undefined;
 
-  const currentRoomDisplayName = useMemo(() => {
-    if (!currentRoom || currentRoom.roomType !== 'private_chat') return currentRoom?.name;
-    const otherMember = currentRoom.members.find(m => m.userId !== currentUserId);
-    return otherMember?.username || 'Người dùng';
-  }, [currentRoom, currentUserId]);
-
-  const getPrivateRoomDisplayName = useCallback((room: ChatRoom): string => {
+  const getDisplayName = useCallback((room: ChatRoom | null): string => {
+    if (!room) return 'Phòng chat';
     if (room.roomType !== 'private_chat') return room.name;
 
     const otherMember = room.members.find(m => m.userId !== currentUserId);
     if (!otherMember) return 'Chat riêng tư';
 
-    return otherMember.nickname || otherMember.username || 'Người dùng';
+    return otherMember.nickname?.trim() || otherMember.username || 'Người dùng';
   }, [currentUserId]);
 
   const isRoomMuted = useCallback((roomId: string) => {
@@ -525,24 +521,41 @@ export const ChatWidget = () => {
   const handleCreateRoom = async () => {
     const trimmedName = createState.name.trim();
     const trimmedDescription = createState.description.trim();
+
     if (!trimmedName) {
       showToast.warning('Vui lòng nhập tên phòng');
       return;
     }
-    if (createState.roomType === 'branch') {
-      if (!createState.familyTreeId) {
-        showToast.warning('Chọn cây gia phả cho phòng nhánh');
-        return;
+
+    try {
+      let room: ChatRoom | null = null;
+
+      if (createState.roomType === 'branch') {
+        if (!createState.familyTreeId || !createState.branchPersonId) {
+          showToast.warning('Vui lòng chọn đầy đủ thông tin nhánh');
+          return;
+        }
+
+        room = await createBranchRoom({
+          branchPersonId: createState.branchPersonId,
+          name: trimmedName,
+          description: trimmedDescription || undefined,
+        });
       }
-      if (!createState.branchPersonId) {
-        showToast.warning('Chọn thành viên đại diện cho nhánh');
-        return;
+      else {
+        const memberIds = createMemberSelections.map(m => m.id);
+
+        const payload: ChatRoomCreatePayload = {
+          roomType: createState.roomType,
+          name: trimmedName,
+          description: trimmedDescription || undefined,
+          familyTreeId: undefined,
+          memberUserIds: memberIds.length > 0 ? memberIds : undefined,
+        };
+
+        room = await createRoom(payload);
       }
-      const room = await createBranchRoom({
-        branchPersonId: createState.branchPersonId,
-        name: trimmedName,
-        description: trimmedDescription || undefined,
-      });
+
       if (room) {
         selectRoom(room.id);
         setShowCreate(false);
@@ -550,29 +563,10 @@ export const ChatWidget = () => {
         setCreateMemberSelections([]);
         setCreateMemberSearch('');
         setCreateMemberResults([]);
+        showToast.success('Đã tạo phòng chat thành công');
       }
-      return;
-    }
-    if (createState.roomType !== 'private_chat' && !createState.familyTreeId) {
-      showToast.warning('Chọn cây gia phả cho phòng này');
-      return;
-    }
-    const memberIds = createMemberSelections.map((member) => member.id);
-    const payload = {
-      roomType: createState.roomType,
-      name: trimmedName,
-      description: trimmedDescription || undefined,
-      familyTreeId: createState.roomType === 'private_chat' ? undefined : createState.familyTreeId || undefined,
-      memberUserIds: memberIds.length ? memberIds : undefined,
-    };
-    const room = await createRoom(payload);
-    if (room) {
-      selectRoom(room.id);
-      setShowCreate(false);
-      setCreateState(defaultCreateState);
-      setCreateMemberSelections([]);
-      setCreateMemberSearch('');
-      setCreateMemberResults([]);
+    } catch (err) {
+      showToast.error('Tạo phòng thất bại');
     }
   };
 
@@ -612,6 +606,7 @@ export const ChatWidget = () => {
     const isFamily = currentRoom.roomType === 'family';
     const isBranch = currentRoom.roomType === 'branch';
     const isPrivate = currentRoom.roomType === 'private_chat';
+    const isGroup = currentRoom.roomType === 'group';
 
     return (
       <div
@@ -633,7 +628,7 @@ export const ChatWidget = () => {
         )}
 
         {/* Branch: Đổi tên */}
-        {isBranch && canEditRoom(currentRoom) && (
+        {(isBranch || isGroup) && canEditRoom(currentRoom) && (
             <button
                 type="button"
                 onClick={(e) => {
@@ -671,7 +666,7 @@ export const ChatWidget = () => {
         <div className="border-t border-white/10 my-1" />
 
         {/* Branch: Rời phòng */}
-        {isBranch && canLeaveRoom(currentRoom) && (
+        {(isBranch || isGroup) && canLeaveRoom(currentRoom) && (
           <button
             onClick={() => {
               if (confirm('Rời khỏi phòng chat này?')) {
@@ -701,7 +696,7 @@ export const ChatWidget = () => {
         )}
 
         {/* Branch: Xóa phòng */}
-        {isBranch && canDeleteRoom(currentRoom) && (
+        {(isBranch || isGroup) && canDeleteRoom(currentRoom) && (
           <>
             <div className="border-t border-white/10 my-1" />
             <button
@@ -920,7 +915,7 @@ export const ChatWidget = () => {
                 <div className="flex items-center justify-between">
                   <p className="font-semibold truncate">
                     {room.roomType === 'private_chat'
-                      ? getPrivateRoomDisplayName(room)
+                      ? getDisplayName(room)
                       : room.name
                     }
                   </p>
@@ -962,7 +957,7 @@ export const ChatWidget = () => {
                 <ChevronDown size={18} className="transform rotate-90" />
               </button>
               <div>
-                <p className="font-bold text-base text-[#ffd89b]">{currentRoomDisplayName}</p>
+                <p className="font-bold text-base text-[#ffd89b]">{getDisplayName(currentRoom)}</p>
                 {currentRoom && (
                   <button
                     onClick={() => setShowMembersList((prev) => !prev)}
@@ -1258,8 +1253,8 @@ export const ChatWidget = () => {
                   }}
                   className="w-full bg-[#1e2a3a]/80 border border-[#ffd89b]/20 rounded-xl px-3 py-2 text-sm text-white hover:border-[#ffd89b]/40 transition"
                 >
-                  <option value="branch">Theo nhánh</option>
-                  <option value="private_chat">Nhóm nhỏ</option>
+                  <option value="branch">Theo nhánh (cùng cây gia phả)</option>
+                  <option value="group">Nhóm chat tự do</option>
                 </select>
               </label>
               <label className="text-sm space-y-1 block">
@@ -1279,7 +1274,7 @@ export const ChatWidget = () => {
                   rows={2}
                 />
               </label>
-              {createState.roomType !== 'private_chat' && (
+              {createState.roomType !== 'group' && (
                 <label className="text-sm space-y-1 block">
                   <span className="text-[#ffd89b]">Chọn cây gia phả</span>
                   <select
@@ -1333,7 +1328,11 @@ export const ChatWidget = () => {
               {createState.roomType !== 'branch' && (
                 <div className="text-sm space-y-2">
                   <div className="space-y-1">
-                    <span className="block text-[#ffd89b]">Thêm thành viên (tìm bằng email / số điện thoại / tên)</span>
+                    <span className="block text-[#ffd89b]">
+                      {createState.roomType === 'group'
+                          ? 'Thêm thành viên (tìm bằng email / số điện thoại / tên)'
+                          : 'Tìm người nhận'}
+                    </span>
                     <input
                       value={createMemberSearch}
                       onChange={(e) => setCreateMemberSearch(e.target.value)}
@@ -1489,7 +1488,7 @@ export const ChatWidget = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-white/70 block mb-2">
-                  Biệt danh cho <span className="text-[#ffd89b] font-medium">{currentRoomDisplayName}</span>
+                  Biệt danh cho <span className="text-[#ffd89b] font-medium">{getDisplayName(currentRoom)}</span>
                 </label>
                 <input
                   type="text"
@@ -1559,7 +1558,9 @@ export const ChatWidget = () => {
           <div className="fixed inset-0 z-[1300] bg-black/50 flex items-center justify-center px-4">
             <div className="bg-[#1e2a3a] rounded-2xl border border-[#ffd89b]/20 p-6 w-full max-w-sm shadow-2xl">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-[#ffd89b]">Đổi tên phòng nhánh</h3>
+                <h3 className="text-lg font-semibold text-[#ffd89b]">
+                  {currentRoom.roomType === 'group' ? 'Đổi tên nhóm' : 'Đổi tên phòng nhánh'}
+                </h3>
                 <button
                     onClick={() => {
                       setShowEditBranchNameModal(false);

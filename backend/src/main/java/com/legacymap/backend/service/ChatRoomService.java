@@ -158,14 +158,11 @@ public class ChatRoomService {
      * Kiểm tra user có quyền truy cập tree không
      */
     private boolean canUserAccessTree(UUID treeId, UUID userId) {
-        // Kiểm tra user có phải là owner không
         Optional<FamilyTree> tree = familyTreeRepository.findById(treeId);
         if (tree.isPresent() && tree.get().getCreatedBy().getId().equals(userId)) {
             return true;
         }
 
-        // TODO: Thêm logic kiểm tra TreeAccess nếu cần
-        // Hiện tại tạm thời return true để không block
         return true;
     }
 
@@ -271,7 +268,7 @@ public class ChatRoomService {
                 .roomType(ChatRoom.ChatRoomType.private_chat)
                 .name(roomName)
                 .createdBy(creator)
-                .description("Phòng chat riêng tư 1-1")
+                .description("1-1 private chat room")
                 .build();
 
         ChatRoom savedRoom = chatRoomRepository.save(room);
@@ -329,49 +326,46 @@ public class ChatRoomService {
     @Transactional
     public ChatRoomResponse updateRoom(UUID userId, UUID roomId, UpdateRoomRequest request) {
         ChatRoom room = chatRoomRepository.findActiveById(roomId)
-                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Phòng không tồn tại hoặc đã bị xóa"));
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "The room does not exist or has been deleted"));
 
-        // CẤM SỬA TÊN PHÒNG FAMILY & PRIVATE
         if (room.getRoomType() == ChatRoom.ChatRoomType.family ||
                 room.getRoomType() == ChatRoom.ChatRoomType.private_chat) {
-
             if (request.getName() != null && !request.getName().trim().equals(room.getName())) {
-                throw new AppException(ErrorCode.ACCESS_DENIED, "Không được phép đổi tên phòng này");
+                throw new AppException(ErrorCode.ACCESS_DENIED, "You are not allowed to rename this room");
             }
         }
 
-        // Branch room: chỉ admin/moderator mới được đổi tên
         if (room.getRoomType() == ChatRoom.ChatRoomType.branch) {
             boolean isAdmin = chatRoomMemberRepository.isAdmin(roomId, userId);
             ChatRoomMember member = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, userId).orElse(null);
             boolean isModerator = member != null && member.getRole() == ChatRoomMember.ChatMemberRole.moderator;
 
             if (!isAdmin && !isModerator) {
-                throw new AppException(ErrorCode.ACCESS_DENIED, "Chỉ admin hoặc moderator mới được đổi tên phòng nhánh");
+                throw new AppException(ErrorCode.ACCESS_DENIED, "Only admins or moderators are allowed to rename the room");
             }
         }
 
-        // Cho phép cập nhật description bình thường
-        int updated = chatRoomRepository.updateRoomInfo(
-                roomId,
-                request.getName() != null ? request.getName().trim() : room.getName(),
-                request.getDescription()
-        );
+        String oldName = room.getName();
+        String newName = request.getName() != null ? request.getName().trim() : room.getName();
 
-        if (updated == 0) {
-            throw new AppException(ErrorCode.BAD_REQUEST, "Cập nhật thất bại");
+        if (request.getName() != null) {
+            room.setName(newName);
+        }
+        if (request.getDescription() != null) {
+            room.setDescription(request.getDescription());
         }
 
-        ChatRoom updatedRoom = chatRoomRepository.findActiveById(roomId).get();
-        String actorName = userRepository.findById(userId)
-                .map(User::getUsername)
-                .orElse("Someone");
+        ChatRoom savedRoom = chatRoomRepository.saveAndFlush(room);
 
-        if (request.getName() != null && !request.getName().trim().equals(room.getName())) {
-            broadcastSystemMessage(roomId, actorName + " đã đổi tên phòng thành \"" + updatedRoom.getName() + "\"");
+        if (request.getName() != null && !newName.equals(oldName)) {
+            String actorName = userRepository.findById(userId)
+                    .map(User::getUsername)
+                    .orElse("Someone");
+
+            broadcastSystemMessage(roomId, actorName + " đã đổi tên phòng thành \"" + savedRoom.getName() + "\"");
         }
 
-        return toResponse(updatedRoom);
+        return toResponse(savedRoom);
     }
 
     @Transactional
@@ -379,16 +373,16 @@ public class ChatRoomService {
         ChatRoom room = chatRoomRepository.findActiveById(roomId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
 
-        // CHỈ ĐƯỢC XÓA PHÒNG BRANCH
-        if (room.getRoomType() != ChatRoom.ChatRoomType.branch) {
-            throw new AppException(ErrorCode.ACCESS_DENIED, "Chỉ có thể xóa phòng nhánh");
+        if (room.getRoomType() != ChatRoom.ChatRoomType.branch &&
+                room.getRoomType() != ChatRoom.ChatRoomType.group) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Only branch or group rooms can be deleted");
         }
 
         boolean isCreator = room.getCreatedBy().getId().equals(userId);
         boolean isAdmin = chatRoomMemberRepository.isAdmin(roomId, userId);
 
         if (!isCreator && !isAdmin) {
-            throw new AppException(ErrorCode.ACCESS_DENIED, "Chỉ người tạo hoặc admin mới được xóa phòng nhánh");
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Only the creator or an admin is allowed to delete a branch room");
         }
 
         chatRoomRepository.delete(room);
@@ -398,47 +392,60 @@ public class ChatRoomService {
 
     @Transactional
     public ChatRoomResponse updateMyMembership(UUID roomId, UUID userId, Map<String, Object> payload) {
-        ChatRoomMember member = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, userId)
+        ChatRoomMember myMember = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
 
         boolean changed = false;
 
-        // Cập nhật nickname (chỉ private chat)
         if (payload.containsKey("nickname")) {
-            if (member.getRoom().getRoomType() != ChatRoom.ChatRoomType.private_chat) {
-                throw new AppException(ErrorCode.BAD_REQUEST, "Chỉ đặt biệt danh trong chat riêng");
+            if (myMember.getRoom().getRoomType() != ChatRoom.ChatRoomType.private_chat) {
+                throw new AppException(ErrorCode.BAD_REQUEST, "Nicknames can only be set in private chats");
             }
+
             String nick = payload.get("nickname") instanceof String s ? s.trim() : null;
             if (nick != null && nick.isEmpty()) nick = null;
 
-            if (!Objects.equals(member.getNickname(), nick)) {
-                member.setNickname(nick);
+            ChatRoomMember otherMember = chatRoomMemberRepository.findByRoom_IdAndUser_IdNot(roomId, userId)
+                    .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Other member not found"));
+
+            if (!Objects.equals(otherMember.getNickname(), nick)) {
+                otherMember.setNickname(nick);
                 changed = true;
 
-                // Broadcast thông báo đổi biệt danh
+                String actorName = userRepository.findById(userId)
+                        .map(User::getUsername)
+                        .orElse("Someone");
+
                 messagingTemplate.convertAndSend("/topic/chat/" + roomId,
                         ChatMessageResponse.builder()
                                 .messageType(ChatMessage.ChatMessageType.system)
-                                .messageText("Đã cập nhật biệt danh")
+                                .messageText(actorName + " đã đổi biệt danh")
                                 .createdAt(OffsetDateTime.now())
                                 .build());
             }
         }
 
-        // Cập nhật mute
         if (payload.containsKey("muted")) {
             boolean muted = Boolean.TRUE.equals(payload.get("muted"));
-            if (member.getMuted() != muted) {
-                member.setMuted(muted);
+            boolean currentMuted = myMember.getMuted() != null && myMember.getMuted();
+
+            if (currentMuted != muted) {
+                myMember.setMuted(muted);
                 changed = true;
             }
         }
 
         if (changed) {
-            chatRoomMemberRepository.save(member);
+            chatRoomMemberRepository.save(myMember);
+            if (payload.containsKey("nickname")) {
+                chatRoomMemberRepository.save(
+                        chatRoomMemberRepository.findByRoom_IdAndUser_IdNot(roomId, userId)
+                                .orElse(myMember)
+                );
+            }
         }
 
-        return toResponse(member.getRoom());
+        return toResponse(myMember.getRoom());
     }
 
     @Transactional(readOnly = true)

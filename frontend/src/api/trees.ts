@@ -471,37 +471,44 @@ export async function suggestForSource(
     persons: Person[]
 ) {
   const others = persons.filter((p) => p.id !== sourceId);
-  const results: { candidateId: string; relation: RelTypeUpper; confidence: number }[] =
-      [];
+  if (!others.length) return [] as { candidateId: string; relation: RelTypeUpper; confidence: number }[];
 
-  let anyFailed = false;
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/relationships/suggest/source?userId=${encodeURIComponent(userId)}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        sourceId,
+        candidateIds: others.map((p) => p.id),
+      }),
+    });
+    const text = await res.text();
+    let json: any = undefined;
+    try {
+      json = text ? JSON.parse(text) : undefined;
+    } catch (parseErr: any) {
+      console.error("[suggestForSource] parse error", parseErr?.message || parseErr, "body:", (text || "").slice(0, 400));
+      throw new Error("Suggest (batch) parse failed");
+    }
+    if (!res.ok) throw new Error((json as any)?.message || "Suggest (batch) failed");
 
-  await Promise.all(
-      others.map(async (cand) => {
-        try {
-          const list = await suggestRelationship(userId, treeId, sourceId, cand.id);
-          if (!list?.length) return;
-          const best = [...list].sort(
-              (a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)
-          )[0];
-          const upper = best.type.toUpperCase() as RelTypeUpper;
-          results.push({
-            candidateId: cand.id,
-            relation: upper,
-            confidence: best.confidence ?? 0,
-          });
-        } catch (err: any) {
-          console.error("Suggest failed for", cand.id, err?.message || err);
-          anyFailed = true;
-        }
-      })
-  );
+    const arr = pickData<Array<{ candidateId: string; type: string; confidence?: number; reasons?: string[] }>>(json) || [];
 
-  if (anyFailed) {
-    showToast.error("Không gợi ý được quan hệ cho một số người");
+    const results = arr
+        .map((item) => ({
+          candidateId: String(item.candidateId),
+          relation: String(item.type || "").toUpperCase() as RelTypeUpper,
+          confidence: item.confidence ?? 0,
+        }))
+        .filter((x) => !!x.candidateId && !!x.relation);
+    try { console.log("[suggestForSource:batch] size", results.length, "top", results[0]); } catch {}
+    return results.sort((a, b) => b.confidence - a.confidence);
+  } catch (e: any) {
+    console.error("Suggest batch failed", e?.message || e);
+    showToast.error(e?.message || "Không gợi ý được quan hệ");
+    return [];
   }
-
-  return results.sort((a, b) => b.confidence - a.confidence);
 }
 
 async function listPersonRelationships(
@@ -935,6 +942,7 @@ const api = {
   getPublicUserBasic,
   createRelationship,
   suggestRelationship,
+  suggestForSource,
   generatePublicShareLink,
   disablePublicSharing,
   shareWithUser,

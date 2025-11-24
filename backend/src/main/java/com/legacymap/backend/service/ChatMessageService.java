@@ -175,14 +175,14 @@ public class ChatMessageService {
                 .roomId(message.getRoom().getId())
                 .senderId(message.getSender().getId())
                 .senderName(message.getSender().getUsername())
-                .messageText(message.getDeleted() ? "Tin nhắn đã bị xóa" : message.getMessageText())
+                .messageText(message.getDeleted() ? "The message has been deleted" : message.getMessageText())
                 .messageType(message.getMessageType())
                 .fileUrl(message.getFileUrl())
                 .fileName(message.getFileName())
                 .fileSize(message.getFileSize())
                 .fileType(message.getFileType())
                 .replyToId(message.getReplyTo() != null ? message.getReplyTo().getId() : null)
-                .replyToText(message.getReplyTo() != null ? (message.getReplyTo().getDeleted() ? "Tin nhắn đã bị xóa" : message.getReplyTo().getMessageText()) : null)
+                .replyToText(message.getReplyTo() != null ? (message.getReplyTo().getDeleted() ? "The message has been deleted" : message.getReplyTo().getMessageText()) : null)
                 .replyToSenderName(message.getReplyTo() != null ? message.getReplyTo().getSender().getUsername() : null)
                 .edited(message.getEdited())
                 .deleted(message.getDeleted())
@@ -197,19 +197,17 @@ public class ChatMessageService {
         ChatMessage message = chatMessageRepository.findByIdAndRoomIdWithRelations(messageId, roomId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
 
-        // CHỈ NGƯỜI GỬI MỚI ĐƯỢC SỬA
         if (!message.getSender().getId().equals(userId)) {
-            throw new AppException(ErrorCode.MESSAGE_EDIT_FORBIDDEN, "Chỉ người gửi mới được chỉnh sửa tin nhắn");
+            throw new AppException(ErrorCode.MESSAGE_EDIT_FORBIDDEN, "Only the sender is allowed to edit the message");
         }
 
         int updated = chatMessageRepository.updateMessageText(
                 messageId, roomId, userId, request.getMessageText(), OffsetDateTime.now());
 
         if (updated == 0) {
-            throw new AppException(ErrorCode.BAD_REQUEST, "Chỉnh sửa thất bại");
+            throw new AppException(ErrorCode.BAD_REQUEST, "Edit failed");
         }
 
-        // Reload + broadcast
         message = chatMessageRepository.findByIdAndRoomIdWithRelations(messageId, roomId).get();
         List<MessageStatus> statuses = messageStatusRepository.findByMessage_Id(messageId);
         ChatMessageResponse response = toResponse(message, statuses);
@@ -229,12 +227,12 @@ public class ChatMessageService {
                 member.getRole() == ChatRoomMember.ChatMemberRole.moderator;
 
         if (!isSender && !(isAdmin && room.getRoomType() != ChatRoom.ChatRoomType.private_chat)) {
-            throw new AppException(ErrorCode.ACCESS_DENIED, "Bạn không có quyền xóa tin nhắn này");
+            throw new AppException(ErrorCode.ACCESS_DENIED, "You do not have permission to delete this message");
         }
 
         int updated = chatMessageRepository.markAsDeleted(messageId, roomId, userId, true, OffsetDateTime.now());
         if (updated == 0) {
-            throw new AppException(ErrorCode.BAD_REQUEST, "Xóa tin nhắn thất bại");
+            throw new AppException(ErrorCode.BAD_REQUEST, "Failed to delete the message");
         }
 
         message = chatMessageRepository.findByIdAndRoomIdWithRelations(messageId, roomId).get();
