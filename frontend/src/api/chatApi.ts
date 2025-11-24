@@ -70,34 +70,23 @@ export const chatApi = {
   },
 
   async uploadAttachment(
-    roomId: string,
-    file: File,
-    caption?: string,
+      roomId: string,
+      file: File,
+      caption?: string,
   ): Promise<AttachmentUploadResponse> {
     const formData = new FormData();
-    // Ensure file has correct MIME type
-    let fileToUpload = file;
-    if (file.type === '' || !file.type.startsWith('image/')) {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      const mimeMap: Record<string, string> = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'gif': 'image/gif',
-        'bmp': 'image/bmp',
-        'webp': 'image/webp',
-        'svg': 'image/svg+xml',
-      };
-      const mimeType = mimeMap[ext || ''] || file.type || 'application/octet-stream';
-      fileToUpload = new File([file], file.name, { type: mimeType });
-    }
-    formData.append('file', fileToUpload);
-    if (caption) {
-      formData.append('caption', caption);
+    formData.append('file', file);
+    if (caption?.trim()) {
+      formData.append('caption', caption.trim());
     }
     const { data } = await http.post<AttachmentUploadResponse>(
-      `${BASE}/rooms/${roomId}/attachments`,
-      formData,
+        `${BASE}/rooms/${roomId}/attachments`,
+        formData,
+        {
+          headers: {
+          },
+          timeout: 60_000,
+        },
     );
     return data;
   },

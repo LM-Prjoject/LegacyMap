@@ -27,7 +27,6 @@ import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.ChatMessageRepository;
 import com.legacymap.backend.repository.ChatRoomMemberRepository;
 import com.legacymap.backend.repository.MessageStatusRepository;
-import com.legacymap.backend.service.ChatFileStorageService.StoredFile;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,16 +56,14 @@ public class ChatMessageService {
     }
 
     @Transactional
-    public ChatMessageResponse createAttachmentMessage(UUID senderId, UUID roomId, StoredFile storedFile, String caption) {
+    public ChatMessageResponse createAttachmentMessage(UUID senderId, UUID roomId, SupabaseStorageService.StoredFile storedFile, String caption) {
         ChatMessageSendRequest request = new ChatMessageSendRequest();
         request.setRoomId(roomId);
         request.setMessageText(caption);
+        request.setMessageType(storedFile.isImage()
+                ? ChatMessage.ChatMessageType.image
+                : ChatMessage.ChatMessageType.file);
 
-        if (storedFile.image()) {
-            request.setMessageType(ChatMessage.ChatMessageType.image);
-        } else {
-            request.setMessageType(ChatMessage.ChatMessageType.file);
-        }
         request.setFileUrl(storedFile.url());
         request.setFileName(storedFile.originalName());
         request.setFileSize(storedFile.size());
