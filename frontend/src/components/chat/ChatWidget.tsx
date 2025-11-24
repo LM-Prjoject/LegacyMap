@@ -109,19 +109,14 @@ export const ChatWidget = () => {
 
   const currentRoomState = currentRoom ? roomMessageState[currentRoom.id] : undefined;
 
-  const currentRoomDisplayName = useMemo(() => {
-    if (!currentRoom || currentRoom.roomType !== 'private_chat') return currentRoom?.name;
-    const otherMember = currentRoom.members.find(m => m.userId !== currentUserId);
-    return otherMember?.username || 'Người dùng';
-  }, [currentRoom, currentUserId]);
-
-  const getPrivateRoomDisplayName = useCallback((room: ChatRoom): string => {
+  const getDisplayName = useCallback((room: ChatRoom | null): string => {
+    if (!room) return 'Phòng chat';
     if (room.roomType !== 'private_chat') return room.name;
 
     const otherMember = room.members.find(m => m.userId !== currentUserId);
     if (!otherMember) return 'Chat riêng tư';
 
-    return otherMember.nickname || otherMember.username || 'Người dùng';
+    return otherMember.nickname?.trim() || otherMember.username || 'Người dùng';
   }, [currentUserId]);
 
   const isRoomMuted = useCallback((roomId: string) => {
@@ -920,7 +915,7 @@ export const ChatWidget = () => {
                 <div className="flex items-center justify-between">
                   <p className="font-semibold truncate">
                     {room.roomType === 'private_chat'
-                      ? getPrivateRoomDisplayName(room)
+                      ? getDisplayName(room)
                       : room.name
                     }
                   </p>
@@ -962,7 +957,7 @@ export const ChatWidget = () => {
                 <ChevronDown size={18} className="transform rotate-90" />
               </button>
               <div>
-                <p className="font-bold text-base text-[#ffd89b]">{currentRoomDisplayName}</p>
+                <p className="font-bold text-base text-[#ffd89b]">{getDisplayName(currentRoom)}</p>
                 {currentRoom && (
                   <button
                     onClick={() => setShowMembersList((prev) => !prev)}
@@ -1489,7 +1484,7 @@ export const ChatWidget = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-white/70 block mb-2">
-                  Biệt danh cho <span className="text-[#ffd89b] font-medium">{currentRoomDisplayName}</span>
+                  Biệt danh cho <span className="text-[#ffd89b] font-medium">{getDisplayName(currentRoom)}</span>
                 </label>
                 <input
                   type="text"

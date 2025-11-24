@@ -84,7 +84,6 @@ public class FamilyTreeService {
                 .build();
         FamilyTree savedTree = familyTreeRepository.save(tree);
 
-        // Tự động tạo Family Room khi tạo cây mới
         createFamilyRoomForTree(savedTree, creator);
 
         return savedTree;
@@ -156,7 +155,6 @@ public class FamilyTreeService {
         if (email != null && !email.isBlank()) {
             boolean exists = personRepository.existsByFamilyTree_IdAndEmailIgnoreCase(tree.getId(), email);
             if (exists) {
-                // SỬA: Thay constant không tồn tại
                 throw new AppException(ErrorCode.EMAIL_EXISTED, "Email already exists in this family tree");
             }
         }
@@ -192,7 +190,6 @@ public class FamilyTreeService {
 
     @Transactional(readOnly = true)
     public List<FamilyTree> listByUser(UUID userId) {
-        // ✅ SỬA: Gọi method mới để lấy cả cây sở hữu và cây được chia sẻ
         return getUserTrees(userId);
     }
 
@@ -283,7 +280,6 @@ public class FamilyTreeService {
             if (changed && newEmail != null && !newEmail.isBlank()) {
                 boolean exists = personRepository.existsByFamilyTree_IdAndEmailIgnoreCase(tree.getId(), newEmail);
                 if (exists) {
-                    // SỬA: Thay constant không tồn tại
                     throw new AppException(ErrorCode.EMAIL_EXISTED, "Email already exists in this family tree");
                 }
             }
@@ -536,14 +532,13 @@ public class FamilyTreeService {
     // ==================== MỚI: LẤY CẢ CÂY SỞ HỮU VÀ CÂY ĐƯỢC CHIA SẺ ====================
 
     /**
-     * ✅ MỚI: Lấy tất cả cây gia phả của user (bao gồm cả cây sở hữu và cây được chia sẻ)
+     * MỚI: Lấy tất cả cây gia phả của user (bao gồm cả cây sở hữu và cây được chia sẻ)
      * Sử dụng JPQL query hiệu quả thay vì merge thủ công
      */
     @Transactional(readOnly = true)
     public List<FamilyTree> getUserTrees(UUID userId) {
         log.info("Getting all accessible trees for user: {}", userId);
 
-        // ✅ SỬ DỤNG METHOD MỚI: Single query hiệu quả
         List<FamilyTree> allTrees = familyTreeRepository.findAllAccessibleByUser(userId);
 
         log.info("Total accessible trees for user {}: {}", userId, allTrees.size());
