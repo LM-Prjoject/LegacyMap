@@ -53,9 +53,16 @@ export default function RelationshipModal({
         setError("");
         setPicked({ relation: "", candidateId: "" });
         setLoading(true);
+        try { console.log("[RelationshipModal] open for", { sourceId: source.id, persons: persons.map(p=>p.id) }); } catch {}
         fetchSuggestions(source.id)
-            .then((list) => setSuggestions(list || []))
-            .catch((e) => setError(String(e?.message || e)))
+            .then((list) => {
+                try { console.log("[RelationshipModal] suggestions length", list?.length, "first", list?.[0]); } catch {}
+                setSuggestions(list || []);
+            })
+            .catch((e) => {
+                try { console.error("[RelationshipModal] fetchSuggestions error", e); } catch {}
+                setError(String(e?.message || e));
+            })
             .finally(() => setLoading(false));
     }, [isOpen, source?.id, fetchSuggestions]);
 

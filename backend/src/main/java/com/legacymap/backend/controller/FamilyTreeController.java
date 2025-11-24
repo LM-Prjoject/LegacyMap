@@ -236,6 +236,29 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success(out));
     }
 
+    @PostMapping("/{treeId}/relationships/suggest/source")
+    public ResponseEntity<ApiResponse<List<com.legacymap.backend.dto.response.PairSuggestionResponse>>> suggestForSource(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("userId") String userId,
+            @RequestBody com.legacymap.backend.dto.request.PairSuggestRequest body
+    ) {
+        java.util.Map<java.util.UUID, com.legacymap.backend.dto.response.RelationshipSuggestion> map =
+                relationshipSuggestionService.suggestForSource(
+                        treeId,
+                        parseUserId(userId),
+                        body.getSourceId(),
+                        body.getCandidateIds()
+                );
+        java.util.List<com.legacymap.backend.dto.response.PairSuggestionResponse> list = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<java.util.UUID, com.legacymap.backend.dto.response.RelationshipSuggestion> e : map.entrySet()) {
+            com.legacymap.backend.dto.response.RelationshipSuggestion rs = e.getValue();
+            list.add(new com.legacymap.backend.dto.response.PairSuggestionResponse(
+                    e.getKey(), rs.getType(), rs.getConfidence(), rs.getReasons()
+            ));
+        }
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
     @DeleteMapping("/{treeId}/relationships/{relationshipId}")
     public ResponseEntity<ApiResponse<Void>> deleteRelationship(
             @PathVariable("treeId") UUID treeId,
