@@ -1,4 +1,4 @@
-export type ChatRoomType = 'family' | 'branch' | 'private_chat';
+export type ChatRoomType = 'family' | 'branch' | 'private_chat' | 'group';
 
 export type ChatMemberRole = 'member' | 'admin' | 'moderator';
 

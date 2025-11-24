@@ -1,6 +1,5 @@
 package com.legacymap.backend.entity;
 
-import com.legacymap.backend.entity.ChatRoomTypeConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -76,7 +75,8 @@ public class ChatRoom {
     public enum ChatRoomType {
         family,
         branch,
-        private_chat
+        private_chat,
+        group
     }
 }
 
