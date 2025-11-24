@@ -836,7 +836,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
   const canDeleteRoom = useCallback((room: ChatRoom) => {
     if (!currentUserId) return false;
-    if (room.roomType !== 'branch') return false;
+    if (room.roomType !== 'branch' && room.roomType !== 'group') return false;
     const member = room.members.find(m => m.userId === currentUserId);
     return member?.role === 'admin';
   }, [currentUserId]);

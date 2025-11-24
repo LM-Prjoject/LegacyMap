@@ -373,8 +373,9 @@ public class ChatRoomService {
         ChatRoom room = chatRoomRepository.findActiveById(roomId)
                 .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
 
-        if (room.getRoomType() != ChatRoom.ChatRoomType.branch) {
-            throw new AppException(ErrorCode.ACCESS_DENIED, "Only branch rooms can be deleted");
+        if (room.getRoomType() != ChatRoom.ChatRoomType.branch &&
+                room.getRoomType() != ChatRoom.ChatRoomType.group) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Only branch or group rooms can be deleted");
         }
 
         boolean isCreator = room.getCreatedBy().getId().equals(userId);
@@ -426,7 +427,9 @@ public class ChatRoomService {
 
         if (payload.containsKey("muted")) {
             boolean muted = Boolean.TRUE.equals(payload.get("muted"));
-            if (myMember.getMuted() != muted) {
+            boolean currentMuted = myMember.getMuted() != null && myMember.getMuted();
+
+            if (currentMuted != muted) {
                 myMember.setMuted(muted);
                 changed = true;
             }

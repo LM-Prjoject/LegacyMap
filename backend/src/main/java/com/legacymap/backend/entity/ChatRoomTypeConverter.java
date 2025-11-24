@@ -15,6 +15,7 @@ public class ChatRoomTypeConverter implements AttributeConverter<ChatRoom.ChatRo
             case family -> "family";
             case branch -> "branch";
             case private_chat -> "private";
+            case group -> "group";
         };
     }
 
@@ -27,6 +28,7 @@ public class ChatRoomTypeConverter implements AttributeConverter<ChatRoom.ChatRo
             case "family" -> ChatRoom.ChatRoomType.family;
             case "branch" -> ChatRoom.ChatRoomType.branch;
             case "private", "private_chat" -> ChatRoom.ChatRoomType.private_chat;
+            case "group" -> ChatRoom.ChatRoomType.group;
             default -> throw new IllegalArgumentException("Unknown chat_room type: " + dbData);
         };
     }

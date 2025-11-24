@@ -41,4 +41,4 @@ supabase/.temp/
 # ==========================
 # Uploads / User-generated content
 # ==========================
-uploads/chat/
+backend/uploads/chat/
