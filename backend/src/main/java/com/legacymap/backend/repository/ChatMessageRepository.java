@@ -1,7 +1,6 @@
 package com.legacymap.backend.repository;
 
 import com.legacymap.backend.entity.ChatMessage;
-import com.legacymap.backend.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,14 +32,14 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
                          @Param("senderId") UUID senderId,
                          @Param("messageText") String messageText,
                          @Param("now") OffsetDateTime now);
-    
+
     @Modifying
-    @Query("UPDATE ChatMessage m SET m.deleted = true, m.deletedAt = :now " +
-           "WHERE m.id = :messageId AND m.room.id = :roomId AND (m.sender.id = :userId OR :isAdmin = true)")
-    int markAsDeleted(@Param("messageId") UUID messageId, 
-                     @Param("roomId") UUID roomId,
-                     @Param("userId") UUID userId,
-                     @Param("isAdmin") boolean isAdmin,
-                     @Param("now") OffsetDateTime now);
+    @Query("UPDATE ChatMessage m " + "SET m.deleted = true, " + "    m.deletedAt = :now, " + "    m.deletedBy.id = :userId " +
+            "WHERE m.id = :messageId " + "  AND m.room.id = :roomId " + "  AND (m.sender.id = :userId OR :isAdmin = true)")
+    int markAsDeleted(@Param("messageId") UUID messageId,
+                      @Param("roomId") UUID roomId,
+                      @Param("userId") UUID userId,
+                      @Param("isAdmin") boolean isAdmin,
+                      @Param("now") OffsetDateTime now);
 }
 

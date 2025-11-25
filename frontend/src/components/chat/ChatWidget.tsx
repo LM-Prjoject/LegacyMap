@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Paperclip, Plus, Send, X, ChevronDown, ChevronRight, Loader2, Users, Inbox, Edit, Trash, Reply, Settings, Bell, BellOff, MoreVertical } from 'lucide-react';
+import { Paperclip, Plus, Send, X, ChevronDown, ChevronRight, Loader2, Users, Inbox, Edit, Trash, Reply, Settings, Bell, BellOff } from 'lucide-react';
 import { useChat } from '@/contexts/ChatContext';
-import type {ChatRoomType, UserSearchResult, ChatMessage, ChatRoom, ChatRoomCreatePayload} from '@/types/chat';
+import type { ChatRoomType, UserSearchResult, ChatMessage, ChatRoom, ChatRoomCreatePayload } from '@/types/chat';
 import treeApi, { FamilyTree, Person } from '@/api/trees';
 import { showToast } from '@/lib/toast';
 import { userLookupApi, chatApi } from '@/api/chatApi';
 
-type RoomFilter = 'all' | ChatRoomType;
+type RoomFilter = 'all' | ChatRoomType | 'private';
 type ViewMode = 'list' | 'chat';
 
 const ROOM_TYPE_LABEL_MAP: Record<ChatRoomType, string> = {
@@ -200,58 +200,58 @@ export const ChatWidget = () => {
       const isPowerPoint = ['ppt', 'pptx'].includes(fileExt);
 
       const iconBg = isPdf
-          ? 'bg-red-600'
-          : isDoc
-              ? 'bg-blue-600'
-              : isExcel
-                  ? 'bg-green-600'
-                  : isPowerPoint
-                      ? 'bg-orange-600'
-                      : 'bg-gray-600';
+        ? 'bg-red-600'
+        : isDoc
+          ? 'bg-blue-600'
+          : isExcel
+            ? 'bg-green-600'
+            : isPowerPoint
+              ? 'bg-orange-600'
+              : 'bg-gray-600';
 
       const iconText = isPdf
-          ? 'PDF'
-          : isDoc
-              ? 'DOC'
-              : isExcel
-                  ? 'XLS'
-                  : isPowerPoint
-                      ? 'PPT'
-                      : fileExt.toUpperCase().slice(0, 3);
+        ? 'PDF'
+        : isDoc
+          ? 'DOC'
+          : isExcel
+            ? 'XLS'
+            : isPowerPoint
+              ? 'PPT'
+              : fileExt.toUpperCase().slice(0, 3);
 
       return (
-          <a
-              href={message.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2.5 px-3 py-2.5 bg-white/8 hover:bg-white/12 rounded-xl transition-all shadow-sm max-w-[180px]"          >
+        <a
+          href={message.fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2.5 px-3 py-2.5 bg-white/8 hover:bg-white/12 rounded-xl transition-all shadow-sm max-w-[180px]"          >
 
-            {/* Icon file */}
-            <div className={`w-8 h-9 ${iconBg} rounded flex flex-col items-center justify-center text-white text-[10px] font-bold leading-tight flex-shrink-0`}>
-              <span>{iconText}</span>
-            </div>
+          {/* Icon file */}
+          <div className={`w-8 h-9 ${iconBg} rounded flex flex-col items-center justify-center text-white text-[10px] font-bold leading-tight flex-shrink-0`}>
+            <span>{iconText}</span>
+          </div>
 
-            {/* Thông tin file */}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-white truncate leading-tight">
-                {message.fileName || 'Tệp đính kèm'}
-              </p>
-              <p className="text-[10px] text-white/50 mt-0.5">
-                {message.fileSize
-                    ? `${(message.fileSize / 1024 / 1024).toFixed(1).replace('.0', '')} MB`
-                    : 'Đang tải...'}
-              </p>
-            </div>
+          {/* Thông tin file */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-white truncate leading-tight">
+              {message.fileName || 'Tệp đính kèm'}
+            </p>
+            <p className="text-[10px] text-white/50 mt-0.5">
+              {message.fileSize
+                ? `${(message.fileSize / 1024 / 1024).toFixed(1).replace('.0', '')} MB`
+                : 'Đang tải...'}
+            </p>
+          </div>
 
-            {/* Mũi tên tải xuống nhỏ */}
-            <div className="flex-shrink-0">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/60">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </div>
-          </a>
+          {/* Mũi tên tải xuống nhỏ */}
+          <div className="flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/60">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </div>
+        </a>
       );
     }
 
@@ -262,7 +262,7 @@ export const ChatWidget = () => {
     { key: 'all', label: 'Tất cả' },
     { key: 'family', label: 'Gia phả' },
     { key: 'branch', label: 'Nhánh' },
-    { key: 'private_chat', label: 'Riêng tư' },
+    { key: 'private', label: 'Riêng tư' },
   ];
 
   const runMemberSearch = useCallback(
@@ -293,7 +293,12 @@ export const ChatWidget = () => {
   const filteredRooms = useMemo(() => {
     const keyword = search.toLowerCase().trim();
     return rooms
-      .filter((room) => filter === 'all' || room.roomType === filter)
+      .filter((room) => {
+        if (filter === 'private') {
+          return room.roomType === 'private_chat' || room.roomType === 'group';
+        }
+        return filter === 'all' || room.roomType === filter;
+      })
       .filter((room) => (keyword ? room.name.toLowerCase().includes(keyword) : true))
       .sort((a, b) => {
         const unreadA = unreadByRoom[a.id] || 0;
@@ -354,6 +359,10 @@ export const ChatWidget = () => {
     if (!isWidgetOpen || !currentRoom) return;
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentRoom, currentMessages.length, isWidgetOpen]);
+
+  useEffect(() => {
+    setShowMessageMenu(null);
+  }, [currentRoom?.id, viewMode, isWidgetOpen]);
 
   useEffect(() => {
     if (!showCreate) {
@@ -665,153 +674,182 @@ export const ChatWidget = () => {
     const isGroup = currentRoom.roomType === 'group';
 
     return (
-      <div
-        className="absolute right-4 top-16 w-64 bg-slate-950/95 border border-white/10 rounded-2xl shadow-2xl z-50 py-3">
-        {/* Private chat: Đặt biệt danh */}
-        {isPrivate && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setNicknameForPrivateRoom();
-              setShowRoomMenu(false);
-            }}
-            className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
-          >
-            <Edit size={16} /> Đặt biệt danh
-          </button>
-        )}
+        <>
+          <div
+              className="fixed inset-0 z-40"
+              onClick={() => setShowRoomMenu(false)}
+          />
 
-        {/* Branch: Đổi tên */}
-        {(isBranch || isGroup) && canEditRoom(currentRoom) && (
+          <div
+              className="absolute right-4 top-16 w-64 bg-slate-950/95 border border-white/10 rounded-2xl shadow-2xl z-50 py-3">
+            {/* Private chat: Đặt biệt danh */}
+            {isPrivate && (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setNicknameForPrivateRoom();
+                      setShowRoomMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
+                >
+                  <Edit size={16} /> Đặt biệt danh
+                </button>
+            )}
+
+            {/* Branch: Đổi tên */}
+            {(isBranch || isGroup) && canEditRoom(currentRoom) && (
+                <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setTempBranchName(currentRoom.name);
+                      setShowEditBranchNameModal(true);
+                      setShowRoomMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
+                >
+                  <Edit size={16} /> Đổi tên phòng
+                </button>
+            )}
+
+            {/* Tất cả phòng: Mute/Unmute */}
             <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setTempBranchName(currentRoom.name);
-                  setShowEditBranchNameModal(true);
+                onClick={() => {
+                  toggleMuteRoom(currentRoom.id);
                   setShowRoomMenu(false);
                 }}
                 className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
             >
-              <Edit size={16} /> Đổi tên phòng
+              {isRoomMuted(currentRoom.id) ? (
+                  <>
+                    <Bell size={16} /> Bật thông báo
+                  </>
+              ) : (
+                  <>
+                    <BellOff size={16} /> Tắt thông báo
+                  </>
+              )}
             </button>
-        )}
 
-        {/* Tất cả phòng: Mute/Unmute */}
-        <button
-          onClick={() => {
-            toggleMuteRoom(currentRoom.id);
-            setShowRoomMenu(false);
-          }}
-          className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
-        >
-          {isRoomMuted(currentRoom.id) ? (
-            <>
-              <Bell size={16} /> Bật thông báo
-            </>
-          ) : (
-            <>
-              <BellOff size={16} /> Tắt thông báo
-            </>
-          )}
-        </button>
-
-        <div className="border-t border-white/10 my-1" />
-
-        {/* Branch: Rời phòng */}
-        {(isBranch || isGroup) && canLeaveRoom(currentRoom) && (
-          <button
-            onClick={() => {
-              if (confirm('Rời khỏi phòng chat này?')) {
-                leaveRoom(currentRoom.id);
-              }
-              setShowRoomMenu(false);
-            }}
-            className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
-          >
-            <X size={16} /> Rời phòng
-          </button>
-        )}
-
-        {/* Private: Xóa hội thoại */}
-        {isPrivate && (
-          <button
-            onClick={() => {
-              if (confirm('Xóa hội thoại này khỏi thiết bị của bạn?')) {
-                deleteConversationLocally(currentRoom.id);
-              }
-              setShowRoomMenu(false);
-            }}
-            className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3 text-orange-400"
-          >
-            <Trash size={16} /> Xóa hội thoại (chỉ bạn)
-          </button>
-        )}
-
-        {/* Branch: Xóa phòng */}
-        {(isBranch || isGroup) && canDeleteRoom(currentRoom) && (
-          <>
             <div className="border-t border-white/10 my-1" />
-            <button
-              onClick={() => {
-                if (confirm('XÓA HOÀN TOÀN phòng này? Tất cả tin nhắn sẽ mất!')) {
-                  deleteRoom(currentRoom.id);
-                }
-                setShowRoomMenu(false);
-              }}
-              className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-500/20 transition flex items-center gap-3 text-red-400"
-            >
-              <Trash size={16} /> Xóa phòng (toàn bộ)
-            </button>
-          </>
-        )}
 
-        {/* Family: chỉ mute */}
-        {isFamily && (
-          <div className="px-4 py-2.5 text-sm text-white/40">
-            Phòng chung gia phả – chỉ có thể tắt thông báo
+            {/* Branch: Rời phòng */}
+            {(isBranch || isGroup) && canLeaveRoom(currentRoom) && (
+                <button
+                    onClick={() => {
+                      if (confirm('Rời khỏi phòng chat này?')) {
+                        leaveRoom(currentRoom.id);
+                      }
+                      setShowRoomMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
+                >
+                  <X size={16} /> Rời phòng
+                </button>
+            )}
+
+            {/* Private: Xóa hội thoại */}
+            {isPrivate && (
+                <button
+                    onClick={() => {
+                      if (confirm('Xóa hội thoại này khỏi thiết bị của bạn?')) {
+                        deleteConversationLocally(currentRoom.id);
+                      }
+                      setShowRoomMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3 text-orange-400"
+                >
+                  <Trash size={16} /> Xóa hội thoại (chỉ bạn)
+                </button>
+            )}
+
+            {/* Branch: Xóa phòng */}
+            {(isBranch || isGroup) && canDeleteRoom(currentRoom) && (
+                <>
+                  <div className="border-t border-white/10 my-1" />
+                  <button
+                      onClick={() => {
+                        if (confirm('XÓA HOÀN TOÀN phòng này? Tất cả tin nhắn sẽ mất!')) {
+                          deleteRoom(currentRoom.id);
+                        }
+                        setShowRoomMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-500/20 transition flex items-center gap-3 text-red-400"
+                  >
+                    <Trash size={16} /> Xóa phòng (toàn bộ)
+                  </button>
+                </>
+            )}
+
+            {/* Family: chỉ mute */}
+            {isFamily && (
+                <div className="px-4 py-2.5 text-sm text-white/40">
+                  Phòng chung gia phả – chỉ có thể tắt thông báo
+                </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
     );
   };
 
-  const renderMessageMenu = (message: ChatMessage) => {
-    if (showMessageMenu !== message.id) return null;
+  const renderMessageMenu = (message: ChatMessage, isMine: boolean) => {
+    const isPinned = showMessageMenu === message.id;
 
     return (
-      <div className="absolute -top-10 right-0 bg-black/80 rounded-lg p-2 flex gap-1 z-10">
-        <button onClick={() => handleReplyMessage(message)} title="Trả lời">
-          <Reply size={14} className="text-white/80 hover:text-white" />
-        </button>
-        {canEditMessage(message) && (
+        <div
+            className={`absolute top-1/2 -translate-y-1/2 p-2 flex gap-1 z-20 transition-all duration-200 
+        ${isMine ? "right-full" : "left-full"}
+        ${isPinned
+                ? "opacity-100 pointer-events-auto" 
+                : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto" 
+            }
+      `}
+            onClick={(e) => e.stopPropagation()}
+        >
           <button
-            onClick={() => {
-              setEditingMessageId(message.id);
-              setEditingText(message.messageText || '');
-              setShowMessageMenu(null);
-            }}
-            title="Sửa"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleReplyMessage(message);
+              }}
+              title="Trả lời"
+              className="p-1 transition-all"
           >
-            <Edit size={14} className="text-white/80 hover:text-white" />
+            <Reply size={14} className="text-white" />
           </button>
-        )}
-        {currentRoom && canDeleteMessage(message, currentRoom) && (
-          <button
-            onClick={() => {
-              handleDeleteMessage(message.id, true);
-              setShowMessageMenu(null);
-            }}
-            title="Xóa"
-          >
-            <Trash size={14} className="text-red-400 hover:text-red-300" />
-          </button>
-        )}
-      </div>
-    );
+
+          {canEditMessage(message) && (
+              <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingMessageId(message.id)
+                    setEditingText(message.messageText || "")
+                    setShowMessageMenu(null)
+                  }}
+                  title="Sửa"
+                  className="p-1 transition-all"
+              >
+                <Edit size={14} className="text-white" />
+              </button>
+          )}
+
+          {currentRoom && canDeleteMessage(message, currentRoom) && (
+              <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteMessage(message.id, true)
+                    setShowMessageMenu(null)
+                  }}
+                  title="Xóa"
+                  className="p-1 transition-all"
+              >
+                <Trash size={14} className="text-red-400 hover:text-red-300" />
+              </button>
+          )}
+        </div>
+    )
   };
 
   const renderCollapsedDock = () => (
@@ -851,7 +889,7 @@ export const ChatWidget = () => {
   const renderListView = () => (
     <div className="fixed top-20 right-6 z-[1200] w-full max-w-sm">
       <div className="bg-[#1e2a3a] text-white rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
-        <header className="px-4 py-3 border-b border-white/10 flex items-center justify-between relative">
+        <header className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between relative">
           <p className="text-lg font-semibold">Đoạn chat</p>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -1087,7 +1125,9 @@ export const ChatWidget = () => {
           {currentRoom ? (
             <>
               {/* Messages */}
-              <div className="h-[350px] overflow-y-auto overflow-x-hidden px-2.5 py-2 space-y-1.5 bg-gradient-to-b from-[#1e2a3a]/30 to-transparent">
+              <div className="h-[350px] overflow-y-auto overflow-x-visible px-2.5 py-2 space-y-1.5 bg-gradient-to-b from-[#1e2a3a]/30 to-transparent"
+                   onClick={() => setShowMessageMenu(null)}
+              >
                 {/* Load more */}
                 {currentRoomState?.hasMore && (
                   <button
@@ -1113,14 +1153,12 @@ export const ChatWidget = () => {
                   }
 
                   return (
-                    <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                      <div
-                        className="relative group max-w-[70%]"
-                        onClick={(e) => {
-                          if ((e.target as HTMLElement).closest('button') === null) {
-                            setShowMessageMenu(showMessageMenu === message.id ? null : message.id);
-                          }
-                        }}
+                    <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} group`}>
+                      <div className="relative max-w-[70%] overflow-visible cursor-pointer"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setShowMessageMenu(showMessageMenu === message.id ? null : message.id);
+                           }}
                       >
                         <div
                           className={`rounded-2xl px-3 py-0.5 text-sm shadow-lg transition-all duration-200 hover:shadow-xl inline-block ${isMine
@@ -1169,25 +1207,17 @@ export const ChatWidget = () => {
                           )}
 
                           {/* Timestamp */}
-                          <p className={`text-[10px] m-0 ${isMine ? 'text-[#1e2a3a]/60' : 'text-white/60'}`}>
-                            {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
+                          <p className={`text-[10px] m-0 ${isMine ? 'text-[#1e2a3a]/60' : 'text-white/60'} whitespace-nowrap`}>
+                            {new Date(message.createdAt).toLocaleString('vi-VN', {
                               hour: '2-digit',
                               minute: '2-digit',
-                            })}
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            }).replace(',', '')}
                           </p>
                         </div>
-
-                        {/* Nút 3 chấm dọc */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowMessageMenu(showMessageMenu === message.id ? null : message.id);
-                          }}
-                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition p-1.5 bg-black/70 rounded-lg hover:bg-black/90"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                        {renderMessageMenu(message)}
+                        {renderMessageMenu(message, isMine)}
                       </div>
                     </div>
                   );
@@ -1215,15 +1245,15 @@ export const ChatWidget = () => {
               <div className="px-4 py-3 border-t-2 border-[#ffd89b]/20 bg-gradient-to-r from-[#1e2a3a] to-[#2a3a4a]">
                 <div className="flex items-end gap-2">
                   <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingFiles.size > 0}
-                      className="relative p-2.5 rounded-xl bg-[#ffd89b]/10 hover:bg-[#ffd89b]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
-                      title={uploadingFiles.size > 0 ? "Đang tải lên..." : "Gửi ảnh, file, video..."}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFiles.size > 0}
+                    className="relative p-2.5 rounded-xl bg-[#ffd89b]/10 hover:bg-[#ffd89b]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 group"
+                    title={uploadingFiles.size > 0 ? "Đang tải lên..." : "Gửi ảnh, file, video..."}
                   >
                     {uploadingFiles.size > 0 ? (
-                        <Loader2 className="animate-spin text-[#ffd89b]" size={20} />
+                      <Loader2 className="animate-spin text-[#ffd89b]" size={20} />
                     ) : (
-                        <Paperclip size={20} className="text-white/80 group-hover:text-[#ffd89b] transition" />
+                      <Paperclip size={20} className="text-white/80 group-hover:text-[#ffd89b] transition" />
                     )}
                   </button>
 
@@ -1390,8 +1420,8 @@ export const ChatWidget = () => {
                   <div className="space-y-1">
                     <span className="block text-[#ffd89b]">
                       {createState.roomType === 'group'
-                          ? 'Thêm thành viên (tìm bằng email / số điện thoại / tên)'
-                          : 'Tìm người nhận'}
+                        ? 'Thêm thành viên (tìm bằng email / số điện thoại / tên)'
+                        : 'Tìm người nhận'}
                     </span>
                     <input
                       value={createMemberSearch}
@@ -1615,84 +1645,84 @@ export const ChatWidget = () => {
       )}
 
       {showEditBranchNameModal && currentRoom && (
-          <div className="fixed inset-0 z-[1300] bg-black/50 flex items-center justify-center px-4">
-            <div className="bg-[#1e2a3a] rounded-2xl border border-[#ffd89b]/20 p-6 w-full max-w-sm shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-[#ffd89b]">
-                  {currentRoom.roomType === 'group' ? 'Đổi tên nhóm' : 'Đổi tên phòng nhánh'}
-                </h3>
-                <button
-                    onClick={() => {
-                      setShowEditBranchNameModal(false);
-                      setTempBranchName('');
-                    }}
-                    className="text-[#ffd89b]/70 hover:text-[#ffd89b] transition"
-                >
-                  <X size={20} />
-                </button>
+        <div className="fixed inset-0 z-[1300] bg-black/50 flex items-center justify-center px-4">
+          <div className="bg-[#1e2a3a] rounded-2xl border border-[#ffd89b]/20 p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#ffd89b]">
+                {currentRoom.roomType === 'group' ? 'Đổi tên nhóm' : 'Đổi tên phòng nhánh'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowEditBranchNameModal(false);
+                  setTempBranchName('');
+                }}
+                className="text-[#ffd89b]/70 hover:text-[#ffd89b] transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-white/70 block mb-2">
+                  Tên mới cho phòng <span className="text-[#ffd89b] font-medium">"{currentRoom.name}"</span>
+                </label>
+                <input
+                  type="text"
+                  value={tempBranchName}
+                  onChange={(e) => setTempBranchName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      document.getElementById('save-branch-name-btn')?.click();
+                    }
+                  }}
+                  placeholder="Nhập tên phòng mới..."
+                  className="w-full bg-[#1e2a3a]/80 border border-[#ffd89b]/20 rounded-xl px-4 py-3 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd89b]/60 hover:border-[#ffd89b]/40 transition"
+                  autoFocus
+                />
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-white/70 block mb-2">
-                    Tên mới cho phòng <span className="text-[#ffd89b] font-medium">"{currentRoom.name}"</span>
-                  </label>
-                  <input
-                      type="text"
-                      value={tempBranchName}
-                      onChange={(e) => setTempBranchName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          document.getElementById('save-branch-name-btn')?.click();
-                        }
-                      }}
-                      placeholder="Nhập tên phòng mới..."
-                      className="w-full bg-[#1e2a3a]/80 border border-[#ffd89b]/20 rounded-xl px-4 py-3 text-sm text-white placeholder-white/40 focus:outline-none focus:border-[#ffd89b]/60 hover:border-[#ffd89b]/40 transition"
-                      autoFocus
-                  />
-                </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowEditBranchNameModal(false);
+                    setTempBranchName('');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-[#ffd89b]/10 hover:bg-[#ffd89b]/20 transition text-sm text-white/80"
+                >
+                  Hủy
+                </button>
+                <button
+                  id="save-branch-name-btn"
+                  onClick={async () => {
+                    const newName = tempBranchName.trim();
+                    if (!newName) {
+                      showToast.warning('Vui lòng nhập tên phòng');
+                      return;
+                    }
+                    if (newName === currentRoom.name) {
+                      setShowEditBranchNameModal(false);
+                      return;
+                    }
 
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                      onClick={() => {
-                        setShowEditBranchNameModal(false);
-                        setTempBranchName('');
-                      }}
-                      className="px-5 py-2.5 rounded-xl bg-[#ffd89b]/10 hover:bg-[#ffd89b]/20 transition text-sm text-white/80"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                      id="save-branch-name-btn"
-                      onClick={async () => {
-                        const newName = tempBranchName.trim();
-                        if (!newName) {
-                          showToast.warning('Vui lòng nhập tên phòng');
-                          return;
-                        }
-                        if (newName === currentRoom.name) {
-                          setShowEditBranchNameModal(false);
-                          return;
-                        }
-
-                        try {
-                          await updateRoom(currentRoom.id, { name: newName });
-                          showToast.success('Đã đổi tên phòng thành công');
-                          setShowEditBranchNameModal(false);
-                          setTempBranchName('');
-                        } catch (err) {
-                          showToast.error('Đổi tên thất bại');
-                        }
-                      }}
-                      className="px-5 py-2.5 rounded-xl bg-[#ffd89b] hover:bg-[#ffd89b]/90 text-[#1e2a3a] font-medium text-sm transition shadow-lg"
-                  >
-                    Lưu
-                  </button>
-                </div>
+                    try {
+                      await updateRoom(currentRoom.id, { name: newName });
+                      showToast.success('Đã đổi tên phòng thành công');
+                      setShowEditBranchNameModal(false);
+                      setTempBranchName('');
+                    } catch (err) {
+                      showToast.error('Đổi tên thất bại');
+                    }
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-[#ffd89b] hover:bg-[#ffd89b]/90 text-[#1e2a3a] font-medium text-sm transition shadow-lg"
+                >
+                  Lưu
+                </button>
               </div>
             </div>
           </div>
+        </div>
       )}
     </>
   );
