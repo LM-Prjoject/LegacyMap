@@ -160,7 +160,7 @@ public class SecurityConfig {
 
                         // Admin
                         .requestMatchers("/api/admin/**", "/legacy/api/admin/**").hasRole("ADMIN")
-
+                        .requestMatchers("/api/support/**").permitAll()
                         .anyRequest().authenticated()
                 );
 
