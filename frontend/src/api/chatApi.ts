@@ -69,11 +69,7 @@ export const chatApi = {
     return data;
   },
 
-  async uploadAttachment(
-      roomId: string,
-      file: File,
-      caption?: string,
-  ): Promise<AttachmentUploadResponse> {
+  async uploadAttachment(roomId: string, file: File, caption?: string,): Promise<AttachmentUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     if (caption?.trim()) {

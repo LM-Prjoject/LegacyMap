@@ -268,7 +268,7 @@ public class ChatRoomService {
                 .roomType(ChatRoom.ChatRoomType.private_chat)
                 .name(roomName)
                 .createdBy(creator)
-                .description("1-1 private chat room")
+                .description("Phòng chat riêng tư 1-1")
                 .build();
 
         ChatRoom savedRoom = chatRoomRepository.save(room);
