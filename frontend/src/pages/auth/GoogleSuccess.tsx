@@ -82,5 +82,5 @@ export default function GoogleSuccess() {
         }
     }, [navigate]);
 
-    return ;
+    return null ;
 }
