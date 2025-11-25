@@ -374,9 +374,13 @@ public class GeminiSuggestClient {
                 "SURNAME RULES:\n" +
                 "- If two persons have DIFFERENT Vietnamese surnames → parent/child is NOT allowed unless the context already shows an adoption.\n" +
                 "- If different surnames → sibling is NOT allowed.\n" +
-                "- If different surnames → spouse is allowed.\n\n" +
+                "- If different surnames → spouse may be allowed subject to gender/age rules.\n\n" +
                 "GENDER RULES:\n" +
-                "- Parent/child, siblings, and spouses may be any gender.\n\n" +
+                "- Parent/child and siblings may be any gender.\n" +
+                "- Spouses MUST be opposite genders (e.g., male-female).\n\n" +
+                "SPOUSE AGE RULES:\n" +
+                "- Both persons must be adults (>= 18 years old).\n" +
+                "- The age gap must be ≤ 30 years.\n\n" +
                 "EXISTING RELATIONSHIP RULES:\n" +
                 "- If a person already has a father or mother → do NOT suggest another parent.\n" +
                 "- If a person already has a spouse → do NOT suggest another spouse.\n\n" +
@@ -512,6 +516,16 @@ public class GeminiSuggestClient {
             } else if ("spouse".equals(type)) {
                 // Existing spouse constraint
                 if (p1HasSpouse || p2HasSpouse) allow = false;
+                if (allow) {
+                    boolean differentSurname = !isEmpty(s1) && !isEmpty(s2) && !s1.equalsIgnoreCase(s2);
+                    boolean oppositeGender = isOppositeGender(g1, g2);
+                    boolean agesKnown = (age1 >= 0 && age2 >= 0) && (diff != null);
+                    boolean bothAdults = agesKnown && age1 >= 18 && age2 >= 18;
+                    boolean ageGapOk = agesKnown && Math.abs(diff) <= 30;
+                    if (!(differentSurname && oppositeGender && bothAdults && ageGapOk)) {
+                        allow = false;
+                    }
+                }
             }
 
             if (allow) {
@@ -531,12 +545,15 @@ public class GeminiSuggestClient {
         if (out.isEmpty()) {
             boolean differentSurname = !isEmpty(s1) && !isEmpty(s2) && !s1.equalsIgnoreCase(s2);
             boolean bothSingle = !p1HasSpouse && !p2HasSpouse;
-            boolean plausibleAgeForSpouse = (diff == null) || Math.abs(diff) <= 40; // allow unknown or within 40 years
-            if (differentSurname && bothSingle && plausibleAgeForSpouse) {
+            boolean agesKnown = (age1 >= 0 && age2 >= 0) && (diff != null);
+            boolean bothAdults = agesKnown && age1 >= 18 && age2 >= 18;
+            boolean ageGapOk = agesKnown && Math.abs(diff) <= 30;
+            boolean oppositeGender = isOppositeGender(g1, g2);
+            if (differentSurname && bothSingle && bothAdults && ageGapOk && oppositeGender) {
                 out.add(new RelationshipSuggestion(
                         "spouse",
                         0.6,
-                        java.util.List.of("fallback spouse: different surnames and plausible age gap")
+                        java.util.List.of("fallback spouse: opposite genders, different surnames, both adults, age gap ≤ 30")
                 ));
             }
         }
@@ -618,6 +635,16 @@ public class GeminiSuggestClient {
     }
 
     private boolean isEmpty(String s) { return s == null || s.isBlank(); }
+
+    private boolean isOppositeGender(String g1, String g2) {
+        String a = nullToEmpty(g1).toLowerCase(java.util.Locale.ROOT).trim();
+        String b = nullToEmpty(g2).toLowerCase(java.util.Locale.ROOT).trim();
+        boolean maleA = a.contains("male") || a.contains("nam") || "m".equals(a);
+        boolean femaleA = a.contains("female") || a.contains("nu") || a.contains("nữ") || "f".equals(a);
+        boolean maleB = b.contains("male") || b.contains("nam") || "m".equals(b);
+        boolean femaleB = b.contains("female") || b.contains("nu") || b.contains("nữ") || "f".equals(b);
+        return (maleA && femaleB) || (femaleA && maleB);
+    }
 
     @SuppressWarnings("unchecked")
     private List<RelationshipSuggestion> parseResponse(Map<?,?> response) {
