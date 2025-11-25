@@ -1,4 +1,4 @@
-export type ChatRoomType = 'family' | 'branch' | 'private_chat';
+export type ChatRoomType = 'family' | 'branch' | 'private_chat' | 'group';
 
 export type ChatMemberRole = 'member' | 'admin' | 'moderator';
 
@@ -7,8 +7,10 @@ export interface ChatRoomMember {
   username: string;
   personId: string | null;
   role: ChatMemberRole;
+  muted: boolean;
   joinedAt: string;
   lastReadAt: string | null;
+  nickname?: string | null;
 }
 
 export interface ChatRoom {
@@ -43,11 +45,14 @@ export interface ChatMessage {
   fileSize?: number | null;
   fileType?: string | null;
   replyToId?: string | null;
+  replyToText?: string | null;
+  replyToSenderName?: string | null;
   edited: boolean;
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
   recipients: ChatMessageRecipientStatus[];
+  metadata?: Record<string, any> | null;
 }
 
 export interface ChatMessagePage {
@@ -87,11 +92,6 @@ export interface BranchRoomCreatePayload {
 export interface DirectRoomCreatePayload {
   targetUserId: string;
   name?: string;
-}
-
-export interface JoinRoomPayload {
-  personId?: string;
-  role?: ChatMemberRole;
 }
 
 export interface AttachmentUploadResponse {

@@ -4,45 +4,45 @@ import lombok.Getter;
 
 @Getter
 public enum ErrorCode {
-    USER_EXISTED("Tên người dùng đã tồn tại", 1001),
-    EMAIL_EXISTED("Email đã được sử dụng", 1002),
-    SEND_EMAIL_FAILED("Gửi email thất bại", 1003),
-    USER_NOT_FOUND("Không tìm thấy người dùng", 1004),
-    INVALID_CREDENTIALS("Tên đăng nhập hoặc mật khẩu không hợp lệ", 1005),
-    ACCOUNT_NOT_VERIFIED("Tài khoản chưa được xác minh", 1006),
-    ACCOUNT_DISABLED("Tài khoản đã bị vô hiệu hóa", 1007),
-    VALIDATION_FAILED("Dữ liệu không hợp lệ", 1008),
-    INTERNAL_ERROR("Lỗi hệ thống nội bộ", 1009),
-    INTERNAL_SERVER_ERROR("Lỗi máy chủ nội bộ", 5000), // ✅ THÊM: Error code mới
-    INVALID_TOKEN("Mã xác thực không hợp lệ", 1010),
-    TOKEN_EXPIRED("Mã xác thực đã hết hạn", 1011),
-    TOKEN_ALREADY_USED("Mã xác thực đã được sử dụng", 1012),
-    INVALID_PURPOSE("Mục đích của mã xác thực không hợp lệ", 1013),
-    INVALID_PASSWORD("Mật khẩu không đúng", 1024),
-    BAD_REQUEST("Yêu cầu không hợp lệ", 1025),
-    NOT_FOUND("Không tìm thấy tài nguyên", 1026),
+    USER_EXISTED("Username already exists", 1001),
+    EMAIL_EXISTED("Email is already in use", 1002),
+    SEND_EMAIL_FAILED("Failed to send email", 1003),
+    USER_NOT_FOUND("User not found", 1004),
+    INVALID_CREDENTIALS("Invalid username or password", 1005),
+    ACCOUNT_NOT_VERIFIED("Account is not verified", 1006),
+    ACCOUNT_DISABLED("Account has been disabled", 1007),
+    VALIDATION_FAILED("Invalid data", 1008),
+    INTERNAL_ERROR("Internal system error", 1009),
+    INTERNAL_SERVER_ERROR("Internal server error", 5000),
+    INVALID_TOKEN("Invalid verification token", 1010),
+    TOKEN_EXPIRED("Verification token has expired", 1011),
+    TOKEN_ALREADY_USED("Verification token has already been used", 1012),
+    INVALID_PURPOSE("Invalid token purpose", 1013),
+    INVALID_PASSWORD("Incorrect password", 1024),
+    BAD_REQUEST("Bad request", 1025),
+    NOT_FOUND("Resource not found", 1026),
 
     // Authentication & Authorization
-    UNAUTHENTICATED("Bạn chưa đăng nhập", 1014),
-    UNAUTHORIZED("Bạn không có quyền truy cập tài nguyên này", 1015),
-    OAUTH_GOOGLE_ONLY("Tài khoản này chỉ được đăng nhập bằng Google", 1021),
+    UNAUTHENTICATED("You are not logged in", 1014),
+    UNAUTHORIZED("You do not have permission to access this resource", 1015),
+    OAUTH_GOOGLE_ONLY("This account can only log in using Google", 1021),
 
     // Family Tree related
-    FAMILY_TREE_NOT_FOUND("Không tìm thấy gia phả hoặc bạn không có quyền truy cập", 1100),
-    PERSON_NOT_FOUND("Không tìm thấy người trong gia phả", 1101),
-    RELATIONSHIP_INVALID_TYPE("Kiểu quan hệ không hợp lệ", 1102),
-    RELATIONSHIP_ALREADY_EXISTS("Mối quan hệ này đã tồn tại", 1103),
-    RELATIONSHIP_NOT_SAME_TREE("Hai người không thuộc cùng một gia phả", 1104),
-    RELATIONSHIP_NOT_FOUND("Không tìm thấy mối quan hệ", 1105),
-    RELATIONSHIP_SELF_LINK("Không thể tạo quan hệ với chính bản thân", 1106),
-    TREE_NOT_FOUND("Không thể tìm thấy gia phả", 1107),
+    FAMILY_TREE_NOT_FOUND("Family tree not found or you do not have access", 1100),
+    PERSON_NOT_FOUND("Person not found in the family tree", 1101),
+    RELATIONSHIP_INVALID_TYPE("Invalid relationship type", 1102),
+    RELATIONSHIP_ALREADY_EXISTS("This relationship already exists", 1103),
+    RELATIONSHIP_NOT_SAME_TREE("Both persons do not belong to the same family tree", 1104),
+    RELATIONSHIP_NOT_FOUND("Relationship not found", 1105),
+    RELATIONSHIP_SELF_LINK("Cannot create a relationship with yourself", 1106),
+    TREE_NOT_FOUND("Family tree not found", 1107),
 
     // Admin related
-    USER_BANNED("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ", 1110),
-    USER_ALREADY_BANNED("Người dùng này đã bị khóa", 1111),
-    USER_NOT_BANNED("Người dùng này chưa bị khóa", 1112),
-    CANNOT_BAN_ADMIN("Không thể khóa tài khoản admin", 1113),
-    ADMIN_ACTION_FORBIDDEN("Hành động bị cấm với tài khoản admin", 1114),
+    USER_BANNED("Your account has been banned. Please contact support", 1110),
+    USER_ALREADY_BANNED("This user is already banned", 1111),
+    USER_NOT_BANNED("This user is not banned", 1112),
+    CANNOT_BAN_ADMIN("Cannot ban an admin account", 1113),
+    ADMIN_ACTION_FORBIDDEN("Action is forbidden for admin accounts", 1114),
 
     // Event related
     EVENT_NOT_FOUND("Event not found", 1120),
@@ -51,10 +51,22 @@ public enum ErrorCode {
     // Notification related
     NOTIFICATION_NOT_FOUND("Notification not found", 1113),
 
+    // Person email uniqueness within a family tree
+    PERSON_EMAIL_EXISTS_IN_TREE("Email already exists in this family tree", 1140),
+
+    // Resource related
+    RESOURCE_ALREADY_EXISTS("Resource already exists", 1141),
+    RESOURCE_NOT_FOUND("Resource not found", 1142),
+    ACCESS_DENIED("Access denied", 1143),
+
+    // Chat related
+    MESSAGE_EDIT_FORBIDDEN("You do not have permission to edit this message", 1200),
+    MESSAGE_DELETE_FORBIDDEN("You do not have permission to delete this message", 1201),
+
     // Sharing related
-    PERMISSION_DENIED("Bạn không có quyền thực hiện hành động này", 4030),
-    USER_ALREADY_HAS_ACCESS("Người dùng đã có quyền truy cập vào gia phả này", 4031),
-    CANNOT_SHARE_TO_SELF("Không thể chia sẻ gia phả cho chính mình", 4032);
+    PERMISSION_DENIED("You do not have permission to perform this action", 4030),
+    USER_ALREADY_HAS_ACCESS("The user already has access to this family tree", 4031),
+    CANNOT_SHARE_TO_SELF("You cannot share the family tree with yourself", 4032);
 
     private final int code;
     private final String message;

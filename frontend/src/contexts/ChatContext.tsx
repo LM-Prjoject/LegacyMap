@@ -3,7 +3,7 @@ import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { showToast } from '@/lib/toast';
 import { chatApi } from '@/api/chatApi';
-import type {AttachmentUploadResponse, BranchRoomCreatePayload, ChatMessage, ChatMessageSendPayload, ChatRoom, ChatRoomCreatePayload, DirectRoomCreatePayload, JoinRoomPayload} from '@/types/chat';
+import type { AttachmentUploadResponse, BranchRoomCreatePayload, ChatMessage, ChatMessageSendPayload, ChatRoom, ChatRoomCreatePayload, DirectRoomCreatePayload } from '@/types/chat';
 
 interface ChatContextValue {
   rooms: ChatRoom[];
@@ -13,14 +13,18 @@ interface ChatContextValue {
   selectRoom: (roomId: string) => void;
   currentRoom: ChatRoom | null;
   messagesByRoom: Record<string, ChatMessage[]>;
-  roomMessageState: Record<string,{ isLoading: boolean; hasMore: boolean; page: number; initialized: boolean }>;
+  roomMessageState: Record<string, { isLoading: boolean; hasMore: boolean; page: number; initialized: boolean }>;
   loadOlderMessages: (roomId: string) => Promise<void>;
   sendMessage: (payload: ChatMessageSendPayload) => void;
   sendAttachment: (roomId: string, file: File, caption?: string) => Promise<AttachmentUploadResponse | null>;
+  updateMessage: (roomId: string, messageId: string, payload: { messageText: string }) => Promise<ChatMessage | null>;
+  deleteMessage: (roomId: string, messageId: string, isAdmin?: boolean) => Promise<void>;
+  updateRoom: (roomId: string, payload: { name?: string; description?: string }) => Promise<ChatRoom | null>;
+  deleteRoom: (roomId: string) => Promise<void>;
+  leaveRoom: (roomId: string) => Promise<void>;
   createRoom: (payload: ChatRoomCreatePayload) => Promise<ChatRoom | null>;
   createBranchRoom: (payload: BranchRoomCreatePayload) => Promise<ChatRoom | null>;
   createDirectRoom: (payload: DirectRoomCreatePayload) => Promise<ChatRoom | null>;
-  joinRoom: (roomId: string, payload: JoinRoomPayload) => Promise<ChatRoom | null>;
   isWidgetOpen: boolean;
   openWidget: () => void;
   closeWidget: () => void;
@@ -30,6 +34,13 @@ interface ChatContextValue {
   unreadByRoom: Record<string, number>;
   isConnected: boolean;
   isConnecting: boolean;
+  canEditRoom: (room: ChatRoom) => boolean;
+  canLeaveRoom: (room: ChatRoom) => boolean;
+  canDeleteRoom: (room: ChatRoom) => boolean;
+  canEditMessage: (message: ChatMessage) => boolean;
+  canDeleteMessage: (message: ChatMessage, room: ChatRoom) => boolean;
+  deleteConversationLocally: (roomId: string) => void;
+  setRooms: React.Dispatch<React.SetStateAction<ChatRoom[]>>;
 }
 
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
@@ -42,7 +53,7 @@ const PAGE_SIZE = 30;
 
 const resolveWsUrl = () => {
   const directWsUrl = import.meta.env.VITE_WS_BASE_URL as string | undefined;
-  
+
   if (directWsUrl) {
     console.log('[chat-ws] Using direct WebSocket URL from VITE_WS_BASE_URL:', directWsUrl);
     return directWsUrl;
@@ -79,6 +90,14 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   const [widgetSignal, setWidgetSignal] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('authToken'));
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr)?.id : null;
+    } catch {
+      return null;
+    }
+  });
   const [isConnecting, setIsConnecting] = useState(false);
 
   const clientRef = useRef<Client | null>(null);
@@ -105,6 +124,85 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     const event = new CustomEvent('chatUnreadChanged', { detail: totalUnread });
     window.dispatchEvent(event);
   }, [totalUnread]);
+
+  const updateMessage = useCallback(async (roomId: string, messageId: string, payload: { messageText: string }) => {
+    if (!roomId || !messageId) {
+      console.error('Missing roomId or messageId for updateMessage');
+      return null;
+    }
+    try {
+      const updated = await chatApi.updateMessage(roomId, messageId, payload);
+      if (updated) {
+        setMessagesByRoom(prev => ({
+          ...prev,
+          [roomId]: (prev[roomId] || []).map(m => m.id === messageId ? updated : m)
+        }));
+      }
+      return updated;
+    } catch (err) {
+      showToast.error('Sửa tin nhắn thất bại');
+      return null;
+    }
+  }, []);
+
+  const deleteMessage = useCallback(async (roomId: string, messageId: string, isAdmin = false) => {
+    try {
+      await chatApi.deleteMessage(roomId, messageId, isAdmin);
+      setMessagesByRoom(prev => ({
+        ...prev,
+        [roomId]: (prev[roomId] || []).map(m => m.id === messageId ? { ...m, deleted: true, messageText: '' } : m)
+      }));
+    } catch (err) {
+      showToast.error('Xóa tin nhắn thất bại');
+    }
+  }, []);
+
+  const updateRoom = useCallback(async (roomId: string, payload: { name?: string; description?: string }) => {
+    if (!roomId) {
+      console.error('Missing roomId for updateRoom');
+      return null;
+    }
+    try {
+      const updatedRoom = await chatApi.updateRoom(roomId, payload);
+      if (updatedRoom) {
+        setRooms(prev => prev.map(r => r.id === roomId ? updatedRoom : r));
+      }
+      return updatedRoom;
+    } catch (err) {
+      showToast.error('Cập nhật phòng thất bại');
+      return null;
+    }
+  }, []);
+
+  const deleteRoom = useCallback(async (roomId: string) => {
+    try {
+      await chatApi.deleteRoom(roomId);
+      setRooms(prev => prev.filter(r => r.id !== roomId));
+      setMessagesByRoom(prev => { const { [roomId]: _, ...rest } = prev; return rest; });
+      if (selectedRoomId === roomId) setSelectedRoomId(null);
+      showToast.success('Đã xóa phòng chat');
+    } catch (err) {
+      showToast.error('Xóa phòng thất bại');
+    }
+  }, [selectedRoomId]);
+
+  const leaveRoom = useCallback(async (roomId: string) => {
+    try {
+      await chatApi.leaveRoom(roomId);
+      setRooms(prev => prev.filter(r => r.id !== roomId));
+      setMessagesByRoom(prev => { const { [roomId]: _, ...rest } = prev; return rest; });
+      if (subscriptionsRef.current[roomId]) {
+        subscriptionsRef.current[roomId].unsubscribe();
+        delete subscriptionsRef.current[roomId];
+      }
+      if (selectedRoomId === roomId) {
+        setSelectedRoomId(null);
+      }
+      showToast.success('Đã rời phòng chat');
+    } catch (err) {
+      showToast.error('Rời phòng thất bại');
+    }
+  }, [selectedRoomId]);
 
   const resetState = useCallback(() => {
     setRooms([]);
@@ -232,12 +330,29 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       const subscription = clientRef.current.subscribe(`/topic/chat/${roomId}`, (frame: IMessage) => {
         try {
           const payload = JSON.parse(frame.body) as ChatMessage;
+          if (payload.messageType === 'system' && payload.messageText?.includes('deleted')) {
+
+            setRooms(prev => prev.filter(r => r.id !== roomId));
+            setMessagesByRoom(prev => {
+              const { [roomId]: _, ...rest } = prev;
+              return rest;
+            });
+            if (selectedRoomId === roomId) {
+              setSelectedRoomId(null);
+            }
+            showToast.info('Phòng chat đã bị xóa');
+            return;
+          }
+
           bumpRoomToTop(roomId, payload.createdAt);
           setMessagesByRoom((prev) => {
             const existing = prev[roomId] ?? [];
             const alreadyExists = existing.some((msg) => msg.id === payload.id);
             if (alreadyExists) {
-              return prev;
+              return {
+                ...prev,
+                [roomId]: existing.map((msg) => (msg.id === payload.id ? payload : msg)),
+              };
             }
             return {
               ...prev,
@@ -246,18 +361,13 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
               ),
             };
           });
-          if (roomId !== selectedRoomRef.current) {
+          if (payload.messageType !== 'system' && roomId !== selectedRoomRef.current) {
             setUnreadByRoom((prev) => ({
               ...prev,
               [roomId]: (prev[roomId] || 0) + 1,
             }));
-          } else {
-            setTimeout(() => {
-              const latestId = payload.id;
-              if (latestId) {
-                markAsRead(roomId, latestId);
-              }
-            }, 150);
+          } else if (payload.messageType === 'system' && roomId === selectedRoomRef.current) {
+
           }
         } catch (err) {
           console.error('Failed to parse chat message', err);
@@ -273,7 +383,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       console.warn('[chat-ws] No auth token, skipping WebSocket initialization');
       return;
     }
-    
+
     if (clientRef.current) {
       console.log('[chat-ws] Cleaning up existing WebSocket connection');
       try {
@@ -310,10 +420,10 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       try {
         if (useSockJS) {
           const sockJsUrl = wsUrl.startsWith('ws:')
-              ? wsUrl.replace(/^ws:/, 'http:')
-              : wsUrl.startsWith('wss:')
-                  ? wsUrl.replace(/^wss:/, 'https:')
-                  : wsUrl;
+            ? wsUrl.replace(/^ws:/, 'http:')
+            : wsUrl.startsWith('wss:')
+              ? wsUrl.replace(/^wss:/, 'https:')
+              : wsUrl;
 
           console.log('[chat-ws] Using SockJS with URL:', sockJsUrl);
           webSocketFactory = () => new SockJS(sockJsUrl);
@@ -398,7 +508,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             isConnectingRef.current = false;
             setIsConnecting(false);
             clientRef.current = null;
-            
+
             if (!isConnected) {
               showToast.error('Không thể kết nối đến máy chủ chat. Vui lòng thử lại sau.');
             }
@@ -449,23 +559,23 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   }, [authToken]);
 
   const selectRoom = useCallback(
-      async (roomId: string) => {
-        setSelectedRoomId(roomId);
-        await ensureMessagesLoaded(roomId);
+    async (roomId: string) => {
+      setSelectedRoomId(roomId);
+      await ensureMessagesLoaded(roomId);
 
-        subscribeRoom(roomId);
+      subscribeRoom(roomId);
 
-        const roomMessages = messagesByRoom[roomId];
-        const latest =
-            roomMessages && roomMessages.length > 0
-                ? roomMessages[roomMessages.length - 1]
-                : null;
+      const roomMessages = messagesByRoom[roomId];
+      const latest =
+        roomMessages && roomMessages.length > 0
+          ? roomMessages[roomMessages.length - 1]
+          : null;
 
-        if (latest) {
-          markAsRead(roomId, latest.id);
-        }
-      },
-      [ensureMessagesLoaded, markAsRead, messagesByRoom, subscribeRoom],
+      if (latest) {
+        markAsRead(roomId, latest.id);
+      }
+    },
+    [ensureMessagesLoaded, markAsRead, messagesByRoom, subscribeRoom],
   );
 
   const sendMessage = useCallback(
@@ -495,6 +605,26 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     async (roomId: string, file: File, caption?: string) => {
       try {
         const response = await chatApi.uploadAttachment(roomId, file, caption);
+        console.log('[sendAttachment] Response:', response);
+        if (response?.message) {
+          console.log('[sendAttachment] Adding message to state:', response.message);
+          setMessagesByRoom((prev) => {
+            const roomMessages = prev[roomId] ?? [];
+            const alreadyExists = roomMessages.some((msg) => msg.id === response.message.id);
+            if (alreadyExists) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [roomId]: [...roomMessages, response.message].sort(
+                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+              ),
+            };
+          });
+          bumpRoomToTop(roomId, response.message.createdAt);
+        } else {
+          console.warn('[sendAttachment] No message in response:', response);
+        }
         return response;
       } catch (err) {
         console.error('Failed to upload attachment', err);
@@ -502,7 +632,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         return null;
       }
     },
-    [],
+    [bumpRoomToTop],
   );
 
   const createRoom = useCallback(
@@ -562,26 +692,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     [subscribeRoom],
   );
 
-  const joinRoom = useCallback(
-    async (roomId: string, payload: JoinRoomPayload) => {
-      try {
-        const room = await chatApi.joinRoom(roomId, payload);
-        setRooms((prev) => {
-          const next = prev.filter((r) => r.id !== room.id);
-          return [room, ...next];
-        });
-        subscribeRoom(room.id);
-        showToast.success('Đã tham gia phòng');
-        return room;
-      } catch (err) {
-        console.error('Join room failed', err);
-        showToast.error('Không tham gia được phòng');
-        return null;
-      }
-    },
-    [subscribeRoom],
-  );
-
   const openWidget = useCallback(() => {
     if (!authToken) {
       showToast.warning('Vui lòng đăng nhập để sử dụng chat');
@@ -604,6 +714,15 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       if (t !== authTokenRef.current) {
         authTokenRef.current = t;
         setAuthToken(t);
+      }
+      try {
+        const userStr = localStorage.getItem('user');
+        const uid = userStr ? JSON.parse(userStr)?.id : null;
+        if (uid !== currentUserId) {
+          setCurrentUserId(uid);
+        }
+      } catch (e) {
+        // ignore
       }
     };
     const focusListener = () => syncToken();
@@ -647,11 +766,10 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       }
     }, 100);
 
-    // Cleanup function to properly close the WebSocket connection
     return () => {
       clearTimeout(timer);
       console.log('[chat-ws] Cleaning up WebSocket connection');
-      
+
       const cleanupClient = () => {
         if (clientRef.current) {
           try {
@@ -669,7 +787,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
           }
         }
       };
-      
+
       cleanupClient();
       isConnectingRef.current = false;
       setIsConnecting(false);
@@ -702,59 +820,128 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     };
   }, []);
 
+  // Permission helpers
+  const canEditRoom = useCallback((room: ChatRoom) => {
+    if (!currentUserId) return false;
+    if (room.roomType === 'family' || room.roomType === 'private_chat') return false;
+    const member = room.members.find(m => m.userId === currentUserId);
+    return member?.role === 'admin' || member?.role === 'moderator';
+  }, [currentUserId]);
+
+  const canLeaveRoom = useCallback((room: ChatRoom) => {
+    if (!currentUserId) return false;
+    if (room.roomType === 'family' || room.roomType === 'private_chat') return false;
+    return true;
+  }, [currentUserId]);
+
+  const canDeleteRoom = useCallback((room: ChatRoom) => {
+    if (!currentUserId) return false;
+    if (room.roomType !== 'branch' && room.roomType !== 'group') return false;
+    const member = room.members.find(m => m.userId === currentUserId);
+    return member?.role === 'admin';
+  }, [currentUserId]);
+
+  const canEditMessage = useCallback((message: ChatMessage) => {
+    if (!currentUserId) return false;
+    return message.senderId === currentUserId;
+  }, [currentUserId]);
+
+  const canDeleteMessage = useCallback((message: ChatMessage, room: ChatRoom) => {
+    if (!currentUserId) return false;
+    if (message.senderId === currentUserId) return true;
+    if (room.roomType === 'private_chat') return false;
+    const member = room.members.find(m => m.userId === currentUserId);
+    return member?.role === 'admin' || member?.role === 'moderator';
+  }, [currentUserId]);
+
+  const deleteConversationLocally = useCallback((roomId: string) => {
+    setRooms(prev => prev.filter(r => r.id !== roomId));
+    setMessagesByRoom(prev => { const { [roomId]: _, ...rest } = prev; return rest; });
+    setRoomMessageState(prev => { const { [roomId]: _, ...rest } = prev; return rest; });
+    setUnreadByRoom(prev => { const { [roomId]: _, ...rest } = prev; return rest; });
+    if (selectedRoomId === roomId) setSelectedRoomId(null);
+    if (subscriptionsRef.current[roomId]) {
+      subscriptionsRef.current[roomId].unsubscribe();
+      delete subscriptionsRef.current[roomId];
+    }
+    showToast.success('Đã xóa hội thoại khỏi thiết bị này');
+  }, [selectedRoomId]);
+
   const contextValue = useMemo(
-      () => ({
-        rooms,
-        isLoadingRooms,
-        refreshRooms,
-        selectedRoomId,
-        selectRoom,
-        currentRoom,
-        messagesByRoom,
-        roomMessageState,
-        loadOlderMessages: (roomId: string) => loadOlderMessages(roomId, false),
-        sendMessage,
-        sendAttachment,
-        createRoom,
-        createBranchRoom,
-        createDirectRoom,
-        joinRoom,
-        isWidgetOpen,
-        openWidget,
-        closeWidget,
-        toggleWidget,
-        widgetSignal,
-        totalUnread,
-        unreadByRoom,
-        isConnected,
-        isConnecting,
-      }),
-      [
-        rooms,
-        isLoadingRooms,
-        refreshRooms,
-        selectedRoomId,
-        selectRoom,
-        currentRoom,
-        messagesByRoom,
-        roomMessageState,
-        loadOlderMessages,
-        sendMessage,
-        sendAttachment,
-        createRoom,
-        createBranchRoom,
-        createDirectRoom,
-        joinRoom,
-        isWidgetOpen,
-        openWidget,
-        closeWidget,
-        toggleWidget,
-        widgetSignal,
-        totalUnread,
-        unreadByRoom,
-        isConnected,
-        isConnecting,
-      ]
+    () => ({
+      rooms,
+      isLoadingRooms,
+      refreshRooms,
+      selectedRoomId,
+      selectRoom,
+      currentRoom,
+      messagesByRoom,
+      roomMessageState,
+      loadOlderMessages,
+      sendMessage,
+      sendAttachment,
+      updateMessage,
+      deleteMessage,
+      updateRoom,
+      deleteRoom,
+      leaveRoom,
+      createRoom,
+      createBranchRoom,
+      createDirectRoom,
+      isWidgetOpen,
+      openWidget,
+      closeWidget,
+      toggleWidget,
+      widgetSignal,
+      totalUnread,
+      unreadByRoom,
+      isConnected,
+      isConnecting,
+      canEditRoom,
+      canLeaveRoom,
+      canDeleteRoom,
+      canEditMessage,
+      canDeleteMessage,
+      deleteConversationLocally,
+      setRooms,
+    }),
+    [
+      rooms,
+      isLoadingRooms,
+      refreshRooms,
+      selectedRoomId,
+      selectRoom,
+      currentRoom,
+      messagesByRoom,
+      roomMessageState,
+      loadOlderMessages,
+      sendMessage,
+      sendAttachment,
+      updateMessage,
+      deleteMessage,
+      updateRoom,
+      deleteRoom,
+      leaveRoom,
+      createRoom,
+      createBranchRoom,
+      createDirectRoom,
+      isWidgetOpen,
+      openWidget,
+      closeWidget,
+      toggleWidget,
+      widgetSignal,
+      totalUnread,
+      unreadByRoom,
+      isConnected,
+      isConnecting,
+      canEditRoom,
+      canLeaveRoom,
+      canDeleteRoom,
+      canEditMessage,
+      canDeleteMessage,
+      deleteConversationLocally,
+      setRooms,
+    ],
   );
 
   return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>;

@@ -1,23 +1,22 @@
 package com.legacymap.backend.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import com.legacymap.backend.dto.request.UpdateRoomRequest;
+import com.legacymap.backend.entity.ChatRoom;
+import com.legacymap.backend.exception.AppException;
+import com.legacymap.backend.exception.ErrorCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.legacymap.backend.dto.request.BranchRoomCreateRequest;
 import com.legacymap.backend.dto.request.ChatRoomCreateRequest;
 import com.legacymap.backend.dto.request.DirectRoomCreateRequest;
-import com.legacymap.backend.dto.request.JoinRoomRequest;
 import com.legacymap.backend.dto.response.ChatRoomResponse;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.ChatRoomService;
@@ -43,17 +42,50 @@ public class ChatRoomController {
         return ResponseEntity.ok(chatRoomService.createDirectRoom(getCurrentUserId(), request));
     }
 
-    @PostMapping("/{roomId}/join")
-    public ResponseEntity<ChatRoomResponse> joinRoom(@PathVariable UUID roomId,
-                                                     @Valid @RequestBody JoinRoomRequest request) {
-        return ResponseEntity.ok(chatRoomService.joinRoom(getCurrentUserId(), roomId, request));
-    }
-
     @PostMapping("/branch")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ChatRoomResponse> createBranchRoom(@Valid @RequestBody BranchRoomCreateRequest request) {
         UUID userId = getCurrentUserId();
         return ResponseEntity.ok(chatRoomService.createBranchRoom(userId, request));
+    }
+
+    @DeleteMapping("/{roomId}/members/me")
+    public ResponseEntity<Void> leaveRoom(@PathVariable UUID roomId) {
+        UUID userId = getCurrentUserId();
+        ChatRoom room = chatRoomService.getRoomOrThrow(roomId);
+
+        if (room.getRoomType() == ChatRoom.ChatRoomType.family ||
+                room.getRoomType() == ChatRoom.ChatRoomType.private_chat) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "You cannot leave this room");
+        }
+
+        chatRoomService.leaveRoom(userId, roomId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{roomId}/members/me")
+    public ResponseEntity<ChatRoomResponse> updateMyMembership(
+            @PathVariable UUID roomId,
+            @RequestBody Map<String, Object> payload) {
+
+        return ResponseEntity.ok(
+                chatRoomService.updateMyMembership(roomId, getCurrentUserId(), payload)
+        );
+    }
+
+    @PutMapping("/{roomId}")
+    public ResponseEntity<ChatRoomResponse> updateRoom(
+            @PathVariable UUID roomId,
+            @Valid @RequestBody UpdateRoomRequest request) {
+
+        ChatRoomResponse updated = chatRoomService.updateRoom(getCurrentUserId(), roomId, request);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{roomId}")
+    public ResponseEntity<Void> deleteRoom(@PathVariable UUID roomId) {
+        chatRoomService.deactivateRoom(getCurrentUserId(), roomId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

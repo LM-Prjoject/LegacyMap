@@ -2,6 +2,9 @@ package com.legacymap.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -39,13 +42,13 @@ public class ChatMessage {
     @Column(name = "file_url")
     private String fileUrl;
 
-    @Column(name = "file_name", length = 255)
+    @Column(name = "file_name", columnDefinition = "text")
     private String fileName;
 
     @Column(name = "file_size")
     private Long fileSize;
 
-    @Column(name = "file_type", length = 50)
+    @Column(name = "file_type", columnDefinition = "text")
     private String fileType;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -60,6 +63,14 @@ public class ChatMessage {
 
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by")
+    private User deletedBy;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", columnDefinition = "jsonb")
+    private JsonNode metadata;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

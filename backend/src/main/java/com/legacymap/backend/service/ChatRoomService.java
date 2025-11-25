@@ -1,32 +1,21 @@
 package com.legacymap.backend.service;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.UUID;
+import java.time.OffsetDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.legacymap.backend.dto.request.UpdateRoomRequest;
+import com.legacymap.backend.dto.response.ChatMessageResponse;
+import com.legacymap.backend.entity.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.legacymap.backend.dto.request.BranchRoomCreateRequest;
 import com.legacymap.backend.dto.request.ChatRoomCreateRequest;
 import com.legacymap.backend.dto.request.DirectRoomCreateRequest;
-import com.legacymap.backend.dto.request.JoinRoomRequest;
 import com.legacymap.backend.dto.response.ChatRoomMemberResponse;
 import com.legacymap.backend.dto.response.ChatRoomResponse;
-import com.legacymap.backend.entity.ChatRoom;
-import com.legacymap.backend.entity.ChatRoomBranch;
-import com.legacymap.backend.entity.ChatRoomBranchId;
-import com.legacymap.backend.entity.ChatRoomMember;
-import com.legacymap.backend.entity.ChatRoomMemberId;
-import com.legacymap.backend.entity.FamilyTree;
-import com.legacymap.backend.entity.Person;
-import com.legacymap.backend.entity.Relationship;
-import com.legacymap.backend.entity.User;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.ChatRoomBranchRepository;
@@ -52,6 +41,7 @@ public class ChatRoomService {
     private final PersonRepository personRepository;
     private final PersonUserLinkRepository personUserLinkRepository;
     private final RelationshipRepository relationshipRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public ChatRoomResponse createRoom(UUID creatorId, ChatRoomCreateRequest request) {
@@ -102,39 +92,38 @@ public class ChatRoomService {
 
     @Transactional
     public ChatRoomResponse createBranchRoom(UUID creatorId, BranchRoomCreateRequest request) {
-        // 1. Validate creator and request
+        // Validate creator and request
         User creator = getUserOrThrow(creatorId);
         Person branchPerson = personRepository.findById(request.getBranchPersonId())
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
 
         FamilyTree familyTree = branchPerson.getFamilyTree();
-
-        // 2. Check if user has access to the family tree
-        // SỬA: Thay thế method không tồn tại bằng logic kiểm tra trực tiếp
-        if (!canUserAccessTree(familyTree.getId(), creatorId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        
+        // Check if user has access to the family tree
+        if (!familyTreeRepository.existsByIdAndUserHasAccess(familyTree.getId(), creatorId)) {
+            throw new AppException(ErrorCode.ACCESS_DENIED);
         }
-
-        // 3. Check if branch room already exists
+        
+        // Check if branch room already exists
         chatRoomBranchRepository.findByBranchPersonId(branchPerson.getId())
                 .ifPresent(room -> {
                     // SỬA: Thay constant không tồn tại
                     throw new AppException(ErrorCode.RELATIONSHIP_ALREADY_EXISTS, "Branch room already exists");
                 });
-
-        // 4. Fetch all relationships and person_user_links for the tree
+        
+        // Fetch all relationships and person_user_links for the tree
         List<Relationship> allRelationships = relationshipRepository.findAllByFamilyTree_Id(familyTree.getId());
-
-        // 5. Build graph in memory
+        
+        // Build graph in memory
         GraphData graphData = buildGraph(allRelationships);
-
-        // 6. Traverse using BFS to find all descendants
+        
+        // Traverse using BFS to find all descendants
         Set<UUID> descendantPersonIds = findDescendantsWithGraph(branchPerson.getId(), graphData);
-
-        // 7. Map person IDs to user IDs (only verified links)
+        
+        // Map person IDs to user IDs (only verified links)
         Set<UUID> userIds = personUserLinkRepository.findUserIdsByPersonIds(descendantPersonIds);
-
-        // 8. Create the chat room
+        
+        // Create the chat room
         ChatRoom room = ChatRoom.builder()
                 .name(request.getName() != null ? request.getName() : "Nhánh " + branchPerson.getFullName())
                 .description(request.getDescription())
@@ -144,8 +133,8 @@ public class ChatRoomService {
                 .build();
 
         ChatRoom savedRoom = chatRoomRepository.save(room);
-
-        // 9. Add branch person to chat_room_branches
+        
+        // Add branch person to chat_room_branches
         ChatRoomBranch branch = ChatRoomBranch.builder()
                 .id(new ChatRoomBranchId(savedRoom.getId(), branchPerson.getId()))
                 .room(savedRoom)
@@ -153,11 +142,11 @@ public class ChatRoomService {
                 .createdBy(creator)
                 .build();
         chatRoomBranchRepository.save(branch);
-
-        // 10. Add all users to the room
+        
+        // Add all users to the room
         addMembersToRoom(savedRoom, userIds, creatorId);
-
-        // 11. Add creator as admin if not already a member
+        
+        // Add creator as admin if not already a member
         if (!userIds.contains(creatorId)) {
             addMember(savedRoom, creator, null, ChatRoomMember.ChatMemberRole.admin);
         }
@@ -169,14 +158,11 @@ public class ChatRoomService {
      * Kiểm tra user có quyền truy cập tree không
      */
     private boolean canUserAccessTree(UUID treeId, UUID userId) {
-        // Kiểm tra user có phải là owner không
         Optional<FamilyTree> tree = familyTreeRepository.findById(treeId);
         if (tree.isPresent() && tree.get().getCreatedBy().getId().equals(userId)) {
             return true;
         }
 
-        // TODO: Thêm logic kiểm tra TreeAccess nếu cần
-        // Hiện tại tạm thời return true để không block
         return true;
     }
 
@@ -282,7 +268,7 @@ public class ChatRoomService {
                 .roomType(ChatRoom.ChatRoomType.private_chat)
                 .name(roomName)
                 .createdBy(creator)
-                .description("Phòng chat riêng tư 1-1")
+                .description("1-1 private chat room")
                 .build();
 
         ChatRoom savedRoom = chatRoomRepository.save(room);
@@ -292,20 +278,174 @@ public class ChatRoomService {
         return toResponse(savedRoom);
     }
 
+    private void broadcastSystemMessage(UUID roomId, String messageText) {
+        ChatMessageResponse systemMessage = ChatMessageResponse.builder()
+                .id(UUID.randomUUID())
+                .roomId(roomId)
+                .senderId(null)
+                .senderName("System")
+                .messageText(messageText)
+                .messageType(ChatMessage.ChatMessageType.system)
+                .fileUrl(null)
+                .fileName(null)
+                .fileSize(null)
+                .fileType(null)
+                .replyToId(null)
+                .edited(false)
+                .deleted(false)
+                .createdAt(OffsetDateTime.now())
+                .updatedAt(OffsetDateTime.now())
+                .recipients(null)
+                .build();
+
+        messagingTemplate.convertAndSend("/topic/chat/" + roomId, systemMessage);
+    }
+
     @Transactional
-    public ChatRoomResponse joinRoom(UUID userId, UUID roomId, JoinRoomRequest request) {
-        ChatRoom room = getRoomOrThrow(roomId);
-        if (!Boolean.TRUE.equals(room.getActive())) {
-            throw new AppException(ErrorCode.BAD_REQUEST);
-        }
-        if (chatRoomMemberRepository.existsByRoom_IdAndUser_Id(roomId, userId)) {
-            return toResponse(room);
+    public void leaveRoom(UUID userId, UUID roomId) {
+        ChatRoomMember member = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
+
+        ChatRoom room = member.getRoom();
+
+        if (room.getCreatedBy().getId().equals(userId)) {
+            long adminCount = chatRoomMemberRepository.findByRoom_Id(roomId).stream()
+                    .filter(m -> "admin".equals(m.getRole()))
+                    .count();
+            if (adminCount <= 1) {
+                throw new AppException(ErrorCode.BAD_REQUEST, "Creator cannot leave room without another admin");
+            }
         }
 
-        User user = getUserOrThrow(userId);
-        Person person = request.getPersonId() != null ? getPersonOrThrow(request.getPersonId()) : null;
-        addMember(room, user, person, Optional.ofNullable(request.getRole()).orElse(ChatRoomMember.ChatMemberRole.member));
-        return toResponse(room);
+        chatRoomMemberRepository.delete(member);
+
+        String leaveMessage = member.getUser().getUsername() + " đã rời khời phòng";
+        broadcastSystemMessage(roomId, leaveMessage);
+    }
+
+    @Transactional
+    public ChatRoomResponse updateRoom(UUID userId, UUID roomId, UpdateRoomRequest request) {
+        ChatRoom room = chatRoomRepository.findActiveById(roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "The room does not exist or has been deleted"));
+
+        if (room.getRoomType() == ChatRoom.ChatRoomType.family ||
+                room.getRoomType() == ChatRoom.ChatRoomType.private_chat) {
+            if (request.getName() != null && !request.getName().trim().equals(room.getName())) {
+                throw new AppException(ErrorCode.ACCESS_DENIED, "You are not allowed to rename this room");
+            }
+        }
+
+        if (room.getRoomType() == ChatRoom.ChatRoomType.branch) {
+            boolean isAdmin = chatRoomMemberRepository.isAdmin(roomId, userId);
+            ChatRoomMember member = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, userId).orElse(null);
+            boolean isModerator = member != null && member.getRole() == ChatRoomMember.ChatMemberRole.moderator;
+
+            if (!isAdmin && !isModerator) {
+                throw new AppException(ErrorCode.ACCESS_DENIED, "Only admins or moderators are allowed to rename the room");
+            }
+        }
+
+        String oldName = room.getName();
+        String newName = request.getName() != null ? request.getName().trim() : room.getName();
+
+        if (request.getName() != null) {
+            room.setName(newName);
+        }
+        if (request.getDescription() != null) {
+            room.setDescription(request.getDescription());
+        }
+
+        ChatRoom savedRoom = chatRoomRepository.saveAndFlush(room);
+
+        if (request.getName() != null && !newName.equals(oldName)) {
+            String actorName = userRepository.findById(userId)
+                    .map(User::getUsername)
+                    .orElse("Someone");
+
+            broadcastSystemMessage(roomId, actorName + " đã đổi tên phòng thành \"" + savedRoom.getName() + "\"");
+        }
+
+        return toResponse(savedRoom);
+    }
+
+    @Transactional
+    public void deactivateRoom(UUID userId, UUID roomId) {
+        ChatRoom room = chatRoomRepository.findActiveById(roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
+
+        if (room.getRoomType() != ChatRoom.ChatRoomType.branch &&
+                room.getRoomType() != ChatRoom.ChatRoomType.group) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Only branch or group rooms can be deleted");
+        }
+
+        boolean isCreator = room.getCreatedBy().getId().equals(userId);
+        boolean isAdmin = chatRoomMemberRepository.isAdmin(roomId, userId);
+
+        if (!isCreator && !isAdmin) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Only the creator or an admin is allowed to delete a branch room");
+        }
+
+        chatRoomRepository.delete(room);
+
+        broadcastSystemMessage(roomId, "Phòng chat đã bị xóa bởi quản trị viên");
+    }
+
+    @Transactional
+    public ChatRoomResponse updateMyMembership(UUID roomId, UUID userId, Map<String, Object> payload) {
+        ChatRoomMember myMember = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
+
+        boolean changed = false;
+
+        if (payload.containsKey("nickname")) {
+            if (myMember.getRoom().getRoomType() != ChatRoom.ChatRoomType.private_chat) {
+                throw new AppException(ErrorCode.BAD_REQUEST, "Nicknames can only be set in private chats");
+            }
+
+            String nick = payload.get("nickname") instanceof String s ? s.trim() : null;
+            if (nick != null && nick.isEmpty()) nick = null;
+
+            ChatRoomMember otherMember = chatRoomMemberRepository.findByRoom_IdAndUser_IdNot(roomId, userId)
+                    .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "Other member not found"));
+
+            if (!Objects.equals(otherMember.getNickname(), nick)) {
+                otherMember.setNickname(nick);
+                changed = true;
+
+                String actorName = userRepository.findById(userId)
+                        .map(User::getUsername)
+                        .orElse("Someone");
+
+                messagingTemplate.convertAndSend("/topic/chat/" + roomId,
+                        ChatMessageResponse.builder()
+                                .messageType(ChatMessage.ChatMessageType.system)
+                                .messageText(actorName + " đã đổi biệt danh")
+                                .createdAt(OffsetDateTime.now())
+                                .build());
+            }
+        }
+
+        if (payload.containsKey("muted")) {
+            boolean muted = Boolean.TRUE.equals(payload.get("muted"));
+            boolean currentMuted = myMember.getMuted() != null && myMember.getMuted();
+
+            if (currentMuted != muted) {
+                myMember.setMuted(muted);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            chatRoomMemberRepository.save(myMember);
+            if (payload.containsKey("nickname")) {
+                chatRoomMemberRepository.save(
+                        chatRoomMemberRepository.findByRoom_IdAndUser_IdNot(roomId, userId)
+                                .orElse(myMember)
+                );
+            }
+        }
+
+        return toResponse(myMember.getRoom());
     }
 
     @Transactional(readOnly = true)
@@ -313,6 +453,7 @@ public class ChatRoomService {
         List<ChatRoomMember> memberships = chatRoomMemberRepository.findByUser_Id(userId);
         return memberships.stream()
                 .map(ChatRoomMember::getRoom)
+                .filter(room -> room.getActive())
                 .distinct()
                 .map(this::toResponse)
                 .toList();
@@ -370,7 +511,7 @@ public class ChatRoomService {
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
     }
 
-    private ChatRoomResponse toResponse(ChatRoom room) {
+    public ChatRoomResponse toResponse(ChatRoom room) {
         List<ChatRoomMemberResponse> members = chatRoomMemberRepository.findByRoom_Id(room.getId())
                 .stream()
                 .map(member -> ChatRoomMemberResponse.builder()
@@ -380,6 +521,8 @@ public class ChatRoomService {
                         .role(member.getRole())
                         .joinedAt(member.getJoinedAt())
                         .lastReadAt(member.getLastReadAt())
+                        .isMuted(member.getMuted())
+                        .nickname(member.getNickname())
                         .build())
                 .collect(Collectors.toList());
 
@@ -399,7 +542,7 @@ public class ChatRoomService {
     private void addMembersToRoom(ChatRoom room, Set<UUID> userIds, UUID creatorId) {
         for (UUID userId : userIds) {
             if (userId.equals(creatorId)) {
-                continue; // Creator will be added separately if needed
+                continue;
             }
             User user = getUserOrThrow(userId);
             addMember(room, user, null, ChatRoomMember.ChatMemberRole.member);

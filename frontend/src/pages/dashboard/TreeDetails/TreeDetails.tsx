@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TreeGraph from "@/components/familyTree/TreeGraph";
 import RelationshipModal, { type RelationUpper } from "@/components/familyTree/relaModal/RelationshipModal";
@@ -6,12 +6,13 @@ import MemberModal, { type MemberFormValues } from "@/components/familyTree/memb
 import PersonDetailsModal from "@/components/familyTree/PersonDetailsModal";
 import ShareTreeModal from "@/components/familyTree/ShareTreeModal";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
-import api, { type Person, type Relationship } from "@/api/trees";
+import api, { type Person, type Relationship, exportTreePdfWithImage } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
-import { ArrowLeft, LucideUserPlus, Share2 } from "lucide-react";
+import { ArrowLeft, LucideUserPlus, Share2, Download} from "lucide-react";
+import * as htmlToImage from "html-to-image";
 
 type TreeView = {
     coverImageUrl?: string | null;
@@ -62,33 +63,122 @@ export default function TreeDetails() {
     const [graphVersion, setGraphVersion] = useState(0);
     const [readOnly, setReadOnly] = useState(false);
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
-
+    const [isInAddFlow, setIsInAddFlow] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
+    const treeWrapperRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        // ✅ CHECK: Nếu có fromShare parameter
+
         const urlParams = new URLSearchParams(window.location.search);
         const fromShare = urlParams.get('fromShare') === 'true';
 
         if (fromShare && treeId && userId) {
-            console.log('💾 Saving shared tree to dashboard:', { treeId, userId });
 
-            // Lưu tree vào dashboard
             api.saveSharedTreeToDashboard(userId, treeId)
                 .then(() => {
                     showToast.success("Đã lưu cây vào dashboard của bạn");
-                    // Remove parameter khỏi URL để tránh lặp lại
                     const newUrl = window.location.pathname;
                     window.history.replaceState({}, '', newUrl);
                 })
                 .catch(e => {
-                    console.error('❌ Failed to save shared tree:', e);
                     showToast.error(e?.message || "Không thể lưu cây");
                 });
         }
 
-        // Tiếp tục load tree như bình thường...
         localStorage.removeItem('pendingTreeId');
+        if (!treeId) {
+            setLoading(false);
+            return;
+        }
+        if (!userId) {
+            setLoading(false);
+            showToast.error("Bạn cần đăng nhập để xem chi tiết cây");
+            return;
+        }
+
+        (async () => {
+            setLoading(true);
+            try {
+                const [owned, viewable] = await Promise.all([
+                    api.listTrees(userId).catch(() => []),
+                    api.listViewableTrees(userId).catch(() => [] as any[]),
+                ]);
+                const allTrees: any[] = [...owned, ...viewable];
+                const found: any = allTrees.find((t) => t.id === treeId) || null;
+
+                let createdById: string | null = null;
+                try {
+                    createdById = await api.getTreeOwner(treeId);
+                } catch {
+                    createdById = null;
+                }
+
+                setTree(
+                    found
+                        ? {
+                            coverImageUrl: found.coverImageUrl ?? null,
+                            name: found.name ?? null,
+                            description: found.description ?? null,
+                            createdAt: found.createdAt ?? null,
+                            createdById,
+                        }
+                        : null
+                );
+
+                if (createdById) {
+                    try {
+                        const basic = await api.getPublicUserBasic(createdById);
+                        if (basic && (basic.fullName || basic.username)) {
+                            setOwnerProfile({
+                                ...(ownerProfile as any),
+                                fullName: basic.fullName || basic.username || "",
+                            } as any);
+                        } else {
+                            const owner = await authApi.getUser(createdById);
+                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
+                        }
+                    } catch {
+                        try {
+                            const owner = await authApi.getUser(createdById);
+                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
+                        } catch {
+                            setOwnerProfile(null);
+                        }
+                    }
+                } else {
+                    setOwnerProfile(null);
+                }
+
+                try {
+                    const [ps, rs] = await Promise.all([
+                        api.listMembers(userId, treeId),
+                        api.listRelationships(userId, treeId),
+                    ]);
+                    setPersons(ps);
+                    setRels(rs);
+                    setReadOnly(false);
+                } catch (err: any) {
+                    const msg = String(err?.message || "").toLowerCase();
+                    if (msg.includes("unauthorized") || msg.includes("không") || msg.includes("forbidden")) {
+                        const [psV, rsV] = await Promise.all([
+                            api.listMembersForViewer(userId, treeId),
+                            api.listRelationshipsForViewer(userId, treeId),
+                        ]);
+                        setPersons(psV);
+                        setRels(rsV);
+                        setReadOnly(true);
+                    } else {
+                        throw err;
+                    }
+                }
+            } catch (e: any) {
+                showToast.error(e?.message || "Không tải được dữ liệu");
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [treeId, userId]);
+    useEffect(() => {
         if (!treeId) {
             setLoading(false);
             return;
@@ -182,6 +272,7 @@ export default function TreeDetails() {
             }
         })();
     }, [treeId, userId]);
+
 
     const handleAddClick = () => {
         if (readOnly) return;
@@ -561,9 +652,6 @@ export default function TreeDetails() {
         setGraphVersion((v) => v + 1);
         showToast.success("Đã cập nhật mối quan hệ");
         setModalOpen(false);
-        setSource(null);
-        setPendingNew(null);
-        setIsInAddFlow(false);
     };
 
     const fetchSuggestions = useMemo(() => {
@@ -572,19 +660,13 @@ export default function TreeDetails() {
             const t = new Date(d);
             return isNaN(t.getTime()) ? null : t.getUTCFullYear();
         };
-        const MIN_PARENT_GAP = 18;
 
-        const existingKeys = buildExistingRelationshipKeys(rels);
+        const MIN_PARENT_GAP = 18;
 
         return async (
             personId: string
         ): Promise<
-            Array<{
-                candidateId: string;
-                relation: "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
-                confidence: number;
-                reasons?: string[];
-            }>
+            Array<{ candidateId: string; relation: "PARENT" | "CHILD" | "SPOUSE" | "SIBLING"; confidence: number; reasons?: string[] }>
         > => {
             if (!treeId || !persons.length) return [];
 
@@ -594,76 +676,76 @@ export default function TreeDetails() {
             const others = persons.filter((p) => p.id !== personId);
             if (!others.length) return [];
 
-            const out: Array<{
-                candidateId: string;
-                relation: any;
-                confidence: number;
-                reasons?: string[];
-            }> = [];
+            // Build existingKeys each call to reflect latest rels
+            const existingKeys = new Set(
+                rels.map((r) => {
+                    const t = String(r.type).toUpperCase();
+                    if (t === "SPOUSE" || t === "SIBLING") {
+                        const [a, b] = [r.fromPersonId, r.toPersonId].sort();
+                        return `PAIR:${a}-${b}:${t}`;
+                    }
+                    const parent = t === "PARENT" ? r.fromPersonId : r.toPersonId;
+                    const child = t === "PARENT" ? r.toPersonId : r.fromPersonId;
+                    return `PARENT:${parent}->${child}`;
+                })
+            );
 
-            const BATCH = 5;
-            for (let i = 0; i < others.length; i += BATCH) {
-                const chunk = others.slice(i, i + BATCH);
-                const res = await Promise.all(
-                    chunk.map(async (cand) => {
-                        try {
-                            const raw = (await api.suggestRelationship(userId, treeId, personId, cand.id)) as Array<{
-                                type: string;
-                                confidence?: number;
-                                reasons?: string[];
-                            }>;
-                            if (!raw?.length) return null;
+            const out: Array<{ candidateId: string; relation: any; confidence: number; reasons?: string[] }> = [];
 
-                            const best = raw.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
-                            let rel = (best.type || "").toUpperCase() as "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
-                            let conf = best.confidence ?? 0;
-                            const reasons = best.reasons ?? [];
+            try {
+                const batch = await api.suggestForSource(userId, treeId, personId, others);
+                for (const item of batch) {
+                    const cand = others.find(p => p.id === item.candidateId);
+                    if (!cand) continue;
+                    let rel = (item.relation || "").toUpperCase() as "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
+                    let conf = item.confidence ?? 0;
 
-                            const yCand = year(cand.birthDate);
-                            if (ySrc != null && yCand != null) {
-                                const diff = yCand - ySrc;
-
-                                if (rel === "PARENT" || rel === "CHILD") {
-                                    if (Math.abs(diff) < MIN_PARENT_GAP) return null;
-                                    if (diff > 0 && rel !== "PARENT") {
-                                        rel = "PARENT";
-                                        conf *= 0.95;
-                                    }
-                                    if (diff < 0 && rel !== "CHILD") {
-                                        rel = "CHILD";
-                                        conf *= 0.95;
-                                    }
-                                }
+                    const yCand = year(cand.birthDate);
+                    if (ySrc != null && yCand != null) {
+                        const diff = yCand - ySrc;
+                        if (rel === "PARENT" || rel === "CHILD") {
+                            if (Math.abs(diff) < MIN_PARENT_GAP) {
+                                try { console.log("[fetchSuggestions] reject age-gap-too-small", { sourceId: personId, candId: cand.id, diff, MIN_PARENT_GAP, rel }); } catch {}
+                                continue;
                             }
-
-                            let key: string;
-                            if (rel === "SPOUSE" || rel === "SIBLING") {
-                                const [a, b] = [personId, cand.id].sort();
-                                key = `PAIR:${a}-${b}:${rel}`;
-                            } else {
-                                key =
-                                    rel === "PARENT"
-                                        ? `PARENT:${personId}->${cand.id}`
-                                        : `PARENT:${cand.id}->${personId}`;
+                            if (diff > 0 && rel !== "PARENT") {
+                                rel = "PARENT";
+                                conf *= 0.95;
+                                try { console.log("[fetchSuggestions] orient->PARENT", { sourceId: personId, candId: cand.id, diff, conf }); } catch {}
                             }
-                            if (existingKeys.has(key)) return null;
-
-                            if (conf <= 0.3) return null;
-                            return {
-                                candidateId: cand.id,
-                                relation: rel,
-                                confidence: conf,
-                                reasons,
-                            };
-                        } catch {
-                            return null;
+                            if (diff < 0 && rel !== "CHILD") {
+                                rel = "CHILD";
+                                conf *= 0.95;
+                                try { console.log("[fetchSuggestions] orient->CHILD", { sourceId: personId, candId: cand.id, diff, conf }); } catch {}
+                            }
                         }
-                    })
-                );
-                out.push(...(res.filter(Boolean) as any[]));
+                    }
+
+                    let key: string;
+                    if (rel === "SPOUSE" || rel === "SIBLING") {
+                        const [a, b] = [personId, cand.id].sort();
+                        key = `PAIR:${a}-${b}:${rel}`;
+                    } else {
+                        key = rel === "PARENT" ? `PARENT:${personId}->${cand.id}` : `PARENT:${cand.id}->${personId}`;
+                    }
+                    if (existingKeys.has(key)) {
+                        try { console.log("[fetchSuggestions] reject duplicate", { key }); } catch {}
+                        continue;
+                    }
+
+                    if (conf <= 0.3) {
+                        try { console.log("[fetchSuggestions] reject low-confidence", { conf }); } catch {}
+                        continue;
+                    }
+                    out.push({ candidateId: cand.id, relation: rel, confidence: conf });
+                }
+            } catch (e) {
+                try { console.log("[fetchSuggestions] batch-error", e); } catch {}
             }
 
-            return out.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+            const sorted = out.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+            try { console.log("[fetchSuggestions] final", { sourceId: personId, size: sorted.length, top: sorted[0] }); } catch {}
+            return sorted;
         };
     }, [treeId, userId, persons, rels]);
 
@@ -819,6 +901,39 @@ export default function TreeDetails() {
         }
     };
 
+    const handleExport = async () => {
+        if (!treeId) {
+            showToast.error("Thiếu ID cây gia phả.");
+            return;
+        }
+        if (!treeWrapperRef.current) {
+            showToast.error("Không tìm thấy khu vực cây để chụp.");
+            return;
+        }
+
+        try {
+            const dataUrl = await htmlToImage.toPng(treeWrapperRef.current, {
+                quality: 1,
+                pixelRatio: 2,
+            });
+
+            const res = await fetch(dataUrl);
+            const imgBlob = await res.blob();
+
+            const pdfBlob = await exportTreePdfWithImage(treeId, imgBlob);
+
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `cay-gia-pha-${treeId}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e: any) {
+            console.error(e);
+            showToast.error(e?.message || "Xuất PDF thất bại, vui lòng thử lại.");
+        }
+    };
+
     return (
         <div className="relative min-h-screen">
             <div className="absolute inset-0 bg-slate-900/40 -z-10" />
@@ -841,11 +956,19 @@ export default function TreeDetails() {
 
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setShareModalOpen(true)}
+                                onClick={handleExport}
                                 className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                title="Tải xuống"
+                                disabled={loading}
+                            >
+                                <Download size={20} />
+                            </button>
+                            <button
+                                onClick={() => setShareModalOpen(true)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-1.5 shadow-sm hover:shadow transition-all"
                                 title="Chia sẻ cây gia phả"
                             >
-                                <Share2 className="w-5 h-5" />
+                                <Share2 size={20} />
                                 <span className="hidden sm:inline">Chia sẻ</span>
                             </button>
 
@@ -872,7 +995,8 @@ export default function TreeDetails() {
                     generationCount={loading ? 0 : generationCount}
                 />
 
-                <main className="col-span-12 md:col-span-9 bg-white rounded-xl shadow p-3">
+                <main ref={treeWrapperRef}
+                      className="col-span-12 md:col-span-9 bg-white rounded-xl shadow p-3">
                     {!treeId ? (
                         <div className="text-sm text-slate-500">Không tìm thấy treeId trong URL.</div>
                     ) : loading ? (

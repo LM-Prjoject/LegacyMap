@@ -38,7 +38,3 @@ supabase/.temp/
 .env
 .env.local
 
-# ==========================
-# Uploads / User-generated content
-# ==========================
-uploads/chat/

@@ -471,37 +471,44 @@ export async function suggestForSource(
     persons: Person[]
 ) {
   const others = persons.filter((p) => p.id !== sourceId);
-  const results: { candidateId: string; relation: RelTypeUpper; confidence: number }[] =
-      [];
+  if (!others.length) return [] as { candidateId: string; relation: RelTypeUpper; confidence: number }[];
 
-  let anyFailed = false;
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/relationships/suggest/source?userId=${encodeURIComponent(userId)}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        sourceId,
+        candidateIds: others.map((p) => p.id),
+      }),
+    });
+    const text = await res.text();
+    let json: any = undefined;
+    try {
+      json = text ? JSON.parse(text) : undefined;
+    } catch (parseErr: any) {
+      console.error("[suggestForSource] parse error", parseErr?.message || parseErr, "body:", (text || "").slice(0, 400));
+      throw new Error("Suggest (batch) parse failed");
+    }
+    if (!res.ok) throw new Error((json as any)?.message || "Suggest (batch) failed");
 
-  await Promise.all(
-      others.map(async (cand) => {
-        try {
-          const list = await suggestRelationship(userId, treeId, sourceId, cand.id);
-          if (!list?.length) return;
-          const best = [...list].sort(
-              (a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)
-          )[0];
-          const upper = best.type.toUpperCase() as RelTypeUpper;
-          results.push({
-            candidateId: cand.id,
-            relation: upper,
-            confidence: best.confidence ?? 0,
-          });
-        } catch (err: any) {
-          console.error("Suggest failed for", cand.id, err?.message || err);
-          anyFailed = true;
-        }
-      })
-  );
+    const arr = pickData<Array<{ candidateId: string; type: string; confidence?: number; reasons?: string[] }>>(json) || [];
 
-  if (anyFailed) {
-    showToast.error("Không gợi ý được quan hệ cho một số người");
+    const results = arr
+        .map((item) => ({
+          candidateId: String(item.candidateId),
+          relation: String(item.type || "").toUpperCase() as RelTypeUpper,
+          confidence: item.confidence ?? 0,
+        }))
+        .filter((x) => !!x.candidateId && !!x.relation);
+    try { console.log("[suggestForSource:batch] size", results.length, "top", results[0]); } catch {}
+    return results.sort((a, b) => b.confidence - a.confidence);
+  } catch (e: any) {
+    console.error("Suggest batch failed", e?.message || e);
+    showToast.error(e?.message || "Không gợi ý được quan hệ");
+    return [];
   }
-
-  return results.sort((a, b) => b.confidence - a.confidence);
 }
 
 async function listPersonRelationships(
@@ -522,6 +529,30 @@ async function listPersonRelationships(
   const picked = pickData<any[] | { items: any[] }>(json);
   const raw = Array.isArray(picked) ? picked : (picked as any)?.items ?? [];
   return raw.map(mapRelationship);
+}
+
+export async function exportTreePdfWithImage(
+    treeId: string,
+    imageBlob: Blob
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append("treeImage", imageBlob, "tree.png");
+
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/export/pdf`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+        body: formData,
+      }
+  );
+
+  if (!res.ok) {
+    const json = await safeJson<ApiResponse<any>>(res);
+    throw new Error(json?.message || "Xuất PDF thất bại");
+  }
+
+  return res.blob();
 }
 
 // ==================== SHARING API ====================
@@ -751,9 +782,6 @@ async function addSharedTreeMember(
   return pickData<Person>(json);
 }
 
-/**
- * AUTHENTICATED: Cập nhật member qua share link (cần quyền EDIT)
- */
 async function updateSharedTreeMember(
     shareToken: string,
     userId: string,
@@ -773,9 +801,6 @@ async function updateSharedTreeMember(
   return pickData<Person>(json);
 }
 
-/**
- * PUBLIC: Lấy relationships của shared tree
- */
 async function getSharedTreeRelationships(
     shareToken: string,
     userId?: string | null
@@ -796,9 +821,6 @@ async function getSharedTreeRelationships(
   return raw.map(mapRelationship);
 }
 
-/**
- * Check user's access level to a tree
- */
 async function checkTreeAccess(
     treeId: string,
     userId: string
@@ -818,9 +840,6 @@ async function checkTreeAccess(
   return pickData(json);
 }
 
-/**
- * Lưu shared tree vào dashboard của user
- */
 async function saveSharedTreeToDashboard(
     userId: string,
     treeId: string
@@ -839,7 +858,6 @@ async function saveSharedTreeToDashboard(
   }
 }
 
-// ✅ THÊM: API để lưu shared tree vào dashboard (phiên bản dùng shareToken)
 export const saveSharedTreeByToken = async (
     userId: string,
     shareToken: string
@@ -860,7 +878,6 @@ export const saveSharedTreeByToken = async (
   return pickData<string>(json);
 };
 
-// ✅ THÊM: API để lấy relationships của shared tree (phiên bản export riêng)
 export const getSharedTreeRelationshipsExport = async (
     shareToken: string,
     userId?: string
@@ -881,9 +898,6 @@ export const getSharedTreeRelationshipsExport = async (
   return pickData<Relationship[]>(json);
 };
 
-/**
- * ✅ MỚI: Lấy thông tin access từ shareToken
- */
 async function getSharedTreeAccessInfo(
     shareToken: string,
     userId?: string | null
@@ -928,8 +942,8 @@ const api = {
   getPublicUserBasic,
   createRelationship,
   suggestRelationship,
-  // ✅ Thêm các API mới
-  generatePublicShareLink, // ✅ Đã có signature mới
+  suggestForSource,
+  generatePublicShareLink,
   disablePublicSharing,
   shareWithUser,
   getSharedUsers,
@@ -941,11 +955,10 @@ const api = {
   getSharedTreeRelationships,
   checkTreeAccess,
   saveSharedTreeToDashboard,
-  // ✅ Thêm các API export mới
   saveSharedTreeByToken,
   getSharedTreeRelationshipsExport,
-  // ✅ THÊM API mới
   getSharedTreeAccessInfo,
+  exportTreePdfWithImage,
 };
 
 export default api;
