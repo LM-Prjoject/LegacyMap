@@ -3,7 +3,6 @@ import {
     User,
     getUserInitials,
     getUserDisplayName,
-    isUserOnline,
     formatUserDate,
     getLastLoginText
 } from '../../types/ts_user';
@@ -14,9 +13,10 @@ interface UserCardProps {
     onBan: (userId: string) => Promise<void>;
     onUnban: (userId: string) => Promise<void>;
     onViewDetail?: (userId: string) => void;
+    isOnline?: boolean; // ✅ THÊM
 }
 
-const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail }) => {
+const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail, isOnline: isOnlineProp }) => {
 
     const getRoleBadgeColor = (role: string | undefined) => {
         const roleValue = role || 'USER';
@@ -30,7 +30,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail 
         }
     };
 
-    const isOnline = isUserOnline(user);
+    const isOnline = isOnlineProp ?? false;
 
     return (
         <div className="bg-gradient-to-br from-[#1b2233] to-[#2e3a57] p-6 rounded-2xl border border-[#2e3a57] hover:border-[#d1b98a]/60 hover:shadow-lg hover:shadow-[#d1b98a]/20 transition-all duration-300">

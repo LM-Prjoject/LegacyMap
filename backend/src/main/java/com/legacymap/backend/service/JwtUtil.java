@@ -76,7 +76,7 @@ public class JwtUtil {
     /**
      * Generate JWT token for user
      */
-    public String generateToken(UUID userId, String email, String role) {
+    public String generateToken(UUID userId, String email, String role, Integer passwordVersion) { // ✅ Thêm param
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
@@ -86,6 +86,7 @@ public class JwtUtil {
                 .claim("role", role)
                 .claim("role_name", role)
                 .claim("purpose", "ACCESS")
+                .claim("pwdv", passwordVersion != null ? passwordVersion : 0) // ✅ THÊM dòng này
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

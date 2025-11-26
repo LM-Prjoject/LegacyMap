@@ -24,7 +24,7 @@ public class UserSession {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "session_token", nullable = false, unique = true)
+    @Column(name = "session_token", nullable = false, unique = true, length = 1000)
     private String sessionToken;
 
     @Column(name = "last_activity", nullable = false)
@@ -55,8 +55,9 @@ public class UserSession {
         }
     }
 
-    @PreUpdate
-    void preUpdate() {
-        lastActivity = OffsetDateTime.now();
-    }
+    // ❌ XÓA HOẶC COMMENT dòng này
+    // @PreUpdate
+    // void preUpdate() {
+    //     lastActivity = OffsetDateTime.now();
+    // }
 }

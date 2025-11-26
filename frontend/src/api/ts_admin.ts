@@ -55,6 +55,11 @@ export interface AdminStats {
     };
 }
 
+export interface OnlineUsersResponse {
+    onlineUserIds: string[];
+    onlineCount: number;
+}
+
 export interface ApiResponse<T> {
     success: boolean;
     code?: number;
@@ -176,6 +181,18 @@ export const adminApi = {
             return stats;
         } catch (error: any) {
             console.error('❌ Error fetching admin stats:', error.response?.data || error.message);
+            throw error;
+        }
+    },
+
+    // ✅ ONLINE USERS - Lấy danh sách user đang online
+    async getOnlineUsers(): Promise<OnlineUsersResponse> {
+        try {
+            console.log('👥 Fetching online users...');
+            const response = await http.get<OnlineUsersResponse>('/admin/users/online');
+            return response.data;
+        } catch (error: any) {
+            console.error('❌ Error fetching online users:', error);
             throw error;
         }
     }

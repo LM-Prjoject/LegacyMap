@@ -2,6 +2,7 @@ package com.legacymap.backend.config;
 
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.JwtUtil;
+import com.legacymap.backend.service.UserSessionService;
 import com.legacymap.backend.service.google.CustomOAuth2UserService;
 import com.legacymap.backend.service.google.CustomOidcUserService;
 import com.legacymap.backend.service.google.OAuth2SuccessHandler;
@@ -32,13 +33,15 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final UserSessionService userSessionService;  // ✅ THÊM DÒNG NÀY
 
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
-    public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository) {
+    public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository, UserSessionService userSessionService) {  // ✅ THÊM THAM SỐ
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
+        this.userSessionService = userSessionService;  // ✅ THÊM DÒNG NÀY
     }
 
     @Bean
@@ -71,7 +74,7 @@ public class SecurityConfig {
     SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
         log.info("Configuring API Security Chain");
 
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository);
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository, userSessionService);  // ✅ SỬA DÒNG NÀY
 
         http
                 .securityMatcher("/api/**", "/legacy/api/**")
@@ -108,8 +111,8 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,
-                                "/api/auth/heartbeat",
-                                "/legacy/api/auth/heartbeat"
+                                "/api/user/heartbeat",
+                                "/legacy/api/user/heartbeat"
                         ).authenticated()
 
                         // PUBLIC SHARED TREE ENDPOINTS – PHẢI ĐẶT TRƯỚC CÁC RULE /api/trees/*

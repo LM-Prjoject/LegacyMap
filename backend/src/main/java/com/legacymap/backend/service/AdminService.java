@@ -18,4 +18,5 @@ public interface AdminService {
     // 🔥 SỬA: Trả về DTO thay vì Entity
     List<FamilyTreeResponse> getAllFamilyTrees();
     Map<String, Object> getAdminStats();
+    List<UUID> getOnlineUserIds();
 }
