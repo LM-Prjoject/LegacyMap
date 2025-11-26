@@ -3,6 +3,8 @@ package com.legacymap.backend.service.google;
 import com.legacymap.backend.entity.User;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.AuthenticationService;
+import com.legacymap.backend.service.UserSessionService;
+import com.legacymap.backend.entity.UserSession;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
     private final AuthenticationService authenticationService;
+    private final UserSessionService userSessionService;  // ✅ THÊM DÒNG NÀY
 
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -95,6 +98,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             // 6. Generate JWT token
             String jwt = authenticationService.generateAccessToken(user);
             log.info("Generated JWT token for user: {}", email);
+
+            // 6.5. ✅ Tạo session trong database
+            try {
+                UserSession session = userSessionService.createSession(user.getId(), jwt, request);
+                log.info("✅ Session created for OAuth2 user: {} with ID: {}, last_activity: {}",
+                        email, session.getId(), session.getLastActivity());
+            } catch (Exception e) {
+                log.error("❌ Failed to create session for OAuth2 user {}: {}", email, e.getMessage(), e);
+                // Không throw exception để login vẫn thành công
+            }
 
             // 7. Redirect với token và hỗ trợ returnUrl
             String targetUrl = frontendUrl + "/auth/google-success?token=" + URLEncoder.encode(jwt, StandardCharsets.UTF_8);

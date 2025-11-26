@@ -12,7 +12,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class UserActivityController {
 

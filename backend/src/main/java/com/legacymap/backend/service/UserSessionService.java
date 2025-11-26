@@ -30,17 +30,26 @@ public class UserSessionService {
     public UserSession createSession(UUID userId, String token, HttpServletRequest request) {
         log.info("Creating new session for user: {}", userId);
 
+        // ✅ THÊM: Lấy thời gian hiện tại ĐÚNG timezone
+        OffsetDateTime now = OffsetDateTime.now();
+
         UserSession session = UserSession.builder()
                 .userId(userId)
                 .sessionToken(token)
-                .lastActivity(OffsetDateTime.now())
+                .lastActivity(now)  // ✅ Dùng now thay vì OffsetDateTime.now()
                 .isActive(true)
                 .userAgent(request.getHeader("User-Agent"))
                 .ipAddress(getClientIp(request))
-                .expiresAt(OffsetDateTime.now().plusDays(30)) // Session expires in 30 days
+                .expiresAt(now.plusDays(30))  // ✅ Dùng now
                 .build();
 
-        return sessionRepository.save(session);
+        UserSession saved = sessionRepository.save(session);
+
+        // ✅ THÊM: Log để debug
+        log.info("✅ Session saved with last_activity: {} (now is: {})",
+                saved.getLastActivity(), now);
+
+        return saved;
     }
 
     /**

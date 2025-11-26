@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../../types/ts_user';
 import UserCard from './UserCard';
+import { adminApi } from '../../api/ts_admin'; // Thêm adminApi
 
 interface UserListProps {
     users: User[];
@@ -14,8 +15,25 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
     const [roleFilter, setRoleFilter] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
 
     const usersPerPage = 5;
+
+    useEffect(() => {
+        const fetchOnlineUsers = async () => {
+            try {
+                const { onlineUserIds: ids } = await adminApi.getOnlineUsers();
+                setOnlineUserIds(new Set(ids));
+            } catch (error) {
+                console.error('Error fetching online users:', error);
+            }
+        };
+
+        fetchOnlineUsers();
+        const interval = setInterval(fetchOnlineUsers, 30000); // Cập nhật mỗi 30s
+
+        return () => clearInterval(interval);
+    }, []);
 
     // ✅ Lọc người dùng
     const filteredUsers = users.filter((user) => {
@@ -139,6 +157,7 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                             onBan={onBan}
                             onUnban={onUnban}
                             onViewDetail={onViewDetail}
+                            isOnline={onlineUserIds.has(user.id)} // ✅ THÊM
                         />
                     ))
                 ) : (

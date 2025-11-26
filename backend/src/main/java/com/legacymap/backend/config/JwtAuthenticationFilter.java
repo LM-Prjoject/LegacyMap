@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.JwtUtil;
+import com.legacymap.backend.service.UserSessionService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -29,10 +30,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final UserSessionService userSessionService; // ✅ THÊM dòng này
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository,
+                                   UserSessionService userSessionService) { // ✅ THÊM param
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
+        this.userSessionService = userSessionService; // ✅ THÊM dòng này
     }
 
     @Override
@@ -105,6 +109,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
                 log.debug("Authenticated user: {} with roles: {}", userId, authorities);
+
+                // ✅ THÊM: Update session activity
+                try {
+                    userSessionService.updateActivity(token);
+                } catch (Exception e) {
+                    log.warn("Failed to update session activity: {}", e.getMessage());
+                }
             }
 
         } catch (Exception e) {

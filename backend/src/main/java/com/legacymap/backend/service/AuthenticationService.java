@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.*;
@@ -34,6 +35,8 @@ public class AuthenticationService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserSessionService userSessionService;  // ✅ THÊM DÒNG NÀY
+    private final JwtUtil jwtUtil;  // ✅ THÊM DÒNG NÀY
     private final SecretKey key;
     private final long accessTtlMillis;
 
@@ -41,17 +44,21 @@ public class AuthenticationService {
             UserRepository userRepository,
             UserProfileRepository userProfileRepository,
             PasswordEncoder passwordEncoder,
+            UserSessionService userSessionService,  // ✅ THÊM THAM SỐ NÀY
+            JwtUtil jwtUtil,  // ✅ THÊM THAM SỐ NÀY
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.access-ttl-ms:604800000}") long accessTtlMillis
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userSessionService = userSessionService;  // ✅ THÊM DÒNG NÀY
+        this.jwtUtil = jwtUtil;  // ✅ THÊM DÒNG NÀY
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.accessTtlMillis = accessTtlMillis;
     }
 
-    public AuthenticationResponse login(String identifier, String password) {
+    public AuthenticationResponse login(String identifier, String password, HttpServletRequest request) {
         try {
             if (password == null || password.trim().isEmpty()) {
                 throw new AppException(ErrorCode.INVALID_CREDENTIALS);
@@ -97,6 +104,14 @@ public class AuthenticationService {
 
             String token = generateAccessToken(user);
 
+            // ✅ Tạo session trong database
+            try {
+                userSessionService.createSession(user.getId(), token, request);
+                log.info("✅ Session created for user: {}", user.getEmail());
+            } catch (Exception e) {
+                log.error("❌ Failed to create session: {}", e.getMessage());
+            }
+
             Map<String, Object> userJson = new HashMap<>();
             userJson.put("id", user.getId());
             userJson.put("email", user.getEmail());
@@ -135,18 +150,8 @@ public class AuthenticationService {
     }
 
     public String generateAccessToken(User user) {
-        Instant now = Instant.now();
-        Integer pwdv = user.getPasswordVersion() == null ? 0 : user.getPasswordVersion();
-        return Jwts.builder()
-                .setSubject(user.getId().toString())
-                .claim("email", user.getEmail())
-                .claim("role", user.getRoleName())
-                .claim("purpose", "ACCESS")
-                .claim("pwdv", pwdv)
-                .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusMillis(accessTtlMillis)))
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+        Integer pwdv = user.getPasswordVersion() != null ? user.getPasswordVersion() : 0;
+        return jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRoleName(), pwdv); // ✅ Thêm pwdv
     }
 
     public Jws<Claims> parse(String jwt) {
@@ -213,6 +218,7 @@ public class AuthenticationService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
     }
+
     @Transactional
     public void updateUserActivity(String email) {
         User user = userRepository.findByEmail(email)

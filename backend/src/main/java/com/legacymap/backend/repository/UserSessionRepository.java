@@ -38,8 +38,8 @@ public interface UserSessionRepository extends JpaRepository<UserSession, UUID> 
      */
     @Query("SELECT DISTINCT s.userId FROM UserSession s " +
             "WHERE s.isActive = true " +
-            "AND s.lastActivity > :cutoffTime")
-    List<UUID> findOnlineUserIds(@Param("cutoffTime") OffsetDateTime cutoffTime);
+            "AND s.lastActivity > :cutoff")
+    List<UUID> findOnlineUserIds(@Param("cutoff") OffsetDateTime cutoff);
 
     /**
      * Đánh dấu sessions cũ là inactive

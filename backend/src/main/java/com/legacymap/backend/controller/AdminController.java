@@ -35,6 +35,27 @@ public class AdminController {
         return ResponseEntity.ok(users);
     }
 
+    // ✅ ĐẶT Ở ĐÂY - TRƯỚC /users/{userId}
+    @GetMapping("/users/online")
+    public ResponseEntity<Map<String, Object>> getOnlineUsers() {
+        try {
+            List<UUID> onlineUserIds = adminService.getOnlineUserIds();
+            long onlineCount = onlineUserIds.size();
+
+            log.info("👥 {} users currently online", onlineCount);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("onlineUserIds", onlineUserIds);
+            response.put("onlineCount", onlineCount);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Error getting online users: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // ✅ ĐẶT SAU - Generic route
     @GetMapping("/users/{userId}")
     public ResponseEntity<UserDetailResponse> getUserDetail(@PathVariable UUID userId) {
         UserDetailResponse userDetail = adminService.getUserDetail(userId);

@@ -255,16 +255,11 @@ public class AdminServiceImpl implements AdminService {
 
             long activeUsers = totalUsers - bannedUsers;
 
-            // ✅ Get real-time online users from session tracking
-// ✅ Count online users (last login < 5 minutes ago)
-            OffsetDateTime fiveMinutesAgo = OffsetDateTime.now().minusMinutes(5);
-            long onlineUsers = allUsers.stream()
-                    .filter(user -> !Boolean.TRUE.equals(user.getIsBanned()))
-                    .filter(user -> user.getLastLogin() != null &&
-                            user.getLastLogin().isAfter(fiveMinutesAgo))
-                    .count();
-
-            log.info("📊 Online users (active in last 5 min): {}", onlineUsers);
+            // ✅ SỬA THÀNH:
+            log.info("🔍 Getting online user IDs");
+            List<UUID> onlineUserIds = userSessionService.getOnlineUserIds();
+            long onlineUsers = onlineUserIds.size();
+            log.info("📊 Found {} online users from active sessions", onlineUsers);
 
             long adminUsers = allUsers.stream()
                     .filter(u -> "admin".equalsIgnoreCase(u.getRoleName()))
@@ -344,6 +339,13 @@ public class AdminServiceImpl implements AdminService {
             log.error("❌ Error calculating admin stats", e);
             throw new RuntimeException("Failed to calculate admin statistics", e);
         }
+    }
+
+    @Override
+    public List<UUID> getOnlineUserIds() {
+        checkAdminPermission();
+        log.info("👥 Getting online user IDs");
+        return userSessionService.getOnlineUserIds();
     }
 
     private UserListResponse convertToUserListResponse(User user) {
