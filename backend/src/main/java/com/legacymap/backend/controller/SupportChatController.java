@@ -4,6 +4,7 @@ import com.legacymap.backend.dto.request.ChatRequest;
 import com.legacymap.backend.service.SupportChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
@@ -20,6 +21,7 @@ public class SupportChatController {
 
     // Cách 1: GET (test nhanh bằng Postman, curl, browser)
     @GetMapping(value = "/chat", produces = "text/event-stream;charset=UTF-8")
+    @PreAuthorize("isAuthenticated()")
     public Flux<String> chatGet(
             @RequestParam(required = false, defaultValue = "") String sessionId,
             @RequestParam String message) {
@@ -38,6 +40,7 @@ public class SupportChatController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = "text/event-stream;charset=UTF-8")
     @RateLimiter(name = "chat-limit", fallbackMethod = "chatFallback")
+    @PreAuthorize("isAuthenticated()")
     public Flux<String> chatPost(@RequestBody ChatRequest request) {
         String sid = request.getSessionId();
         if (sid == null || sid.trim().isEmpty()) {

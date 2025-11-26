@@ -143,6 +143,9 @@ public class JwtUtil {
             return "USER"; // Default role
         });
     }
+    public String getUserIdFromToken(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
 
     /**
      * THÊM MỚI: Extract email từ token

@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send } from 'lucide-react';
-
+import ReactMarkdown from 'react-markdown';
 
 // Hàm cn đơn giản (không cần @/lib/utils nữa)
 const cn = (...inputs: (string | undefined | null | false)[]) =>
   inputs.filter(Boolean).join(' ');
-
 
 const getAuthToken = (): string | null => {
   try {
@@ -21,7 +20,6 @@ const getAuthToken = (): string | null => {
   }
 };
 
-
 // Một vài gợi ý câu hỏi cho người dùng
 const SUGGESTIONS = [
   'LegacyMap là gì và dùng để làm gì?',
@@ -31,7 +29,6 @@ const SUGGESTIONS = [
   'LegacyMap có miễn phí không?'
 ];
 
-
 export default function LegacyChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -39,12 +36,12 @@ export default function LegacyChatWidget() {
     Array<{ text: string; sender: 'user' | 'bot' }>
   >([
     {
-      text: 'Chào bạn! Mình là trợ lý hỗ trợ của LegacyMap.vn đây ạ! Mình có thể giúp gì cho bạn hôm nay nào?',
+      text:
+        'Chào bạn! Mình là trợ lý hỗ trợ của LegacyMap.vn đây ạ! Mình có thể giúp gì cho bạn hôm nay nào?',
       sender: 'bot'
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
-
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -52,51 +49,41 @@ export default function LegacyChatWidget() {
     'web_' + Math.random().toString(36).substr(2, 9)
   ).current;
 
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
-
 
   // Hàm core để gửi tin nhắn lên server (dùng chung cho input & gợi ý)
   const sendToBot = (userMessage: string) => {
     const trimmed = userMessage.trim();
     if (!trimmed || isTyping) return;
 
-
     // Đóng event cũ nếu có
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
-
     setMessages(prev => [...prev, { text: trimmed, sender: 'user' }]);
     setInput('');
     setIsTyping(true);
 
-
     const token = getAuthToken();
     const baseUrl = `${import.meta.env.VITE_API_BASE_URL}/support/chat`;
 
+    const params = new URLSearchParams({
+      sessionId,
+      message: trimmed,
+      authToken: token || '' // DÒNG NÀY LÀ CHÌA KHÓA VÀNG!
+    });
 
-  // Chỉ truyền sessionId + message
-const url = `${baseUrl}?sessionId=${sessionId}&message=${encodeURIComponent(trimmed)}`;
-
-const es = new EventSource(url, {
-  headers: {
-    Authorization: `Bearer ${token || ''}`
-  }
-} as any);
+    const es = new EventSource(`${baseUrl}?${params}`);
     eventSourceRef.current = es;
 
-
     let botResponse = '';
-
 
     es.onmessage = event => {
       if (event.data === '[DONE]') {
@@ -105,9 +92,7 @@ const es = new EventSource(url, {
         return;
       }
 
-
       botResponse += event.data;
-
 
       // Chỉ update tin nhắn bot cuối cùng
       setMessages(prev => {
@@ -124,7 +109,6 @@ const es = new EventSource(url, {
       });
     };
 
-
     es.onerror = () => {
       es.close();
       setIsTyping(false);
@@ -138,22 +122,20 @@ const es = new EventSource(url, {
     };
   };
 
-
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isTyping) return;
     sendToBot(input);
   };
 
-
   const handleSuggestionClick = (suggestion: string) => {
     if (isTyping) return; // đang trả lời thì ignore click
     sendToBot(suggestion);
   };
 
-
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+ <div className="fixed top-20 right-6 z-50 flex flex-col items-end gap-3">
+
       {/* Chat Window */}
       <div
         className={cn(
@@ -184,7 +166,6 @@ const es = new EventSource(url, {
           </button>
         </div>
 
-
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#2C3E50]">
           {messages.map((msg, i) => (
@@ -203,16 +184,46 @@ const es = new EventSource(url, {
                     : 'bg-[#1E293B] text-gray-100 border border-[#C9A961]/20 rounded-tl-sm'
                 )}
               >
-                {msg.text}
-                {msg.sender === 'bot' &&
-                  i === messages.length - 1 &&
-                  isTyping && (
-                    <span className="inline-block w-2 h-5 ml-1 bg-[#C9A961] animate-pulse align-middle" />
-                  )}
+                {msg.sender === 'bot' ? (
+                  <>
+                    <ReactMarkdown
+                      components={{
+                        a: ({
+                          node,
+                          ...props
+                        }: React.ComponentProps<'a'> & { node?: any }) => (
+                          <a
+                            {...props}
+                            target={
+                              props.href && props.href.startsWith('/')
+                                ? '_self'
+                                : '_blank'
+                            }
+                            rel="noopener noreferrer"
+                            className="underline text-[#C9A961] hover:opacity-80"
+                          />
+                        )
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                    {i === messages.length - 1 && isTyping && (
+                      <span className="inline-block w-2 h-5 ml-1 bg-[#C9A961] animate-pulse align-middle" />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {msg.text}
+                    {msg.sender as 'user' | 'bot' &&
+                      i === messages.length - 1 &&
+                      isTyping && (
+                        <span className="inline-block w-2 h-5 ml-1 bg-[#C9A961] animate-pulse align-middle" />
+                      )}
+                  </>
+                )}
               </div>
             </div>
           ))}
-
 
           {isTyping && messages[messages.length - 1]?.sender === 'user' && (
             <div className="flex justify-start">
@@ -237,32 +248,27 @@ const es = new EventSource(url, {
           <div ref={messagesEndRef} />
         </div>
 
-
-        {/* Gợi ý câu hỏi */}
-       {/* Gợi ý câu hỏi – chỉ hiện khi chưa có tin nhắn của user */}
-{!messages.some(m => m.sender === 'user') && (
-  <div className="px-4 pt-2 pb-1 bg-[#1E293B]/40 border-t border-[#C9A961]/10">
-    <p className="text-[11px] uppercase tracking-wide text-[#C9A961]/70 mb-1">
-      Gợi ý câu hỏi
-    </p>
-    <div className="flex flex-wrap gap-2">
-      {SUGGESTIONS.map(s => (
-        <button
-          key={s}
-          type="button"
-          onClick={() => handleSuggestionClick(s)}
-          disabled={isTyping}
-          className="text-[11px] px-3 py-1 rounded-full border border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-        >
-          {s}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
-
-
-
+        {/* Gợi ý câu hỏi – chỉ hiện khi chưa có tin nhắn của user */}
+        {!messages.some(m => m.sender === 'user') && (
+          <div className="px-4 pt-2 pb-1 bg-[#1E293B]/40 border-t border-[#C9A961]/10">
+            <p className="text-[11px] uppercase tracking-wide text-[#C9A961]/70 mb-1">
+              Gợi ý câu hỏi
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTIONS.map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleSuggestionClick(s)}
+                  disabled={isTyping}
+                  className="text-[11px] px-3 py-1 rounded-full border border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Input */}
         <form
@@ -289,7 +295,6 @@ const es = new EventSource(url, {
         </form>
       </div>
 
-
       {/* Toggle Button (luôn hiển thị) */}
       <button
         type="button"
@@ -305,5 +310,3 @@ const es = new EventSource(url, {
     </div>
   );
 }
-
-

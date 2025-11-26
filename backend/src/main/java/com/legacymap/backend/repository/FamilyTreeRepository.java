@@ -14,7 +14,8 @@ import com.legacymap.backend.entity.User;
 
 @Repository
 public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
-
+    Optional<FamilyTree> findFirstByCreatedByIdOrderByUpdatedAtDesc(UUID createdById);
+    long countByCreatedById(UUID createdById);
     // MAIN: Eager fetch User để tránh LazyInitializationException
     @Query("SELECT DISTINCT ft FROM FamilyTree ft LEFT JOIN FETCH ft.createdBy ORDER BY ft.createdAt DESC")
     List<FamilyTree> findAllWithUserOrderByCreatedAtDesc();

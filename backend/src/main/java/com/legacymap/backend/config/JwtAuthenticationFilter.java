@@ -44,7 +44,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
         String method = request.getMethod();
-
         log.debug("JwtFilter: {} {}", method, path);
 
         if (isPublicEndpoint(path, method)) {
@@ -52,9 +51,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Lấy token từ cookie trước, fallback header nếu muốn
         String token = null;
-        if (request.getCookies() != null) {
+
+        // === THÊM ĐOẠN NÀY – ĐỌC TOKEN TỪ QUERY PARAM (CHO CHAT WIDGET) ===
+        String authTokenParam = request.getParameter("authToken");
+        if (authTokenParam != null && !authTokenParam.isBlank()) {
+            token = authTokenParam;
+            log.debug("JWT token found from query param authToken");
+        }
+        // ===========================================================
+
+        // Lấy token từ cookie trước...
+        if (token == null && request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
                 if ("JWT_TOKEN".equals(cookie.getName())) {
                     token = cookie.getValue();
@@ -63,13 +71,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
+        // ...hoặc từ header
         if (token == null) {
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 token = authHeader.substring(7);
             }
         }
-
         if (token == null) {
             log.warn("No JWT token found for protected endpoint: {} {}", method, path);
             filterChain.doFilter(request, response);
@@ -137,8 +145,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.equals("/api/users/register") ||
                         path.equals("/legacy/api/users/register") ||
                         path.equals("/api/auth/forgot-password") ||
-                        path.equals("/api/auth/reset-password") ||
-                        path.startsWith("/api/support")
+                        path.equals("/api/auth/reset-password")
+//                        ||
+//                        path.startsWith("/api/support")
         )) return true;
 
         // GET endpoints không cần auth (including WebSocket handshake)
@@ -149,7 +158,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.startsWith("/v3/api-docs") ||
                         path.startsWith("/swagger-ui") ||
                         path.startsWith("/actuator") ||
-                        path.startsWith("/api/support") ||
+//                        path.startsWith("/api/support") ||
                         path.startsWith("/ws/") ||
                         path.startsWith("/legacy/ws/")
         )) return true;
