@@ -86,6 +86,12 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
+    @Transactional(readOnly = true)
+    public User findByEmail(String email) {
+        if (email == null) return null;
+        return userRepository.findByEmail(email.trim().toLowerCase()).orElse(null);
+    }
+
     @Transactional
     public UserProfile updateUserProfile(UUID userId, UserProfile updatedProfile) {
         UserProfile existingProfile = userProfileRepository.findById(userId)

@@ -13,6 +13,7 @@ import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
 import { ArrowLeft, LucideUserPlus, Share2, Download} from "lucide-react";
 import * as htmlToImage from "html-to-image";
+import { personLinkApi } from "@/api/personLink";
 
 type TreeView = {
     coverImageUrl?: string | null;
@@ -65,6 +66,7 @@ export default function TreeDetails() {
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
     const [isInAddFlow, setIsInAddFlow] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [pendingInvite, setPendingInvite] = useState<{ email?: string; send?: boolean } | null>(null);
     const treeWrapperRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -283,6 +285,7 @@ export default function TreeDetails() {
     };
 
     const handleCreateMember = async (values: MemberFormValues) => {
+
         if (!treeId || !userId || memberSubmitting) return;
         setMemberSubmitting(true);
         try {
@@ -322,13 +325,18 @@ export default function TreeDetails() {
                 setMemberOpen(false);
                 setIsEditing(false);
                 setIsInAddFlow(true);
+                // store invite choice to trigger after relationship is created
+                setPendingInvite({ email: values.email?.trim(), send: !!values.sendInvite });
             } else {
                 setPendingNew(null);
                 setSource(null);
                 setModalOpen(false);
                 setMemberOpen(false);
                 showToast.success("Thêm thành viên thành công.");
+                // No relationship flow; clear invite choice
+                setPendingInvite(null);
             }
+
         } catch (e: any) {
             showToast.error(e?.message || "Thêm thành viên thất bại");
         } finally {
@@ -473,6 +481,19 @@ export default function TreeDetails() {
             person2Id,
             relationshipType: typeToSend,
         });
+
+        // After relationship is created, send pending invite if requested
+        try {
+            if (pendingInvite?.send && pendingInvite.email?.trim()) {
+                await personLinkApi.invite(source.id, userId, pendingInvite.email.trim());
+                showToast.success("Đã gửi thông báo mời liên kết");
+            }
+        } catch (inviteErr: any) {
+            console.warn("Invite after relationship failed", inviteErr?.message || inviteErr);
+            showToast.warning("Không gửi được thông báo mời, bạn có thể thử lại sau");
+        } finally {
+            setPendingInvite(null);
+        }
 
         const newRels: Relationship[] = [
             ...rels,
