@@ -536,6 +536,8 @@ public class ChatRoomService {
                 .createdAt(room.getCreatedAt())
                 .updatedAt(room.getUpdatedAt())
                 .members(members)
+                .lastMessageAt(room.getLastMessageAt())
+                .lastMessageId(room.getLastMessageId() != null ? room.getLastMessageId().getId() : null)
                 .build();
     }
 

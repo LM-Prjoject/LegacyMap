@@ -1,6 +1,5 @@
 package com.legacymap.backend.dto.request;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.legacymap.backend.entity.ChatMessage;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -18,6 +17,5 @@ public class ChatMessageSendRequest {
     private String fileName;
     private Long fileSize;
     private String fileType;
-    private JsonNode metadata;
 }
 
