@@ -55,7 +55,7 @@ public class ChatRoom {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "last_message_id")
-    private ChatMessage lastMessage;
+    private ChatMessage lastMessageId;
 
     @PrePersist
     void prePersist() {

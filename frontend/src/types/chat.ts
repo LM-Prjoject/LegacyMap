@@ -23,6 +23,8 @@ export interface ChatRoom {
   createdAt: string;
   updatedAt: string;
   members: ChatRoomMember[];
+  lastMessageAt: string;
+  lastMessageId?: string | null;
 }
 
 export type ChatMessageType = 'text' | 'image' | 'file' | 'system';
@@ -52,7 +54,6 @@ export interface ChatMessage {
   createdAt: string;
   updatedAt: string;
   recipients: ChatMessageRecipientStatus[];
-  metadata?: Record<string, any> | null;
 }
 
 export interface ChatMessagePage {

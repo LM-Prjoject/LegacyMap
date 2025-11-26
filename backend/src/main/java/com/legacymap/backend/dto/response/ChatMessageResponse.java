@@ -1,6 +1,5 @@
 package com.legacymap.backend.dto.response;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.legacymap.backend.entity.ChatMessage;
 import lombok.Builder;
 import lombok.Value;
@@ -30,7 +29,6 @@ public class ChatMessageResponse {
     OffsetDateTime createdAt;
     OffsetDateTime updatedAt;
     UUID deletedBy;
-    JsonNode metadata;
     List<MessageRecipientStatus> recipients;
 
     @Value

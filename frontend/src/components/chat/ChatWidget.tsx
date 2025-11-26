@@ -5,6 +5,7 @@ import type { ChatRoomType, UserSearchResult, ChatMessage, ChatRoom, ChatRoomCre
 import treeApi, { FamilyTree, Person } from '@/api/trees';
 import { showToast } from '@/lib/toast';
 import { userLookupApi, chatApi } from '@/api/chatApi';
+import {audioNotification} from "@/utils/audio";
 
 type RoomFilter = 'all' | ChatRoomType | 'private';
 type ViewMode = 'list' | 'chat';
@@ -102,6 +103,7 @@ export const ChatWidget = () => {
   const createMemberSearchTimer = useRef<NodeJS.Timeout | null>(null);
   const directSearchTimer = useRef<NodeJS.Timeout | null>(null);
   const membersListRef = useRef<HTMLDivElement>(null);
+  const hasPlayedSoundRef = useRef<Set<string>>(new Set());
 
   const currentMessages = useMemo(
     () => (currentRoom ? messagesByRoom[currentRoom.id] ?? [] : []),
@@ -255,7 +257,40 @@ export const ChatWidget = () => {
       );
     }
 
-    return <p className="whitespace-pre-line m-0 break-words">{message.messageText}</p>;
+    const text = message.messageText || '';
+    const urlRegex = /(https?:\/\/[^\s<]+[^\s<.,;:!?])/g;
+    const parts = text.split(urlRegex);
+
+    if (parts.length === 1 && !urlRegex.test(text)) {
+      return (
+          <p className="m-0 break-words word-break-break-all text-sm leading-relaxed whitespace-pre-line">
+            {text}
+          </p>
+      );
+    }
+
+    return (
+        <p className="m-0 break-words word-break-break-all text-sm leading-relaxed">
+          {parts.map((part, index) => {
+            if (urlRegex.test(part)) {
+              const displayText = part.length > 60 ? part.substring(0, 57) + '...' : part;
+              return (
+                  <a
+                      key={index}
+                      href={part}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline hover:text-cyan-300 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                  >
+                    {displayText}
+                  </a>
+              );
+            }
+            return <span key={index}>{part}</span>;
+          })}
+        </p>
+    );
   }, []);
 
   const filterTabs: { key: RoomFilter; label: string }[] = [
@@ -455,6 +490,20 @@ export const ChatWidget = () => {
       }
     };
   }, [directSearchTerm, showDirect, directSelection, runDirectSearch, directSearchResults.length, directSearchLoading]);
+
+  useEffect(() => {
+    if (!currentRoom || !currentMessages?.length) return;
+    const latest = currentMessages[currentMessages.length - 1];
+
+    if (latest.senderId === currentUserId) return;
+    if (hasPlayedSoundRef.current.has(latest.id)) return;
+
+    const myMember = currentRoom.members.find(m => m.userId === currentUserId);
+    if (!myMember?.muted) {
+      audioNotification.play().catch(() => {});
+      hasPlayedSoundRef.current.add(latest.id);
+    }
+  }, [currentMessages, currentRoom, currentUserId]);
 
   const ensureTreesLoaded = useCallback(async () => {
     if (loadingTrees || availableTrees.length) return;
@@ -801,8 +850,8 @@ export const ChatWidget = () => {
     return (
         <div
             className={`absolute top-1/2 -translate-y-1/2 p-2 flex gap-1 z-20 transition-all duration-200 
-        ${isMine ? "right-full" : "left-full"}
-        ${isPinned
+                ${isMine ? "right-full" : "left-full"}
+                ${isPinned
                 ? "opacity-100 pointer-events-auto" 
                 : "opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto" 
             }
@@ -1154,14 +1203,14 @@ export const ChatWidget = () => {
 
                   return (
                     <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} group`}>
-                      <div className="relative max-w-[70%] overflow-visible cursor-pointer"
+                      <div className="relative max-w-[70%] cursor-pointer"
                            onClick={(e) => {
                              e.stopPropagation();
                              setShowMessageMenu(showMessageMenu === message.id ? null : message.id);
                            }}
                       >
                         <div
-                          className={`rounded-2xl px-3 py-0.5 text-sm shadow-lg transition-all duration-200 hover:shadow-xl inline-block ${isMine
+                          className={`rounded-2xl px-3 py-0.5 text-sm shadow-lg transition-all duration-200 hover:shadow-xl block word-break-break-all ${isMine
                             ? 'bg-gradient-to-br from-[#ffd89b] via-[#ffcd7a] to-[#ffc165] text-[#1e2a3a] border-2 border-[#ffd89b]/40'
                             : 'bg-gradient-to-br from-[#2a3a4a] to-[#1e2a3a] text-white border-2 border-white/10 backdrop-blur-sm'
                             }`}
