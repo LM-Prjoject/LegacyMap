@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, X, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
@@ -19,6 +19,12 @@ const getAuthToken = (): string | null => {
     return null;
   }
 };
+
+// Kích thước ước lượng của widget
+const CHAT_WIDTH = 384;   // w-96 -> 96 * 4
+const CHAT_HEIGHT = 520;  // h-[520px]
+const BUTTON_SIZE = 56;   // w-14 h-14 -> 14 * 4
+const EDGE_PADDING = 16;  // chừa lề 16px
 
 // Một vài gợi ý câu hỏi cho người dùng
 const SUGGESTIONS = [
@@ -42,6 +48,98 @@ export default function LegacyChatWidget() {
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+
+  // --- DRAG STATE: vị trí widget & thông tin kéo ---
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const positionRef = useRef(position);
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  const dragRef = useRef({
+    isDragging: false,
+    offsetX: 0,
+    offsetY: 0
+  });
+
+  // Đặt vị trí mặc định: góc phải trên (dựa theo kích thước CHAT_WIDTH)
+  useEffect(() => {
+    const offsetTop = 72; // để tránh đè lên navbar
+    const x =
+      window.innerWidth - CHAT_WIDTH - EDGE_PADDING; // canh sao cho panel vừa khít bên phải
+    const y = offsetTop;
+    setPosition({
+      x: Math.max(EDGE_PADDING, x),
+      y: Math.max(EDGE_PADDING, y)
+    });
+  }, []);
+
+  const handleDragStart = (e: React.MouseEvent<HTMLButtonElement>) => {
+    dragRef.current.isDragging = true;
+    dragRef.current.offsetX = e.clientX - positionRef.current.x;
+    dragRef.current.offsetY = e.clientY - positionRef.current.y;
+  };
+
+  const handleDragMove = useCallback(
+    (e: MouseEvent) => {
+      if (!dragRef.current.isDragging) return;
+
+      const x = e.clientX - dragRef.current.offsetX;
+      const y = e.clientY - dragRef.current.offsetY;
+
+      // Nếu đang mở -> giới hạn theo kích thước panel
+      // Nếu đang đóng -> chỉ theo kích thước nút
+      const currentWidth = isOpen ? CHAT_WIDTH : BUTTON_SIZE;
+      const currentHeight = isOpen ? CHAT_HEIGHT : BUTTON_SIZE;
+
+      const maxX = window.innerWidth - currentWidth - EDGE_PADDING;
+      const maxY = window.innerHeight - currentHeight - EDGE_PADDING;
+
+      setPosition({
+        x: Math.min(Math.max(EDGE_PADDING, x), Math.max(EDGE_PADDING, maxX)),
+        y: Math.min(Math.max(EDGE_PADDING, y), Math.max(EDGE_PADDING, maxY))
+      });
+    },
+    [isOpen]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    dragRef.current.isDragging = false;
+  }, []);
+
+  // Lắng nghe mousemove / mouseup toàn màn hình
+  useEffect(() => {
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+    };
+  }, [handleDragMove, handleDragEnd]);
+
+  // Khi bấm mở, tự căn lại để panel KHÔNG tràn khỏi màn hình
+  const toggleOpen = () => {
+    setIsOpen(prev => {
+      const next = !prev;
+      if (next) {
+        setPosition(prevPos => {
+          const maxX = window.innerWidth - CHAT_WIDTH - EDGE_PADDING;
+          const maxY = window.innerHeight - CHAT_HEIGHT - EDGE_PADDING;
+          return {
+            x: Math.min(
+              Math.max(EDGE_PADDING, prevPos.x),
+              Math.max(EDGE_PADDING, maxX)
+            ),
+            y: Math.min(
+              Math.max(EDGE_PADDING, prevPos.y),
+              Math.max(EDGE_PADDING, maxY)
+            )
+          };
+        });
+      }
+      return next;
+    });
+  };
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -134,8 +232,10 @@ export default function LegacyChatWidget() {
   };
 
   return (
- <div className="fixed top-20 right-6 z-50 flex flex-col items-end gap-3">
-
+    <div
+      className="fixed z-50 flex flex-col items-end gap-3"
+      style={{ top: position.y, left: position.x }}
+    >
       {/* Chat Window */}
       <div
         className={cn(
@@ -212,14 +312,7 @@ export default function LegacyChatWidget() {
                     )}
                   </>
                 ) : (
-                  <>
-                    {msg.text}
-                    {msg.sender as 'user' | 'bot' &&
-                      i === messages.length - 1 &&
-                      isTyping && (
-                        <span className="inline-block w-2 h-5 ml-1 bg-[#C9A961] animate-pulse align-middle" />
-                      )}
-                  </>
+                  <>{msg.text}</>
                 )}
               </div>
             </div>
@@ -295,11 +388,12 @@ export default function LegacyChatWidget() {
         </form>
       </div>
 
-      {/* Toggle Button (luôn hiển thị) */}
+      {/* Toggle Button (luôn hiển thị & dùng để kéo) */}
       <button
         type="button"
-        onClick={() => setIsOpen(prev => !prev)}
-        className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg shadow-[#C9A961]/20 hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center"
+        onMouseDown={handleDragStart}
+        onClick={toggleOpen}
+        className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg shadow-[#C9A961]/20 hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-move"
       >
         {isOpen ? (
           <X className="w-7 h-7 transition-transform duration-300 group-hover:rotate-90" />
