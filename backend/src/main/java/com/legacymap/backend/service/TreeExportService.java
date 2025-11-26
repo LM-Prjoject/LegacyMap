@@ -128,12 +128,14 @@ public class TreeExportService {
             List<Relationship> relationships
     ) {
         Map<UUID, List<UUID>> parentToChildren = new HashMap<>();
-        Set<UUID> childrenIds = new HashSet<>();
-        Set<UUID> parentChildPersonIds = new HashSet<>();
+        Map<UUID, List<UUID>> childToParents = new HashMap<>();
 
         for (Relationship r : relationships) {
-            String type = safeType(r.getRelationshipType());
-            if (!"PARENT".equals(type) && !"CHILD".equals(type)) continue;
+            Object rawType = r.getRelationshipType();
+            String type = safeType(rawType != null ? rawType.toString() : null);
+            if (!"PARENT".equals(type) && !"CHILD".equals(type)) {
+                continue;
+            }
 
             UUID id1 = r.getPerson1().getId();
             UUID id2 = r.getPerson2().getId();
@@ -153,25 +155,30 @@ public class TreeExportService {
                     .computeIfAbsent(parentId, k -> new ArrayList<>())
                     .add(childId);
 
-            childrenIds.add(childId);
-            parentChildPersonIds.add(parentId);
-            parentChildPersonIds.add(childId);
+            childToParents
+                    .computeIfAbsent(childId, k -> new ArrayList<>())
+                    .add(parentId);
         }
 
         Map<UUID, Integer> gen = new HashMap<>();
-        Deque<UUID> queue = new ArrayDeque<>();
 
-        Set<UUID> rootIds = parentChildPersonIds.stream()
-                .filter(id -> !childrenIds.contains(id))
-                .collect(Collectors.toSet());
-
-        if (rootIds.isEmpty()) {
-            for (Person p : persons) {
-                gen.put(p.getId(), 1);
+        Set<UUID> rootIds = new HashSet<>();
+        for (Person p : persons) {
+            UUID id = p.getId();
+            if (!childToParents.containsKey(id)) {
+                rootIds.add(id);
             }
-            return gen;
         }
 
+        if (rootIds.isEmpty() && !persons.isEmpty()) {
+            Person oldest = persons.stream()
+                    .filter(p -> p.getBirthDate() != null)
+                    .min(Comparator.comparing(Person::getBirthDate))
+                    .orElse(persons.get(0));
+            rootIds.add(oldest.getId());
+        }
+
+        Deque<UUID> queue = new ArrayDeque<>();
         for (UUID root : rootIds) {
             gen.put(root, 1);
             queue.add(root);
@@ -183,45 +190,12 @@ public class TreeExportService {
             for (UUID child : parentToChildren.getOrDefault(parent, List.of())) {
                 int candidate = parentGen + 1;
                 Integer current = gen.get(child);
-                if (current == null || current > candidate) {
+                if (current == null || candidate < current) {
                     gen.put(child, candidate);
                     queue.add(child);
                 }
             }
         }
-
-        boolean updated;
-        do {
-            updated = false;
-            for (Relationship r : relationships) {
-                String type = safeType(r.getRelationshipType());
-                if (!"SPOUSE".equals(type)) continue;
-
-                UUID id1 = r.getPerson1().getId();
-                UUID id2 = r.getPerson2().getId();
-
-                Integer g1 = gen.get(id1);
-                Integer g2 = gen.get(id2);
-
-                if (g1 != null && g2 == null) {
-                    gen.put(id2, g1);
-                    updated = true;
-                } else if (g2 != null && g1 == null) {
-                    gen.put(id1, g2);
-                    updated = true;
-                } else if (g1 != null && g2 != null && !g1.equals(g2)) {
-                    int min = Math.min(g1, g2);
-                    if (!g1.equals(min)) {
-                        gen.put(id1, min);
-                        updated = true;
-                    }
-                    if (!g2.equals(min)) {
-                        gen.put(id2, min);
-                        updated = true;
-                    }
-                }
-            }
-        } while (updated);
 
         for (Person p : persons) {
             gen.putIfAbsent(p.getId(), 1);
@@ -231,7 +205,8 @@ public class TreeExportService {
     }
 
     private String extractYear(LocalDate date) {
-        return date != null ? String.valueOf(date.getYear()) : null;
+        if (date == null) return null;
+        return String.valueOf(date.getYear());
     }
 
     private String normalizeGender(String g) {

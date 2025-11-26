@@ -1,6 +1,8 @@
 package com.legacymap.backend.service;
 
-import com.legacymap.backend.dto.export.*;
+import com.legacymap.backend.dto.export.MemberExportRow;
+import com.legacymap.backend.dto.export.TreeExportDTO;
+import com.legacymap.backend.dto.export.TreeExportSummary;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
 import lombok.RequiredArgsConstructor;
@@ -16,15 +18,19 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TreePdfService {
 
-    private static final float MARGIN = 36f;
+    private static final float CM = 28.3465f;
+
+    private static final float MARGIN_LEFT   = 3.5f * CM;
+    private static final float MARGIN_RIGHT  = 2.0f * CM;
+    private static final float MARGIN_TOP    = 2.5f * CM;
+    private static final float MARGIN_BOTTOM = 2.5f * CM;
+
     private static final String FONT_PATH = "fonts/DejaVuSans.ttf";
 
     private BaseFont loadVietnameseFont() throws IOException, DocumentException {
         ClassPathResource fontRes = new ClassPathResource(FONT_PATH);
-
         try (InputStream is = fontRes.getInputStream()) {
             byte[] fontBytes = is.readAllBytes();
-
             return BaseFont.createFont(
                     "DejaVuSans.ttf",
                     BaseFont.IDENTITY_H,
@@ -38,12 +44,20 @@ public class TreePdfService {
 
     public byte[] generateDetailsPdf(TreeExportDTO dto, byte[] treeImageBytes) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            Document document = new Document(PageSize.A4.rotate(), MARGIN, MARGIN, MARGIN, MARGIN);
+
+            Document document = new Document(
+                    PageSize.A4,
+                    MARGIN_LEFT,
+                    MARGIN_RIGHT,
+                    MARGIN_TOP,
+                    MARGIN_BOTTOM
+            );
             PdfWriter.getInstance(document, baos);
             document.open();
 
             BaseFont bf = loadVietnameseFont();
             Font titleFont = new Font(bf, 18, Font.BOLD);
+            Font headingFont = new Font(bf, 14, Font.BOLD);
             Font normalFont = new Font(bf, 11, Font.NORMAL);
             Font boldFont = new Font(bf, 11, Font.BOLD);
 
@@ -52,8 +66,18 @@ public class TreePdfService {
             document.add(title);
             document.add(new Paragraph(" "));
 
+            Paragraph section1 = new Paragraph("I. TỔNG QUAN", headingFont);
+            section1.setSpacingBefore(10);
+            section1.setSpacingAfter(10);
+            document.add(section1);
+
             addSummarySection(document, dto.summary(), boldFont, normalFont);
             document.add(new Paragraph(" "));
+
+            Paragraph section2 = new Paragraph("II. PHẢ ĐỒ", headingFont);
+            section2.setSpacingBefore(20);
+            section2.setSpacingAfter(10);
+            document.add(section2);
 
             if (treeImageBytes != null && treeImageBytes.length > 0) {
                 Image treeImg = Image.getInstance(treeImageBytes);
@@ -68,10 +92,13 @@ public class TreePdfService {
                 document.add(treeImg);
             }
 
-            document.newPage();
-            Paragraph memTitle = new Paragraph("Danh sách thành viên", boldFont);
-            document.add(memTitle);
             document.add(new Paragraph(" "));
+
+            Paragraph section3 = new Paragraph("III. DANH SÁCH THÀNH VIÊN", headingFont);
+            section3.setSpacingBefore(20);
+            section3.setSpacingAfter(10);
+            document.add(section3);
+
             addMembersTable(document, dto.members(), boldFont, normalFont);
             document.close();
             return baos.toByteArray();
@@ -94,13 +121,27 @@ public class TreePdfService {
         addLabelValueRow(table, "Mô tả", s.description(), bold, normal);
         addLabelValueRow(table, "Chủ sở hữu", s.ownerName(), bold, normal);
         addLabelValueRow(table, "Email", s.ownerEmail(), bold, normal);
-        addLabelValueRow(table, "Ngày tạo",
+        addLabelValueRow(
+                table,
+                "Ngày tạo",
                 s.createdAt() != null ? s.createdAt().toString() : "",
-                bold, normal);
-        addLabelValueRow(table, "Số thành viên",
-                String.valueOf(s.memberCount()), bold, normal);
-        addLabelValueRow(table, "Số thế hệ",
-                String.valueOf(s.generationCount()), bold, normal);
+                bold,
+                normal
+        );
+        addLabelValueRow(
+                table,
+                "Số thành viên",
+                String.valueOf(s.memberCount()),
+                bold,
+                normal
+        );
+        addLabelValueRow(
+                table,
+                "Số thế hệ",
+                String.valueOf(s.generationCount()),
+                bold,
+                normal
+        );
 
         String genderStats = "Nam: " + s.maleCount()
                 + " | Nữ: " + s.femaleCount()
@@ -141,7 +182,7 @@ public class TreePdfService {
 
         PdfPTable table = new PdfPTable(5);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{5, 30, 10, 25, 30});
+        table.setWidths(new float[]{7, 30, 17, 25, 15});
 
         addHeaderCell(table, "STT", bold);
         addHeaderCell(table, "Họ tên", bold);
@@ -150,11 +191,11 @@ public class TreePdfService {
         addHeaderCell(table, "Vai trò", bold);
 
         for (MemberExportRow r : rows) {
-            addBodyCell(table, String.valueOf(r.index()), normal);
-            addBodyCell(table, r.fullName(), normal);
-            addBodyCell(table, r.gender(), normal);
-            addBodyCell(table, combineYear(r.birthYear(), r.deathYear()), normal);
-            addBodyCell(table, r.role(), normal);
+            addBodyCell(table, String.valueOf(r.index()), normal, Element.ALIGN_CENTER);
+            addBodyCell(table, r.fullName(), normal, Element.ALIGN_LEFT);
+            addBodyCell(table, r.gender(), normal, Element.ALIGN_CENTER);
+            addBodyCell(table, combineYear(r.birthYear(), r.deathYear()), normal, Element.ALIGN_CENTER);
+            addBodyCell(table, r.role(), normal, Element.ALIGN_CENTER);
         }
 
         document.add(table);
@@ -167,8 +208,10 @@ public class TreePdfService {
         table.addCell(cell);
     }
 
-    private void addBodyCell(PdfPTable table, String text, Font font) {
+    private void addBodyCell(PdfPTable table, String text, Font font, int horizontalAlign) {
         PdfPCell cell = new PdfPCell(new Phrase(text != null ? text : "", font));
+        cell.setHorizontalAlignment(horizontalAlign);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         cell.setPadding(4);
         table.addCell(cell);
     }
