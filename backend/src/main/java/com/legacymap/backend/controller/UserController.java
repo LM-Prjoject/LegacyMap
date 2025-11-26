@@ -36,6 +36,28 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(userService.searchUsers(keyword, limit)));
     }
 
+    @GetMapping("/check-email")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkEmail(
+            @RequestParam("email") String email
+    ) {
+        String normalized = email == null ? null : email.trim().toLowerCase();
+        Map<String, Object> resp = new HashMap<>();
+        if (normalized == null || normalized.isBlank()) {
+            resp.put("exists", false);
+            return ResponseEntity.ok(ApiResponse.success(resp));
+        }
+
+        User user = userService.findByEmail(normalized);
+        if (user == null) {
+            resp.put("exists", false);
+        } else {
+            resp.put("exists", true);
+            resp.put("userId", user.getId());
+            resp.put("username", user.getUsername());
+        }
+        return ResponseEntity.ok(ApiResponse.success(resp));
+    }
+
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<User>> createUser(@RequestBody @Valid UserCreateRequest request) {
         User user = userService.createRequest(request);

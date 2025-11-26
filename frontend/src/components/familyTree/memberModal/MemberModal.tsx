@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { showToast } from "@/lib/toast.ts";
+import { usersApi } from "@/api/users";
 
 export type MemberFormValues = {
     fullName: string;
@@ -14,6 +15,7 @@ export type MemberFormValues = {
     avatarFile?: File | null;
     phone?: string;
     email?: string;
+    sendInvite?: boolean;
 };
 
 type Props = {
@@ -56,6 +58,7 @@ const normalizeFullName = (raw: string): string => {
         )
         .join(" ");
 };
+
 export default function MemberModal({
                                         open,
                                         title = "Thêm thành viên",
@@ -70,6 +73,8 @@ export default function MemberModal({
     const [isDeceased, setIsDeceased] = useState<boolean>(Boolean(initialValues?.deathDate));
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [submitted, setSubmitted] = useState(false);
+    const [emailExists, setEmailExists] = useState<boolean>(false);
+    const [sendNotify, setSendNotify] = useState<boolean>(false);
 
     useEffect(() => {
         if (!open) return;
@@ -86,6 +91,8 @@ export default function MemberModal({
         setPreview(initialValues?.avatarUrl || "");
         setIsDeceased(Boolean(initialValues?.deathDate));
         setSubmitted(false);
+        setEmailExists(false);
+        setSendNotify(false);
     }, [open]);
 
     useEffect(() => {
@@ -124,6 +131,31 @@ export default function MemberModal({
     })();
 
     const canSubmitAll = !nameError && !birthDateError && !deathDateError && !genderError && !emailError;
+
+    useEffect(() => {
+        const v = form.email?.trim().toLowerCase() || "";
+        if (!v || emailError) {
+            setEmailExists(false);
+            setSendNotify(false);
+            return;
+        }
+        let alive = true;
+        const t = setTimeout(async () => {
+            try {
+                const r = await usersApi.checkEmail(v);
+                if (!alive) return;
+                setEmailExists(!!r?.exists);
+                setSendNotify(false);
+            } catch (e) {
+                // ignore
+            }
+        }, 400);
+        return () => {
+            alive = false;
+            clearTimeout(t);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.email]);
 
     const handlePickFile = (file?: File) => {
         if (!file) return;
@@ -180,6 +212,7 @@ export default function MemberModal({
             ...form,
             fullName: normalizedFullName,
             gender: (form.gender || "") as any,
+            sendInvite: emailExists && sendNotify,
         });
     };
 
@@ -308,6 +341,22 @@ export default function MemberModal({
                                     <span id="email-error" className="text-xs text-red-600 mt-1">
                                         {emailError}
                                     </span>
+                                )}
+                                {!emailError && form.email?.trim() && emailExists && (
+                                    <div className="mt-2">
+                                        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                                            Email đã có tài khoản trong hệ thống.
+                                        </div>
+                                        <label className="inline-flex items-center gap-2 mt-2 select-none">
+                                            <input
+                                                type="checkbox"
+                                                className="size-4"
+                                                checked={sendNotify}
+                                                onChange={(e) => setSendNotify(e.target.checked)}
+                                            />
+                                            <span className="text-sm text-slate-700">Gửi thông báo sau khi tạo</span>
+                                        </label>
+                                    </div>
                                 )}
                             </label>
                         </div>
