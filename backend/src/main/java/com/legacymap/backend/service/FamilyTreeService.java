@@ -111,15 +111,27 @@ public class FamilyTreeService {
         chatRoomMemberRepository.save(creatorMember);
     }
 
-    private FamilyTree findOwnedTreeOrThrow(UUID treeId, UUID userId) {
+    private FamilyTree findEditableTreeOrThrow(UUID treeId, UUID userId) {
         User user = loadUserOrThrow(userId);
-        return familyTreeRepository.findByIdAndCreatedBy(treeId, user)
-                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        // Kiểm tra owner
+        Optional<FamilyTree> ownedTree = familyTreeRepository.findByIdAndCreatedBy(treeId, user);
+        if (ownedTree.isPresent()) {
+            return ownedTree.get();
+        }
+
+        // Kiểm tra quyền edit từ TreeAccess
+        if (canEdit(treeId, userId)) {
+            return familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+        }
+
+        throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
     }
 
     @Transactional
     public FamilyTree update(UUID treeId, UUID userId, FamilyTreeUpdateRequest req) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         boolean nameChanged = req.getName() != null && !req.getName().equals(tree.getName());
 
         if (req.getName() != null) tree.setName(req.getName());
@@ -141,14 +153,14 @@ public class FamilyTreeService {
 
     @Transactional
     public void delete(UUID treeId, UUID userId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         familyTreeRepository.delete(tree);
     }
 
     @Transactional
     public Person addMember(UUID treeId, UUID userId, PersonCreateRequest req) {
 
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         User creator = loadUserOrThrow(userId);
 
         String email = req.getEmail() != null ? req.getEmail().trim().toLowerCase() : null;
@@ -259,7 +271,7 @@ public class FamilyTreeService {
 
     @Transactional
     public Person updateMember(UUID treeId, UUID userId, UUID personId, PersonUpdateRequest req) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         Person p = personRepository.findById(personId)
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
@@ -291,7 +303,7 @@ public class FamilyTreeService {
 
     @Transactional
     public void deleteMember(UUID treeId, UUID userId, UUID personId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         Person p = personRepository.findById(personId)
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
@@ -304,7 +316,7 @@ public class FamilyTreeService {
 
     @Transactional
     public TreeShareResponse generatePublicShareLink(UUID treeId, UUID userId, String permission) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
 
         if (!permission.equals("view") && !permission.equals("edit")) {
             throw new AppException(ErrorCode.VALIDATION_FAILED);
@@ -333,7 +345,7 @@ public class FamilyTreeService {
         log.info("START: shareWithUser - treeId: {}, ownerId: {}, targetEmail: {}, accessLevel: {}",
                 treeId, ownerId, targetEmail, accessLevel);
 
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, ownerId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, ownerId);
         User owner = loadUserOrThrow(ownerId);
         User targetUser = userRepository.findByEmail(targetEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -383,19 +395,19 @@ public class FamilyTreeService {
 
     @Transactional(readOnly = true)
     public List<TreeAccess> getSharedUsers(UUID treeId, UUID userId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         return treeAccessRepository.findAllByFamilyTreeIdWithUsers(tree.getId());
     }
 
     @Transactional
     public void revokeAccess(UUID treeId, UUID ownerId, UUID targetUserId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, ownerId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, ownerId);
         treeAccessRepository.deleteByUserIdAndFamilyTreeId(targetUserId, tree.getId());
     }
 
     @Transactional
     public void disablePublicSharing(UUID treeId, UUID userId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         tree.setIsPublic(false);
         familyTreeRepository.save(tree);
     }
