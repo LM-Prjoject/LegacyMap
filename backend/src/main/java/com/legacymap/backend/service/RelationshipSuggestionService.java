@@ -33,14 +33,28 @@ public class RelationshipSuggestionService {
     @Autowired
     private GeminiSuggestClient geminiSuggestClient;
 
+    // THÊM DÒNG NÀY:
+    @Autowired
+    private FamilyTreeService familyTreeService;
+
     private User loadUser(UUID userId) {
         return userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
     private FamilyTree loadOwnedTree(UUID treeId, UUID userId) {
         User user = loadUser(userId);
-        return familyTreeRepository.findByIdAndCreatedBy(treeId, user)
-                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        Optional<FamilyTree> ownedTree = familyTreeRepository.findByIdAndCreatedBy(treeId, user);
+        if (ownedTree.isPresent()) {
+            return ownedTree.get();
+        }
+
+        if (familyTreeService.canEdit(treeId, userId)) {
+            return familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+        }
+
+        throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
     }
 
     private Person loadPerson(UUID personId) {

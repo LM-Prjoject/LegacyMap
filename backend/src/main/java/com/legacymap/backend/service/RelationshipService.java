@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -36,14 +37,28 @@ public class RelationshipService {
     @Autowired
     private UserRepository userRepository;
 
+    // THÊM DÒNG NÀY:
+    @Autowired
+    private FamilyTreeService familyTreeService;
+
     private User loadUser(UUID userId) {
         return userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
     private FamilyTree loadOwnedTree(UUID treeId, UUID userId) {
         User user = loadUser(userId);
-        return familyTreeRepository.findByIdAndCreatedBy(treeId, user)
-                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        Optional<FamilyTree> ownedTree = familyTreeRepository.findByIdAndCreatedBy(treeId, user);
+        if (ownedTree.isPresent()) {
+            return ownedTree.get();
+        }
+
+        if (familyTreeService.canEdit(treeId, userId)) {
+            return familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+        }
+
+        throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
     }
 
     private Person loadPerson(UUID personId) {
@@ -73,8 +88,18 @@ public class RelationshipService {
         }
 
         User user = loadUser(userId);
-        FamilyTree tree = familyTreeRepository.findByIdAndCreatedBy(treeId, user)
-                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        Optional<FamilyTree> ownedTree = familyTreeRepository.findByIdAndCreatedBy(treeId, user);
+        FamilyTree tree;
+
+        if (ownedTree.isPresent()) {
+            tree = ownedTree.get();
+        } else if (familyTreeService.canEdit(treeId, userId)) {
+            tree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+        } else {
+            throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
+        }
 
         Person p1 = loadPerson(req.getPerson1Id());
         Person p2 = loadPerson(req.getPerson2Id());
@@ -132,6 +157,16 @@ public class RelationshipService {
             relationshipRepository.save(reciprocal);
         }
 
+        // Force load lazy fields before returning
+        if (main.getPerson1() != null && main.getPerson1().getCreatedBy() != null) {
+            main.getPerson1().getCreatedBy().getEmail(); // trigger load
+        }
+        if (main.getPerson2() != null && main.getPerson2().getCreatedBy() != null) {
+            main.getPerson2().getCreatedBy().getEmail(); // trigger load
+        }
+        if (main.getCreatedBy() != null) {
+            main.getCreatedBy().getEmail(); // trigger load
+        }
         return main;
     }
 

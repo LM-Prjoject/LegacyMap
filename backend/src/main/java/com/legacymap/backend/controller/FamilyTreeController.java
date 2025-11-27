@@ -218,12 +218,12 @@ public class FamilyTreeController {
     }
 
     @PostMapping("/{treeId}/relationships")
-    public ResponseEntity<ApiResponse<Relationship>> createRelationship(
+    public ResponseEntity<ApiResponse<RelationshipDTO>> createRelationship(
             @PathVariable("treeId") UUID treeId,
             @RequestParam("userId") String userId,
             @RequestBody @Valid RelationshipCreateRequest req) {
         Relationship rel = relationshipService.create(treeId, parseUserId(userId), req);
-        return ResponseEntity.ok(ApiResponse.success(rel));
+        return ResponseEntity.ok(ApiResponse.success(RelationshipDTO.fromEntity(rel)));
     }
 
     @GetMapping("/{treeId}/relationships/suggest")
