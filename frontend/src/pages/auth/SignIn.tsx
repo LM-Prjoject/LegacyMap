@@ -2,11 +2,13 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Mail, Lock, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, X, CheckCircle, AlertCircle} from 'lucide-react';
 import { authApi } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import DragonsBackground from '@/components/visual/DragonsBackground';
 import { FcGoogle } from "react-icons/fc";
+import LockCountdownModal from '@/components/auth/LockCountdownModal';
+import UnbanRequestModal from "@/components/auth/UnbanRequestModal";
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 const isUsername = (s: string) => /^[a-zA-Z0-9._-]{3,30}$/.test(s);
@@ -38,6 +40,16 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
     const [userName, setUserName] = useState('');
     const navigate = useNavigate();
 
+    const [loginStatus, setLoginStatus] = useState<{
+        failedAttempts?: number;
+        isLocked?: boolean;
+        lockSecondsLeft?: number;
+        isBanned?: boolean;
+        canRequestUnban?: boolean;
+    } | null>(null);
+    const [lockCountdown, setLockCountdown] = useState<number | null>(null);
+    const [showLockModal, setShowLockModal] = useState(false);
+    const [showUnbanModal, setShowUnbanModal] = useState(false);
     // Không cần kiểm tra pendingShareToken nữa → loại bỏ hoàn toàn
     // const isFromSharedTree = !!localStorage.getItem('pendingShareToken');
 
@@ -51,6 +63,13 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             switch(errorParam) {
                 case 'banned':
                     errorMessage = 'Tài khoản của bạn đã bị khóa.';
+                    setLoginStatus({
+                        failedAttempts: 0,
+                        isLocked: false,
+                        lockSecondsLeft: 0,
+                        isBanned: true,
+                        canRequestUnban: true,
+                    });
                     break;
                 case 'disabled':
                     errorMessage = 'Tài khoản đã bị vô hiệu hóa.';
@@ -90,6 +109,32 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             }
         }
     }, []);
+
+    useEffect(() => {
+        if (lockCountdown == null || lockCountdown <= 0) return;
+
+        const interval = setInterval(() => {
+            setLockCountdown((prev) => {
+                if (prev == null) return prev;
+                if (prev <= 1) {
+                    setShowLockModal(false);
+                    setLoginStatus((old) =>
+                        old ? { ...old, isLocked: false, lockSecondsLeft: 0 } : old
+                    );
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [lockCountdown]);
+
+    const handlePasswordFocus = () => {
+        if (loginStatus?.isLocked && lockCountdown && lockCountdown > 0) {
+            setShowLockModal(true);
+        }
+    };
 
     const handleEmailVerification = async (token: string) => {
         try {
@@ -136,14 +181,18 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         }
     };
 
-    const { register, handleSubmit, formState: { errors } } = useForm<SignInFormData>({
-        resolver: zodResolver(signInSchema),
-    });
+    const { register, handleSubmit, formState: { errors }, watch } =
+        useForm<SignInFormData>({
+            resolver: zodResolver(signInSchema),
+        });
+
+    const identifierValue = watch('identifier') || '';
 
     const onSubmit = async (data: SignInFormData) => {
         try {
             setLoading(true);
             setError('');
+            setLoginStatus(null);
 
             const response = await authApi.login({
                 identifier: data.identifier,
@@ -156,7 +205,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 localStorage.setItem('authToken', token);
                 localStorage.setItem('user', JSON.stringify(user));
 
-                // ƯU TIÊN: redirectAfterLogin (được set từ SharedTreeView)
                 const redirectUrl = localStorage.getItem('redirectAfterLogin');
 
                 if (redirectUrl) {
@@ -169,7 +217,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 throw new Error('No token received from server');
             }
         } catch (error: any) {
-            let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+            let errorMessage = 'Tài khoản hoặc mật khẩu không đúng.';
 
             if (error.response?.data?.message) {
                 const backendMessage = error.response.data.message;
@@ -184,11 +232,36 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                     errorMessage = 'Tài khoản hoặc mật khẩu không đúng.';
                 } else if (backendMessage.includes('Google') || backendMessage.includes('OAUTH_GOOGLE_ONLY')) {
                     errorMessage = 'Tài khoản này chỉ có thể đăng nhập bằng Google.';
-                } else {
-                    errorMessage = backendMessage;
                 }
             } else if (error.message) {
                 errorMessage = error.message;
+            }
+            try {
+                const statusRes = await authApi.getLoginStatus(data.identifier);
+                const s = statusRes.result;
+
+                if (s) {
+                    setLoginStatus({
+                        failedAttempts: s.failedAttempts,
+                        isLocked: s.isLocked,
+                        lockSecondsLeft: s.lockSecondsLeft,
+                        isBanned: s.isBanned,
+                        canRequestUnban: s.canRequestUnban,
+                    });
+
+                    if (s.isBanned) {
+                        errorMessage = 'Tài khoản của bạn đã bị khóa';
+                    }
+                    else if (s.isLocked && s.lockSecondsLeft > 0) {
+                        setLockCountdown(s.lockSecondsLeft);
+                        setShowLockModal(true);
+                    }
+                    else if (s.failedAttempts >= 1) {
+                        errorMessage = `Tài khoản hoặc mật khẩu không đúng.`;
+                    }
+                }
+            } catch (statusErr) {
+                console.error('Không lấy được login status:', statusErr);
             }
 
             setError(errorMessage);
@@ -283,7 +356,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                 </button>
                             </div>
                         ) : (
-                            // ... phần form đăng nhập giữ nguyên
                             <>
                                 {error && (
                                     <div className="mb-4 p-3 rounded-xl flex items-center gap-2 text-sm" style={{
@@ -292,6 +364,23 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     }}>
                                         <AlertCircle className="w-4 h-4 flex-shrink-0" style={{color: '#dc2626'}} />
                                         <span className="font-medium" style={{color: '#dc2626'}}>{error}</span>
+                                    </div>
+                                )}
+
+                                {loginStatus && (
+                                    <div className="mb-4 text-xs font-medium" style={{ color: '#2a3548' }}>
+                                        {loginStatus.isBanned && loginStatus.canRequestUnban && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowUnbanModal(true);
+                                                }}
+                                                className="text-xs font-semibold no-underline underline-offset-2"
+                                                style={{ color: "#b45309" }}
+                                            >
+                                                Gửi yêu cầu mở khóa tài khoản
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
@@ -334,6 +423,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                                     color: '#2a3548'
                                                 }}
                                                 {...register('password')}
+                                                onFocus={handlePasswordFocus}
                                             />
                                             <button
                                                 type="button"
@@ -403,6 +493,16 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                 </p>
                             </>
                         )}
+                        <LockCountdownModal
+                            open={showLockModal && !!lockCountdown && lockCountdown > 0}
+                            secondsLeft={lockCountdown ?? 0}
+                            onClose={() => setShowLockModal(false)}
+                        />
+                        <UnbanRequestModal
+                            open={showUnbanModal}
+                            onClose={() => setShowUnbanModal(false)}
+                            identifier={identifierValue}
+                        />
                     </div>
                 </div>
             </div>
