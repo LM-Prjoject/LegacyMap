@@ -21,6 +21,7 @@ const EventsPage: React.FC = () => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedDayEvents, setSelectedDayEvents] = useState<Event[]>([]);
     const [isDayEventsModalOpen, setIsDayEventsModalOpen] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const userData = localStorage.getItem('user');
     const familyTreeId = userData
         ? JSON.parse(userData).familyTreeId
@@ -163,6 +164,7 @@ const EventsPage: React.FC = () => {
 
         if (eventsOnDate.length === 1) {
             setSelectedEventId(eventsOnDate[0].id);
+            setSelectedDate(date);
             setIsDetailModalOpen(true);
         } else {
             setSelectedDayEvents(eventsOnDate);
@@ -175,7 +177,7 @@ const EventsPage: React.FC = () => {
         const isLeap = lsr.lunar.isLeapMonth;
         const dayStr = getVietnameseLunarDay(lsr.lunar.day);
         const monthStr = getVietnameseLunarMonth(lsr.lunar.month, isLeap);
-        return `${dayStr} ${monthStr}`;
+        return `${dayStr} / ${monthStr}`;
     };
 
     const monthNames = [
@@ -418,6 +420,7 @@ const EventsPage: React.FC = () => {
                                             border: `3px solid ${isTodayDate ? 'rgb(255, 216, 155)' : eventsHere.length > 0 ? 'rgba(42, 53, 72, 0.4)' : 'transparent'}`,
                                             boxShadow: isTodayDate ? '0 10px 30px rgba(255, 216, 155, 0.6), 0 0 60px rgba(255, 216, 155, 0.3)' : eventsHere.length > 0 ? '0 5px 20px rgba(42, 53, 72, 0.2)' : '0 2px 10px rgba(0,0,0,0.05)'
                                         }}
+                                        onClick={() => handleDateClick(date)}
                                     >
                                         <div className={`text-center font-bold text-lg mb-1`} style={{
                                             color: isTodayDate ? 'rgb(255, 216, 155)' : '#2a3548',
@@ -472,6 +475,7 @@ const EventsPage: React.FC = () => {
                                         key={event.id}
                                         onClick={() => {
                                             setSelectedEventId(event.id);
+                                            setSelectedDate(new Date(event.startDate));
                                             setIsDetailModalOpen(true);
                                         }}
                                         className="p-4 rounded-xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl"
@@ -518,6 +522,7 @@ const EventsPage: React.FC = () => {
                                         key={event.id}
                                         onClick={() => {
                                             setSelectedEventId(event.id);
+                                            setSelectedDate(new Date(event.startDate));
                                             setIsDetailModalOpen(true);
                                         }}
                                         className="p-4 rounded-xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl"
@@ -578,6 +583,7 @@ const EventsPage: React.FC = () => {
                                         key={event.id}
                                         onClick={() => {
                                             setSelectedEventId(event.id);
+                                            setSelectedDate(new Date(event.startDate));
                                             setIsDetailModalOpen(true);
                                             setIsDayEventsModalOpen(false);
                                         }}
@@ -608,15 +614,18 @@ const EventsPage: React.FC = () => {
                         onClose={() => {
                             setIsDetailModalOpen(false);
                             setSelectedEventId(null);
+                            setSelectedDate(null);
                         }}
                         onDelete={() => {
                             handleRefetch();
                             setIsDetailModalOpen(false);
                             setSelectedEventId(null);
+                            setSelectedDate(null);
                         }}
                         onUpdate={() => {
                             handleRefetch();
                         }}
+                        selectedDate={selectedDate}
                     />
                 )}
             </div>

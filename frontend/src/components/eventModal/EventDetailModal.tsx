@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit2, Trash2, Calendar, Bell, MapPin, Save, FileText } from 'lucide-react';
-import { eventsApi } from '@/api/eventApi.ts';
-import { Event, EventType, CalendarType } from '@/types/event.ts';
+import lunisolar from 'lunisolar';
+import { eventsApi } from '@/api/eventApi';
+import { Event, EventType, CalendarType } from '@/types/event';
+import { getVietnameseLunarDay, getVietnameseLunarMonth, getVietnameseStemBranch } from '@/utils/lunarUtils';
+import { EventDetailModalProps} from "@/types/event";
 
-interface EventDetailModalProps {
-    eventId: string;
-    isOpen: boolean;
-    onClose: () => void;
-    onDelete?: () => void;
-    onUpdate?: (updatedEvent?: Event) => void;
-}
 
-const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, onClose, onDelete, onUpdate }) => {
+const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, onClose, onDelete, onUpdate, selectedDate }) => {
     const [event, setEvent] = useState<Event | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editedEvent, setEditedEvent] = useState<Partial<Event>>({});
@@ -82,6 +78,18 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
         }
     };
 
+    const getDisplayDate = () => {
+        if (selectedDate && event) {
+            const originalDate = new Date(event.startDate);
+            const displayDate = new Date(selectedDate);
+            displayDate.setHours(originalDate.getHours(), originalDate.getMinutes(), originalDate.getSeconds());
+            return displayDate.toISOString();
+        }
+        return event?.startDate;
+    };
+
+    const displayDate = getDisplayDate();
+
     const getEventTypeLabel = (type: EventType): string => {
         const labels: Record<EventType, string> = {
             [EventType.BIRTHDAY]: 'Sinh nhật',
@@ -100,7 +108,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
         return type === CalendarType.LUNAR ? 'Âm lịch' : 'Dương lịch';
     };
 
-    const formatDateTime = (dateTime: string) => {
+    const formatDisplayDateTime = (dateTime: string) => {
         return new Date(dateTime).toLocaleString('vi-VN', {
             year: 'numeric',
             month: 'long',
@@ -145,6 +153,65 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
         const mm = pad(now.getMinutes());
         return `${y}-${m}-${d}T${hh}:${mm}`;
     };
+
+    const getLunarDate = (solarDate: string): string => {
+        try {
+            const date = new Date(solarDate);
+
+            if (isNaN(date.getTime())) {
+                console.error('Invalid Date input:', solarDate);
+                return 'Ngày không hợp lệ';
+            }
+
+            const lsr = lunisolar(date);
+
+            if (!lsr || !lsr.lunar) {
+                return 'Lỗi thư viện';
+            }
+
+            const lunarData = lsr.lunar;
+
+            const isLeap = lunarData.isLeapMonth || false;
+            const lunarDay = lunarData.day;
+            const lunarMonth = lunarData.month;
+
+            const dayStr = getVietnameseLunarDay(lunarDay);
+            const monthStr = getVietnameseLunarMonth(lunarMonth, isLeap);
+            const yearStr = getVietnameseStemBranch(lsr.format('cY'));
+
+            return `${dayStr} tháng ${monthStr} năm ${yearStr}`;
+        } catch (error) {
+            console.error('Lunar conversion error:', error);
+            return 'Không thể chuyển đổi';
+        }
+    };
+
+    const getDisplayLunarDate = () => {
+        if (!displayDate) return 'Không thể chuyển đổi';
+        return getLunarDate(displayDate);
+    };
+
+    const getDisplayEndDate = () => {
+        if (selectedDate && event?.endDate) {
+            const originalStart = new Date(event.startDate);
+            const originalEnd = new Date(event.endDate);
+            const displayStart = new Date(selectedDate);
+
+            if (event.isFullDay) {
+                const daysDiff = Math.round((originalEnd.getTime() - originalStart.getTime()) / (1000 * 60 * 60 * 24));
+                const displayEnd = new Date(displayStart);
+                displayEnd.setDate(displayStart.getDate() + daysDiff);
+                return displayEnd.toISOString();
+            } else {
+                const duration = originalEnd.getTime() - originalStart.getTime();
+                const displayEnd = new Date(displayStart.getTime() + duration);
+                return displayEnd.toISOString();
+            }
+        }
+        return event?.endDate;
+    };
+
+    const displayEndDate = getDisplayEndDate();
 
     if (!isOpen) return null;
 
@@ -245,8 +312,12 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                             </div>
                                         ) : (
                                             <>
-                                                <p className="font-semibold text-white text-lg">{formatDateTime(event.startDate)}</p>
-                                                {event.endDate && <p className="text-sm text-white/70 mt-1">đến {formatDateTime(event.endDate)}</p>}
+                                                <p className="font-semibold text-white text-lg">
+                                                    {displayDate ? formatDisplayDateTime(displayDate) : 'Đang tải...'}
+                                                </p>
+                                                {displayEndDate && (
+                                                    <p className="text-sm text-white/70 mt-1">đến {formatDisplayDateTime(displayEndDate)}</p>
+                                                )}
                                                 <div className="flex flex-wrap gap-2 mt-3">
                                                     <span className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#EEDC9A] to-[#D1B066] text-[#1b2233] shadow-lg">
                                                         {getCalendarTypeLabel(event.calendarType)}
@@ -257,6 +328,19 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                                         </span>
                                                     )}
                                                 </div>
+
+                                                {event.calendarType === CalendarType.LUNAR && (
+                                                    <div className="flex gap-4 mt-2">
+                                                        <div>
+                                                            <div className="font-bold text-sm text-[#EEDC9A] uppercase tracking-wider mb-1">
+                                                                Ngày Âm Lịch
+                                                            </div>
+                                                            <p className="font-semibold text-white text-sm">
+                                                                {getDisplayLunarDate()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
