@@ -66,7 +66,12 @@ export default function ProfileEditModal({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
             {/* Overlay với gradient vàng đen */}
             <div
-                className="absolute inset-0 bg-gradient-to-br from-[#000000]/70 via-[#1b2233]/80 to-[#2e3a57]/90 backdrop-blur-sm"
+                className="absolute inset-0"
+                style={{
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)'
+                }}
                 onClick={() => !saving && onCancel()}
             />
 
@@ -74,7 +79,7 @@ export default function ProfileEditModal({
             <div className="relative z-[10000] w-full max-w-3xl h-[85vh] rounded-2xl bg-[#1b2233]/95 border border-[#D1B066]/30 shadow-2xl flex flex-col overflow-hidden animate-fade-in-up">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-[#D1B066]/30 flex items-center justify-between bg-[#2e3a57]/40 backdrop-blur-sm">
-                    <h3 className="text-lg font-bold text-[#D1B066] tracking-wide">
+                    <h3 className="text-xl font-bold text-[#D1B066] tracking-wide">
                         Chỉnh sửa thông tin
                     </h3>
                     <button
@@ -124,7 +129,7 @@ export default function ProfileEditModal({
                         </div>
 
                         <div>
-                            <div className="text-[#D1B066] font-semibold">Ảnh đại diện</div>
+                            <div className="text-[#D1B066] text-base font-semibold">Ảnh đại diện</div>
                             <div className="text-sm text-white/70">
                                 Nhấn vào ảnh để tải lên ảnh mới.
                             </div>
