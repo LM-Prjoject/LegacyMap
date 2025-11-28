@@ -105,9 +105,9 @@ public class EventController {
         return ResponseEntity.ok(eventService.getUpcomingEvents(getCurrentUserId(), limit));
     }
 
-    @GetMapping("/family-tree/{familyTreeId}/range")
+    @GetMapping("/range")
     public ResponseEntity<List<EventResponse>> getEventsInDateRange(
-            @PathVariable UUID familyTreeId,
+            @RequestParam(required = false) UUID familyTreeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime end) {
         return ResponseEntity.ok(eventService.getEventsInDateRange(familyTreeId, getCurrentUserId(), start, end));

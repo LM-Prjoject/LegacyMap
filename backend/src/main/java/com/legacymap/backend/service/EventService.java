@@ -1,8 +1,11 @@
 package com.legacymap.backend.service;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -107,7 +110,7 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new AppException(ErrorCode.EVENT_NOT_FOUND));
 
-        if (!event.getCreatedBy().getId().equals(userId)) {
+        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
@@ -144,6 +147,7 @@ public class EventService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
 
+        event.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return mapToResponse(eventRepository.save(event));
     }
 
@@ -152,7 +156,7 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new AppException(ErrorCode.EVENT_NOT_FOUND));
 
-        if (!event.getCreatedBy().getId().equals(userId)) {
+        if (event.getCreatedBy() == null || !event.getCreatedBy().getId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
@@ -164,10 +168,12 @@ public class EventService {
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new AppException(ErrorCode.EVENT_NOT_FOUND));
 
-        boolean isCreator = event.getCreatedBy().getId().equals(userId);
-        boolean hasTreeAccess = event.getFamilyTree() != null && 
-                familyTreeRepository.findByIdAndCreatedBy(event.getFamilyTree().getId(), loadUserOrThrow(userId))
-                        .isPresent();
+        boolean isCreator = event.getCreatedBy() != null && event.getCreatedBy().getId().equals(userId);
+        boolean hasTreeAccess = false;
+        if (event.getFamilyTree() != null) {
+            hasTreeAccess = familyTreeRepository.findByIdAndCreatedBy(event.getFamilyTree().getId(), loadUserOrThrow(userId))
+                    .isPresent();
+        }
 
         if (!isCreator && !hasTreeAccess) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -181,10 +187,15 @@ public class EventService {
         FamilyTree tree = findTreeWithAccessOrThrow(treeId, userId);
         OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime nextMonthUtc = nowUtc.plusMonths(1);
+        OffsetDateTime searchStart = nowUtc.minusYears(5);
+        OffsetDateTime searchEnd = nowUtc.plusMonths(1);
 
-        return eventRepository.findByFamilyTreeAndStartDateBetweenOrderByStartDateAsc(tree, nowUtc, nextMonthUtc)
-                .stream()
-                .map(this::mapToResponse)
+        List<Event> treeEvents = eventRepository.findByFamilyTreeAndStatusAndStartDateBetweenOrderByStartDateAsc(
+                tree, Event.EventStatus.active, searchStart, searchEnd);
+
+        return treeEvents.stream()
+                .flatMap(e -> expandRecurrence(e, nowUtc, nextMonthUtc).stream())
+                .sorted(Comparator.comparing(EventResponse::getStartDate))
                 .collect(Collectors.toList());
     }
 
@@ -202,38 +213,160 @@ public class EventService {
         User user = loadUserOrThrow(userId);
 
         ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
-        OffsetDateTime nowVietnam = OffsetDateTime.now(vietnamZone);
-        OffsetDateTime nowUtc = nowVietnam.withOffsetSameInstant(ZoneOffset.UTC);
-        OffsetDateTime next30Utc = nowVietnam.plusDays(30).withOffsetSameInstant(ZoneOffset.UTC);
+        ZonedDateTime nowVietnamZdt = ZonedDateTime.now(vietnamZone);
+        OffsetDateTime nowUtc = nowVietnamZdt.toOffsetDateTime().withOffsetSameInstant(ZoneOffset.UTC);
+        OffsetDateTime next30Utc = nowVietnamZdt.plusDays(30).toOffsetDateTime().withOffsetSameInstant(ZoneOffset.UTC);
 
-        // Event cá nhân
+        OffsetDateTime searchStart = nowUtc.minusYears(2);
+        OffsetDateTime searchEnd = next30Utc.plusYears(5);
+
+        // Personal events
         List<Event> personalEvents = eventRepository.findByPersonalOwnerAndFamilyTreeIsNullAndStatusAndStartDateBetweenOrderByStartDateAsc(
-                user, Event.EventStatus.active, nowUtc, next30Utc);
+                user, Event.EventStatus.active, searchStart, searchEnd);
 
-        // Event family tree
+        // Family tree events
         List<FamilyTree> userTrees = familyTreeRepository.findAllByCreatedBy(user);
-        List<UUID> treeIds = userTrees.stream().map(FamilyTree::getId).toList();
+        List<UUID> treeIds = userTrees.stream().map(FamilyTree::getId).collect(Collectors.toList());
         List<Event> treeEvents = treeIds.isEmpty() ? List.of() :
                 eventRepository.findByFamilyTreeIdInAndStatusAndStartDateBetweenOrderByStartDateAsc(
-                        treeIds, Event.EventStatus.active, nowUtc, next30Utc);
+                        treeIds, Event.EventStatus.active, searchStart, searchEnd);
 
-        return Stream.concat(personalEvents.stream(), treeEvents.stream())
-                .sorted(Comparator.comparing(Event::getStartDate))
+        List<EventResponse> allOccurrences = Stream.concat(personalEvents.stream(), treeEvents.stream())
+                .flatMap(e -> expandRecurrence(e, nowUtc, next30Utc).stream())
+                .collect(Collectors.toList());
+
+        return allOccurrences.stream()
+                .sorted(Comparator.comparing(EventResponse::getStartDate))
                 .limit(limit)
-                .map(this::mapToResponse)
-                .toList();
+                .collect(Collectors.toList());
+    }
+
+    private List<EventResponse> expandRecurrence(Event event, OffsetDateTime rangeStart, OffsetDateTime rangeEnd) {
+        if (event == null) return List.of();
+
+        if (!event.getIsRecurring() || event.getRecurrenceRule() == Event.RecurrenceRule.NONE) {
+            if (isEventVisibleInRange(event, rangeStart, rangeEnd)) {
+                return List.of(mapToResponse(event));
+            }
+            return List.of();
+        }
+
+        if (event.getStartDate() == null) {
+            return List.of();
+        }
+
+        List<EventResponse> occurrences = new ArrayList<>();
+        OffsetDateTime current = event.getStartDate();
+        ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
+
+        long durationSeconds = event.getEndDate() != null
+                ? Duration.between(event.getStartDate(), event.getEndDate()).getSeconds()
+                : 3600;
+
+        while (current.isBefore(rangeStart)) {
+            if (event.getRecurrenceRule() == Event.RecurrenceRule.YEARLY) {
+                current = current.plusYears(1);
+            } else if (event.getRecurrenceRule() == Event.RecurrenceRule.MONTHLY) {
+                current = current.plusMonths(1);
+            } else {
+                break;
+            }
+            if (current.isAfter(rangeEnd.plusYears(100))) {
+                break;
+            }
+        }
+
+        while (!current.isAfter(rangeEnd)) {
+            OffsetDateTime occurrenceStartUtc = current;
+            OffsetDateTime occurrenceEndUtc = current.plusSeconds(durationSeconds);
+
+            if (!occurrenceStartUtc.isAfter(rangeEnd) && !occurrenceEndUtc.isBefore(rangeStart)) {
+                EventResponse resp = mapToResponse(event);
+                resp.setStartDate(occurrenceStartUtc.atZoneSameInstant(vietnamZone).toOffsetDateTime());
+                resp.setEndDate(occurrenceEndUtc.atZoneSameInstant(vietnamZone).toOffsetDateTime());
+                occurrences.add(resp);
+            }
+
+            if (event.getRecurrenceRule() == Event.RecurrenceRule.YEARLY) {
+                current = current.plusYears(1);
+            } else if (event.getRecurrenceRule() == Event.RecurrenceRule.MONTHLY) {
+                current = current.plusMonths(1);
+            } else {
+                break;
+            }
+
+            if (current.isAfter(rangeEnd.plusYears(20))) {
+                break;
+            }
+        }
+
+        return occurrences;
     }
 
     @Transactional(readOnly = true)
     public List<EventResponse> getEventsInDateRange(UUID treeId, UUID userId, OffsetDateTime start, OffsetDateTime end) {
-        FamilyTree tree = findTreeWithAccessOrThrow(treeId, userId);
+        User user = loadUserOrThrow(userId);
         OffsetDateTime startUtc = start.withOffsetSameInstant(ZoneOffset.UTC);
         OffsetDateTime endUtc = end.withOffsetSameInstant(ZoneOffset.UTC);
+        OffsetDateTime searchStart = startUtc.minusYears(5);
 
-        return eventRepository.findEventsInDateRange(tree, startUtc, endUtc)
-                .stream()
-                .map(this::mapToResponse)
+        List<Event> events = new ArrayList<>();
+
+        if (treeId != null) {
+            FamilyTree tree = findTreeWithAccessOrThrow(treeId, userId);
+            events.addAll(eventRepository.findByFamilyTreeAndStatusAndStartDateBetweenOrderByStartDateAsc(
+                    tree, Event.EventStatus.active, searchStart, endUtc));
+        } else {
+            events.addAll(eventRepository.findByPersonalOwnerAndFamilyTreeIsNullAndStatusAndStartDateBetweenOrderByStartDateAsc(
+                    user, Event.EventStatus.active, searchStart, endUtc));
+
+            List<FamilyTree> userTrees = familyTreeRepository.findAllByCreatedBy(user);
+            if (!userTrees.isEmpty()) {
+                List<UUID> treeIds = userTrees.stream().map(FamilyTree::getId).collect(Collectors.toList());
+                events.addAll(eventRepository.findByFamilyTreeIdInAndStatusAndStartDateBetweenOrderByStartDateAsc(
+                        treeIds, Event.EventStatus.active, searchStart, endUtc));
+            }
+        }
+
+        return events.stream()
+                .flatMap(e -> expandRecurrence(e, startUtc, endUtc).stream())
+                .sorted(Comparator.comparing(EventResponse::getStartDate))
                 .collect(Collectors.toList());
+    }
+
+    private boolean isEventVisibleInRange(Event event, OffsetDateTime rangeStart, OffsetDateTime rangeEnd) {
+        if (event == null) return false;
+
+        if (!event.getIsRecurring() || event.getRecurrenceRule() == Event.RecurrenceRule.NONE) {
+            OffsetDateTime eventEnd = event.getEndDate() != null ? event.getEndDate() : (event.getStartDate() != null ? event.getStartDate().plusHours(1) : null);
+            if (event.getStartDate() == null || eventEnd == null) return false;
+            return !event.getStartDate().isAfter(rangeEnd) && !eventEnd.isBefore(rangeStart);
+        }
+
+        OffsetDateTime current = event.getStartDate();
+        OffsetDateTime searchUntil = rangeEnd.plusYears(10);
+
+        long durationSeconds = 3600;
+        if (event.getEndDate() != null && event.getStartDate() != null) {
+            durationSeconds = Duration.between(event.getStartDate(), event.getEndDate()).getSeconds();
+        }
+
+        while (current != null && current.isBefore(searchUntil)) {
+            OffsetDateTime currentEnd = current.plusSeconds(durationSeconds);
+
+            if (!current.isAfter(rangeEnd) && !currentEnd.isBefore(rangeStart)) {
+                return true;
+            }
+
+            if (event.getRecurrenceRule() == Event.RecurrenceRule.YEARLY) {
+                current = current.plusYears(1);
+            } else if (event.getRecurrenceRule() == Event.RecurrenceRule.MONTHLY) {
+                current = current.plusMonths(1);
+            } else {
+                break;
+            }
+        }
+        return false;
     }
 
     private EventResponse mapToResponse(Event event) {
@@ -242,7 +375,7 @@ public class EventService {
 
         response.setId(event.getId());
         response.setFamilyTreeId(event.getFamilyTree() != null ? event.getFamilyTree().getId() : null);
-        response.setCreatedBy(event.getCreatedBy().getId());
+        response.setCreatedBy(event.getCreatedBy() != null ? event.getCreatedBy().getId() : null);
         response.setTitle(event.getTitle());
         response.setDescription(event.getDescription());
         response.setEventType(event.getEventType());
@@ -279,5 +412,4 @@ public class EventService {
 
         return response;
     }
-
 }

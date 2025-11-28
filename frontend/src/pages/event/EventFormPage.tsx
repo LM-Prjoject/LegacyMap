@@ -482,6 +482,7 @@ const EventFormPage: React.FC = () => {
                                     value={formData.startDate}
                                     onChange={(e) => handleInputChange('startDate', e.target.value)}
                                     min={minDateTime}
+                                    disabled={formData.isFullDay}
                                     className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
                                     style={{
                                         background: 'rgba(255, 255, 255, 0.05)',
@@ -500,6 +501,7 @@ const EventFormPage: React.FC = () => {
                                     value={formData.endDate}
                                     onChange={(e) => handleInputChange('endDate', e.target.value)}
                                     min={formData.startDate || minDateTime}
+                                    disabled={formData.isFullDay}
                                     className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
                                     style={{
                                         background: 'rgba(255, 255, 255, 0.05)',
@@ -549,7 +551,22 @@ const EventFormPage: React.FC = () => {
                                     <input
                                         type="checkbox"
                                         checked={formData.isFullDay || false}
-                                        onChange={(e) => handleInputChange('isFullDay', e.target.checked)}
+                                        onChange={(e) => {
+                                            const isFullDay = e.target.checked;
+                                            handleInputChange('isFullDay', isFullDay);
+
+                                            if (isFullDay && formData.startDate) {
+                                                const userSelectedDate = formData.startDate;
+
+                                                const datePart = userSelectedDate.split('T')[0];
+
+                                                const startStr = `${datePart}T00:00`;
+                                                const endStr = `${datePart}T23:59`;
+
+                                                handleInputChange('startDate', startStr);
+                                                handleInputChange('endDate', endStr);
+                                            }
+                                        }}
                                         className="w-4 h-4 rounded"
                                         style={{ accentColor: 'rgb(255, 216, 155)' }}
                                     />

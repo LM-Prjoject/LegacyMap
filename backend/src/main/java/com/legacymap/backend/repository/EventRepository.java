@@ -47,4 +47,11 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
             OffsetDateTime start,
             OffsetDateTime end
     );
+
+    List<Event> findByFamilyTreeAndStatusAndStartDateBetweenOrderByStartDateAsc(
+         FamilyTree familyTree,
+         Event.EventStatus status,
+         OffsetDateTime start,
+         OffsetDateTime end
+    );
 }
