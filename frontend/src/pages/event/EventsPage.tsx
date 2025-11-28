@@ -2,14 +2,12 @@ import React, {useState, useMemo, useEffect} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Plus, ChevronLeft, ChevronRight, Clock, Grid, List } from 'lucide-react';
 import { useUpcomingEvents } from '@/hooks/useEvents';
-import { EventType } from '@/types/event';
+import {useCalendarEvents} from "@/hooks/useCalendarEvents";
+import { EventType, Event } from '@/types/event';
 import lunisolar from 'lunisolar';
-import Navbar from "@/components/layout/Navbar.tsx";
-import { useEventContext } from '@/contexts/EventContext';
-import EventDetailModal from "@/components/eventModal/EventDetailModal.tsx";
-import { format, parseISO, isSameDay, startOfDay, endOfDay } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
-import { eventsApi } from '@/api/eventApi';
+import Navbar from "@/components/layout/Navbar";
+import EventDetailModal from "@/components/eventModal/EventDetailModal";
+import { format, parseISO, isSameDay } from 'date-fns';
 import { getVietnameseLunarDay, getVietnameseLunarMonth, getLunarInfo, getVietnameseStemBranch } from '@/utils/lunarUtils';
 
 type CalendarView = 'month' | 'week';
@@ -21,23 +19,38 @@ const EventsPage: React.FC = () => {
     const [calendarView, setCalendarView] = useState<CalendarView>('month');
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const { eventsUpdated } = useEventContext();
+    const [selectedDayEvents, setSelectedDayEvents] = useState<Event[]>([]);
+    const [isDayEventsModalOpen, setIsDayEventsModalOpen] = useState(false);
     const userData = localStorage.getItem('user');
     const familyTreeId = userData
         ? JSON.parse(userData).familyTreeId
         || JSON.parse(userData).family_tree_id
         || JSON.parse(userData).familyTree?.id
         : null;
-    const { events = [], loading, error, refetch: refetchEvents } = useUpcomingEvents(familyTreeId, 30);
+    const {
+        events: calendarEvents = [],
+        loading: calendarLoading,
+        refetch: refetchCalendar
+    } = useCalendarEvents(familyTreeId, currentDate);
+
+    const {
+        events: upcomingEventsList = [],
+        loading: upcomingLoading,
+        error,
+        refetch: refetchUpcoming
+    } = useUpcomingEvents(familyTreeId, 90);
+
+    const isLoading = calendarLoading || upcomingLoading;
+
+    const handleRefetch = () => {
+        refetchCalendar();
+        refetchUpcoming();
+    };
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
-
-    useEffect(() => {
-        if (eventsUpdated) refetchEvents();
-    }, [eventsUpdated]);
 
     const today = useMemo(() => currentTime, [currentTime]);
     const todayLunar = useMemo(() => getLunarInfo(today), [today]);
@@ -138,51 +151,22 @@ const EventsPage: React.FC = () => {
     };
 
     const getEventsForDate = (date: Date) => {
-        return events.filter(e => {
-            try {
-                const eventDate = parseISO(e.startDate);
-                return isSameDay(eventDate, date);
-            } catch {
-                return false;
-            }
-        });
+        return calendarEvents.filter(e => isSameDay(parseISO(e.startDate), date));
     };
 
-    const getTodayEvents = () => {
-        const todayStart = startOfDay(today);
-        const todayEnd = endOfDay(today);
-        return events.filter(e => {
-            const eventDate = parseISO(e.startDate);
-            return eventDate >= todayStart && eventDate <= todayEnd;
-        });
-    };
+    const todayEvents = upcomingEventsList.filter(e => isSameDay(parseISO(e.startDate), new Date()));
+    const upcomingEvents = upcomingEventsList.slice(0, 5);
 
-    const getUpcomingEvents = () => {
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStart = startOfDay(tomorrow);
+    const handleDateClick = (date: Date) => {
+        const eventsOnDate = getEventsForDate(date);
+        if (eventsOnDate.length === 0) return;
 
-        return events
-            .filter(e => parseISO(e.startDate) >= tomorrowStart)
-            .sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime())
-            .slice(0, 5);
-    };
-
-    const handleDateClick = async (date: Date) => {
-        if (!familyTreeId) return;
-
-        const start = formatInTimeZone(date, 'Asia/Ho_Chi_Minh', "yyyy-MM-dd'T'00:00:00XXX");
-        const end = formatInTimeZone(date, 'Asia/Ho_Chi_Minh', "yyyy-MM-dd'T'23:59:59XXX");
-
-        try {
-            const dayEvents = await eventsApi.getEventsInDateRange(familyTreeId, start, end);
-            if (dayEvents.length >= 1) {
-                setSelectedEventId(dayEvents[0].id);
-                setIsDetailModalOpen(true);
-            }
-        } catch (err) {
-            console.error('Lỗi lấy sự kiện theo ngày:', err);
+        if (eventsOnDate.length === 1) {
+            setSelectedEventId(eventsOnDate[0].id);
+            setIsDetailModalOpen(true);
+        } else {
+            setSelectedDayEvents(eventsOnDate);
+            setIsDayEventsModalOpen(true);
         }
     };
 
@@ -199,7 +183,7 @@ const EventsPage: React.FC = () => {
         'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
     ];
 
-    if (loading) {
+    if (isLoading) {
         return (
             <>
                 <Navbar />
@@ -320,11 +304,11 @@ const EventsPage: React.FC = () => {
                             </h2>
                             <button
                                 onClick={nextPeriod}
-                                    className="p-3 rounded-xl transition-all hover:scale-110 shadow-lg"
-                                    style={{
-                                        background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
-                                        border: '2px solid rgba(255, 216, 155, 0.5)'
-                                    }}
+                                className="p-3 rounded-xl transition-all hover:scale-110 shadow-lg"
+                                style={{
+                                    background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                    border: '2px solid rgba(255, 216, 155, 0.5)'
+                                }}
                             >
                                 <ChevronRight className="w-6 h-6" style={{color: 'rgb(255, 216, 155)'}} />
                             </button>
@@ -481,9 +465,9 @@ const EventsPage: React.FC = () => {
                         }}>
                             Sự kiện hôm nay
                         </h3>
-                        {getTodayEvents().length > 0 ? (
+                        {todayEvents.length > 0 ? (
                             <div className="space-y-3">
-                                {getTodayEvents().map(event => (
+                                {todayEvents.map(event => (
                                     <div
                                         key={event.id}
                                         onClick={() => {
@@ -527,9 +511,9 @@ const EventsPage: React.FC = () => {
                         <h3 className="text-xl font-bold mb-5 flex items-center gap-2" style={{color: 'rgb(255, 216, 155)'}}>
                             Sự kiện sắp tới
                         </h3>
-                        {getUpcomingEvents().length > 0 ? (
+                        {upcomingEvents.length > 0 ? (
                             <div className="space-y-3">
-                                {getUpcomingEvents().map(event => (
+                                {upcomingEvents.map(event => (
                                     <div
                                         key={event.id}
                                         onClick={() => {
@@ -559,6 +543,41 @@ const EventsPage: React.FC = () => {
                         )}
                     </div>
                 </div>
+
+                {isDayEventsModalOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+                        <div className="bg-gradient-to-br from-[#2a3548] to-[#1f2937] rounded-3xl p-8 max-w-lg w-full shadow-2xl border border-[#D4AF37]/30">
+                            <h3 className="text-2xl font-bold text-[#D4AF37] mb-6 text-center">
+                                Sự kiện ngày {format(selectedDayEvents[0].startDate, 'dd/MM/yyyy')}
+                            </h3>
+                            <div className="space-y-4 max-h-96 overflow-y-auto">
+                                {selectedDayEvents.map(event => (
+                                    <div
+                                        key={event.id}
+                                        onClick={() => {
+                                            setSelectedEventId(event.id);
+                                            setIsDetailModalOpen(true);
+                                            setIsDayEventsModalOpen(false);
+                                        }}
+                                        className="p-5 rounded-2xl bg-white/5 border border-[#D4AF37]/20 cursor-pointer hover:bg-white/10 transition-all"
+                                    >
+                                        <h4 className="font-bold text-[#D4AF37] text-lg">{event.title}</h4>
+                                        <p className="text-sm text-white/80 mt-1">
+                                            {formatTime(event.startDate)} • {getEventTypeLabel(event.eventType)}
+                                            {event.isRecurring && ' (Lặp lại)'}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setIsDayEventsModalOpen(false)}
+                                className="mt-6 w-full py-3 bg-[#D4AF37]/20 text-[#D4AF37] rounded-xl font-bold hover:bg-[#D4AF37]/30 transition"
+                            >
+                                Đóng
+                            </button>
+                        </div>
+                    </div>
+                )}
                 {/* Event Detail Modal */}
                 {isDetailModalOpen && selectedEventId && (
                     <EventDetailModal
@@ -569,12 +588,12 @@ const EventsPage: React.FC = () => {
                             setSelectedEventId(null);
                         }}
                         onDelete={() => {
-                            refetchEvents();
+                            handleRefetch();
                             setIsDetailModalOpen(false);
                             setSelectedEventId(null);
                         }}
                         onUpdate={() => {
-                            refetchEvents();
+                            handleRefetch();
                         }}
                     />
                 )}
