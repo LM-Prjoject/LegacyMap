@@ -545,12 +545,34 @@ const EventsPage: React.FC = () => {
                 </div>
 
                 {isDayEventsModalOpen && (
-                    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-                        <div className="bg-gradient-to-br from-[#2a3548] to-[#1f2937] rounded-3xl p-8 max-w-lg w-full shadow-2xl border border-[#D4AF37]/30">
-                            <h3 className="text-2xl font-bold text-[#D4AF37] mb-6 text-center">
+                    <div
+                        className="fixed inset-0 flex items-center justify-center z-50 p-4"
+                        onClick={() => setIsDayEventsModalOpen(false)}
+                    >
+                        <div
+                            className="absolute inset-0"
+                            style={{
+                                backdropFilter: 'blur(8px)',
+                                WebkitBackdropFilter: 'blur(8px)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.4)'
+                            }}
+                        />
+                        <div
+                            className="relative bg-gradient-to-br from-[#1a2332] via-[#2a3548] to-[#1f2937] rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#D4AF37]/40 relative"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+
+                            <button
+                                onClick={() => setIsDayEventsModalOpen(false)}
+                                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 transition-all text-[#D4AF37] font-bold"
+                            >
+                                ✕
+                            </button>
+
+                            <h3 className="text-xl font-bold text-[#D4AF37] mb-4 pr-8 text-center">
                                 Sự kiện ngày {format(selectedDayEvents[0].startDate, 'dd/MM/yyyy')}
                             </h3>
-                            <div className="space-y-4 max-h-96 overflow-y-auto">
+                            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
                                 {selectedDayEvents.map(event => (
                                     <div
                                         key={event.id}
@@ -559,22 +581,22 @@ const EventsPage: React.FC = () => {
                                             setIsDetailModalOpen(true);
                                             setIsDayEventsModalOpen(false);
                                         }}
-                                        className="p-5 rounded-2xl bg-white/5 border border-[#D4AF37]/20 cursor-pointer hover:bg-white/10 transition-all"
+                                        className="p-4 rounded-xl bg-gradient-to-r from-[#D4AF37]/10 to-[#4a7c59]/10 border border-[#D4AF37]/30 cursor-pointer hover:border-[#D4AF37]/50 hover:shadow-lg hover:shadow-[#D4AF37]/20 transition-all group"
                                     >
-                                        <h4 className="font-bold text-[#D4AF37] text-lg">{event.title}</h4>
-                                        <p className="text-sm text-white/80 mt-1">
-                                            {formatTime(event.startDate)} • {getEventTypeLabel(event.eventType)}
-                                            {event.isRecurring && ' (Lặp lại)'}
-                                        </p>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-[#D4AF37] text-base group-hover:text-[#ffd700] transition-colors truncate">
+                                                    {event.title}
+                                                </h4>
+                                                <p className="text-xs text-white/70 mt-1">
+                                                    {formatTime(event.startDate)} • {getEventTypeLabel(event.eventType)}
+                                                    {event.isRecurring && ' (Lặp lại)'}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                            <button
-                                onClick={() => setIsDayEventsModalOpen(false)}
-                                className="mt-6 w-full py-3 bg-[#D4AF37]/20 text-[#D4AF37] rounded-xl font-bold hover:bg-[#D4AF37]/30 transition"
-                            >
-                                Đóng
-                            </button>
                         </div>
                     </div>
                 )}
