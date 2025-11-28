@@ -6,6 +6,7 @@ type Props = {
     createdAt?: string | null;
     memberCount: number;
     generationCount: number;
+    onMembersClick?: () => void;
 };
 
 function formatDate(date?: string | null) {
@@ -15,7 +16,6 @@ function formatDate(date?: string | null) {
     return d.toLocaleDateString("vi-VN");
 }
 
-
 export default function DetailsSidebar({
                                            coverImageUrl,
                                            name,
@@ -24,6 +24,7 @@ export default function DetailsSidebar({
                                            createdAt,
                                            memberCount,
                                            generationCount,
+                                           onMembersClick,
                                        }: Props) {
     return (
         <aside className="col-span-12 md:col-span-3 bg-white rounded-xl shadow overflow-hidden flex flex-col max-h-[calc(100vh-160px)]">
@@ -66,10 +67,14 @@ export default function DetailsSidebar({
                 <hr className="my-1 border-slate-200" />
 
                 <section className="grid grid-cols-2 gap-3 pb-1">
-                    <div className="rounded-xl bg-slate-100 px-4 py-3 text-center">
+                    <button
+                        type="button"
+                        onClick={onMembersClick}
+                        className={`rounded-xl bg-slate-100 px-4 py-3 text-center ${onMembersClick ? 'hover:bg-slate-200 transition-colors cursor-pointer' : ''}`}
+                    >
                         <div className="text-2xl font-bold text-slate-900">{memberCount}</div>
                         <div className="text-xs text-slate-600 mt-0.5">Thành viên</div>
-                    </div>
+                    </button>
                     <div className="rounded-xl bg-slate-100 px-4 py-3 text-center">
                         <div className="text-2xl font-bold text-slate-900">{generationCount}</div>
                         <div className="text-xs text-slate-600 mt-0.5">Thế hệ</div>

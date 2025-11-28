@@ -11,6 +11,7 @@ import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
+import MemberListModal from "@/components/familyTree/MemberListModal";
 import { ArrowLeft, LucideUserPlus, Share2, Download} from "lucide-react";
 import * as htmlToImage from "html-to-image";
 import { personLinkApi } from "@/api/personLink";
@@ -68,6 +69,7 @@ export default function TreeDetails() {
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [pendingInvite, setPendingInvite] = useState<{ email?: string; send?: boolean } | null>(null);
     const treeWrapperRef = useRef<HTMLDivElement | null>(null);
+    const [memberListOpen, setMemberListOpen] = useState(false);
 
     useEffect(() => {
 
@@ -180,109 +182,6 @@ export default function TreeDetails() {
             }
         })();
     }, [treeId, userId]);
-    useEffect(() => {
-        if (!treeId) {
-            setLoading(false);
-            return;
-        }
-        if (!userId) {
-            setLoading(false);
-            showToast.error("Bạn cần đăng nhập để xem chi tiết cây");
-            return;
-        }
-
-        (async () => {
-            setLoading(true);
-            try {
-                const [owned, viewable] = await Promise.all([
-                    api.listTrees(userId).catch(() => []),
-                    api.listViewableTrees(userId).catch(() => [] as any[]),
-                ]);
-                const allTrees: any[] = [...owned, ...viewable];
-                const found: any = allTrees.find((t) => t.id === treeId) || null;
-
-                // Resolve owner via backend owner endpoint (authoritative)
-                let createdById: string | null = null;
-                try {
-                    createdById = await api.getTreeOwner(treeId);
-                } catch {
-                    createdById = null;
-                }
-
-                setTree(
-                    found
-                        ? {
-                            coverImageUrl: found.coverImageUrl ?? null,
-                            name: found.name ?? null,
-                            description: found.description ?? null,
-                            createdAt: found.createdAt ?? null,
-                            createdById,
-                        }
-                        : null
-                );
-
-                if (createdById) {
-                    try {
-                        const basic = await api.getPublicUserBasic(createdById);
-                        if (basic && (basic.fullName || basic.username)) {
-                            setOwnerProfile({
-                                ...(ownerProfile as any),
-                                fullName: basic.fullName || basic.username || "",
-                            } as any);
-                        } else {
-                            const owner = await authApi.getUser(createdById);
-                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
-                        }
-                    } catch {
-                        try {
-                            const owner = await authApi.getUser(createdById);
-                            setOwnerProfile((owner as any)?.profile || (owner as any) || null);
-                        } catch {
-                            setOwnerProfile(null);
-                        }
-                    }
-                } else {
-                    setOwnerProfile(null);
-                }
-
-                try {
-                    const [ps, rs] = await Promise.all([
-                        api.listMembers(userId, treeId),
-                        api.listRelationships(userId, treeId),
-                    ]);
-                    setPersons(ps);
-                    setRels(rs);
-                    setReadOnly(false);
-                } catch (err: any) {
-                    const msg = String(err?.message || "").toLowerCase();
-                    if (msg.includes("unauthorized") || msg.includes("không") || msg.includes("forbidden")) {
-                        const [psV, rsV] = await Promise.all([
-                            api.listMembersForViewer(userId, treeId),
-                            api.listRelationshipsForViewer(userId, treeId),
-                        ]);
-                        setPersons(psV);
-                        setRels(rsV);
-                        setReadOnly(true);
-                    } else {
-                        throw err;
-                    }
-                }
-            } catch (e: any) {
-                showToast.error(e?.message || "Không tải được dữ liệu");
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, [treeId, userId]);
-
-
-    const handleAddClick = () => {
-        if (readOnly) return;
-        setSelectedPerson(null);
-        setIsEditing(false);
-        setIsInAddFlow(true);
-        setMemberOpen(true);
-    };
 
     const handleCreateMember = async (values: MemberFormValues) => {
 
@@ -525,7 +424,8 @@ export default function TreeDetails() {
                 fromPersonId: pId,
                 toPersonId: cId,
                 type: "PARENT",
-            });
+            } as Relationship);
+
             existingKeys.add(k);
         };
 
@@ -543,7 +443,8 @@ export default function TreeDetails() {
                 fromPersonId: x,
                 toPersonId: y,
                 type: "SIBLING",
-            });
+            } as Relationship);
+
             existingKeys.add(k);
         };
 
@@ -575,7 +476,12 @@ export default function TreeDetails() {
                 )
                 .map((r) => (r.fromPersonId === parentId ? r.toPersonId : r.fromPersonId));
 
-            for (const sp of spouseOfParent) await addParent(sp, childId);
+            // Only auto-add the other parent if there is exactly ONE spouse.
+            // If multiple spouses exist for the chosen parent, we defer to the modal
+            // to require an explicit selection to avoid assigning all spouses.
+            if (spouseOfParent.length === 1) {
+                await addParent(spouseOfParent[0], childId);
+            }
 
             const parentsOfChild = new Set<string>(
                 newRels
@@ -742,10 +648,20 @@ export default function TreeDetails() {
                         }
                     }
 
+                    // Enforce spouse suggestion only for opposite genders and when both genders are known
+                    if (rel === "SPOUSE") {
+                        const gSrc = String(src?.gender || "").toUpperCase();
+                        const gCand = String(cand.gender || "").toUpperCase();
+                        if (!gSrc || !gCand || gSrc === gCand) {
+                            try { console.log("[fetchSuggestions] reject spouse same/missing gender", { gSrc, gCand, personId, candId: cand.id }); } catch {}
+                            continue;
+                        }
+                    }
+
                     let key: string;
                     if (rel === "SPOUSE" || rel === "SIBLING") {
-                        const [a, b] = [personId, cand.id].sort();
-                        key = `PAIR:${a}-${b}:${rel}`;
+                        const [x, y] = [personId, cand.id].sort();
+                        key = `PAIR:${x}-${y}:${rel}`;
                     } else {
                         key = rel === "PARENT" ? `PARENT:${personId}->${cand.id}` : `PARENT:${cand.id}->${personId}`;
                     }
@@ -848,78 +764,109 @@ export default function TreeDetails() {
 
     const anyModalOpen = memberOpen || isEditing || isViewingDetails || modalOpen;
 
-    const handleDeleteMember = async (personId: string) => {
-        if (!treeId || !userId) return;
-        const toastId = showToast.loading("Đang xoá thành viên…");
-
+    const prepareDelete = async (personId: string): Promise<{ count: number }> => {
+        // Compute orphan count using anchor roots derived from the target's ancestors (bloodline-only)
         try {
-            const parentLinks = rels.filter(
-                (r) => String(r.type).toUpperCase() === "PARENT" && r.fromPersonId === personId
-            );
-            const spouseIds = rels
-                .filter(
-                    (r) =>
-                        String(r.type).toUpperCase() === "SPOUSE" &&
-                        (r.fromPersonId === personId || r.toPersonId === personId)
-                )
-                .map((r) => (r.fromPersonId === personId ? r.toPersonId : r.fromPersonId))
-                .filter((id) => id && id !== personId);
+            const ids = persons.map(p => p.id);
+            if (!ids.length) return { count: 0 };
 
-            const existingParentKeys = new Set(
-                rels
-                    .filter((r) => String(r.type).toUpperCase() === "PARENT")
-                    .map((r) => `PARENT:${r.fromPersonId}->${r.toPersonId}`)
-            );
+            // Build parent-child adjacency (both directions) on FULL graph first (before removal)
+            const undirectedFull = new Map<string, Set<string>>();
+            const parentOf = new Map<string, Set<string>>(); // parent -> children
+            const childOf = new Map<string, Set<string>>();  // child -> parents
+            for (const id of ids) {
+                undirectedFull.set(id, new Set());
+            }
+            for (const r of relsNormalized) {
+                if (String(r.type).toUpperCase() !== "PARENT") continue;
+                const p = r.fromPersonId, c = r.toPersonId;
+                if (!undirectedFull.has(p) || !undirectedFull.has(c)) continue;
+                undirectedFull.get(p)!.add(c);
+                undirectedFull.get(c)!.add(p);
+                (parentOf.get(p) || parentOf.set(p, new Set()).get(p))!.add(c);
+                (childOf.get(c) || childOf.set(c, new Set()).get(c))!.add(p);
+            }
 
-            const newParentRels: Relationship[] = [];
-
-            for (const link of parentLinks) {
-                const childId = link.toPersonId;
-
-                for (const sp of spouseIds) {
-                    const key = `PARENT:${sp}->${childId}`;
-                    if (existingParentKeys.has(key)) continue;
-
-                    const created = await api.createRelationship(userId, treeId, {
-                        person1Id: sp,
-                        person2Id: childId,
-                        relationshipType: "PARENT",
-                    });
-
-                    newParentRels.push({
-                        id: created?.id ?? (crypto as any).randomUUID?.() ?? `${sp}-${childId}-PARENT`,
-                        fromPersonId: sp,
-                        toPersonId: childId,
-                        type: "PARENT",
-                    } as Relationship);
-
-                    existingParentKeys.add(key);
+            // Find anchor roots: go UP from the target via parents until nodes without parent
+            const ancestorRoots = new Set<string>();
+            const upVisited = new Set<string>();
+            const upQ: string[] = [personId];
+            while (upQ.length) {
+                const u = upQ.shift()!;
+                if (upVisited.has(u)) continue;
+                upVisited.add(u);
+                const parents = childOf.get(u);
+                if (!parents || parents.size === 0) {
+                    // u has no parent -> root candidate
+                    ancestorRoots.add(u);
+                } else {
+                    for (const par of parents) upQ.push(par);
                 }
             }
 
-            await api.deleteMember(userId, treeId, personId);
-
-            setPersons((prev) => prev.filter((p) => p.id !== personId));
-            setRels((prev) => {
-                const filtered = prev.filter((r) => r.fromPersonId !== personId && r.toPersonId !== personId);
-                return [...filtered, ...newParentRels];
-            });
-
-            setIsViewingDetails(false);
-            setSelectedPerson(null);
-            if (source?.id === personId) {
-                setModalOpen(false);
-                setSource(null);
-                setPendingNew(null);
+            // Remove the target from the graph and build undirected graph for reachability
+            const graph = new Map<string, Set<string>>();
+            for (const id of ids) if (id !== personId) graph.set(id, new Set());
+            for (const r of relsNormalized) {
+                if (String(r.type).toUpperCase() !== "PARENT") continue;
+                const p = r.fromPersonId, c = r.toPersonId;
+                if (p === personId || c === personId) continue;
+                if (graph.has(p) && graph.has(c)) {
+                    graph.get(p)!.add(c);
+                    graph.get(c)!.add(p);
+                }
             }
 
+            // BFS from anchor roots (excluding the target if it happens to be among them)
+            const startRoots = Array.from(ancestorRoots).filter(id => id !== personId && graph.has(id));
+            if (startRoots.length === 0) return { count: 0 };
+            const reachable = new Set<string>();
+            const dq: string[] = [];
+            for (const r of startRoots) { if (!reachable.has(r)) { reachable.add(r); dq.push(r); } }
+            while (dq.length) {
+                const u = dq.shift()!;
+                for (const v of Array.from(graph.get(u) ?? [])) {
+                    if (!reachable.has(v)) { reachable.add(v); dq.push(v); }
+                }
+            }
+
+            const orphan = ids.filter(id => id !== personId && !reachable.has(id));
+            return { count: orphan.length };
+        } catch {
+            return { count: 0 };
+        }
+    };
+
+    const confirmDeleteFromDetails = async (personId: string) => {
+        if (!treeId || !userId) return;
+        const toastId = showToast.loading("Đang xoá an toàn và dọn nhánh…");
+        try {
+            await api.deleteMemberSafe(userId, treeId, personId);
+            const [ps, rs] = await Promise.all([
+                api.listMembers(userId, treeId),
+                api.listRelationships(userId, treeId),
+            ]);
+            setPersons(ps);
+            setRels(rs);
             setGraphVersion((v) => v + 1);
-            showToast.success("Đã xoá thành viên khỏi cây.");
+            if (selectedPerson && selectedPerson.id === personId) {
+                setIsViewingDetails(false);
+                setSelectedPerson(null);
+            }
+            showToast.success("Đã xoá và dọn nhánh không còn nối với gốc");
         } catch (e: any) {
-            showToast.error(e?.message || "Xoá thành viên thất bại");
+            showToast.error(e?.message || "Xoá an toàn thất bại");
         } finally {
             showToast.dismiss(toastId);
         }
+    };
+
+    const handleAddClick = () => {
+        if (readOnly) return;
+        setSelectedPerson(null);
+        setIsEditing(false);
+        setIsInAddFlow(true);
+        setMemberOpen(true);
     };
 
     const handleExport = async () => {
@@ -1014,6 +961,7 @@ export default function TreeDetails() {
                     createdAt={tree?.createdAt ?? null}
                     memberCount={loading ? 0 : persons.length}
                     generationCount={loading ? 0 : generationCount}
+                    onMembersClick={() => setMemberListOpen(true)}
                 />
 
                 <main ref={treeWrapperRef}
@@ -1066,7 +1014,8 @@ export default function TreeDetails() {
                 relationships={rels}
                 onClose={handleCloseDetails}
                 onEditClick={readOnly ? () => {} : handleEditClick}
-                onDelete={readOnly ? () => {} : handleDeleteMember}
+                onPrepareDelete={readOnly ? undefined : prepareDelete}
+                onDelete={readOnly ? () => {} : (pId) => confirmDeleteFromDetails(pId)}
                 readOnly={readOnly}
             />
 
@@ -1089,10 +1038,19 @@ export default function TreeDetails() {
                     }}
                     source={source}
                     persons={persons}
+                    relationships={rels}
                     fetchSuggestions={fetchSuggestions}
                     onConfirm={confirmRelationship}
                 />
             )}
+
+            <MemberListModal
+                open={memberListOpen}
+                onClose={() => setMemberListOpen(false)}
+                persons={persons}
+                relationships={relsNormalized as any}
+                title="Danh sách thành viên"
+            />
 
             <ShareTreeModal
                 isOpen={shareModalOpen}

@@ -1,11 +1,10 @@
 package com.legacymap.backend.service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.legacymap.backend.entity.*;
+import com.legacymap.backend.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,23 +14,8 @@ import com.legacymap.backend.dto.request.PersonCreateRequest;
 import com.legacymap.backend.dto.request.PersonUpdateRequest;
 import com.legacymap.backend.dto.response.TreeShareResponse;
 import com.legacymap.backend.dto.response.SharedTreeAccessInfoResponse;
-import com.legacymap.backend.entity.FamilyTree;
-import com.legacymap.backend.entity.Person;
-import com.legacymap.backend.entity.TreeAccess;
-import com.legacymap.backend.entity.User;
-import com.legacymap.backend.entity.ChatRoom;
-import com.legacymap.backend.entity.ChatRoomMember;
-import com.legacymap.backend.entity.ChatRoomMemberId;
-import com.legacymap.backend.entity.PersonUserLink;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
-import com.legacymap.backend.repository.ChatRoomMemberRepository;
-import com.legacymap.backend.repository.ChatRoomRepository;
-import com.legacymap.backend.repository.FamilyTreeRepository;
-import com.legacymap.backend.repository.PersonRepository;
-import com.legacymap.backend.repository.TreeAccessRepository;
-import com.legacymap.backend.repository.UserRepository;
-import com.legacymap.backend.repository.PersonUserLinkRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +34,8 @@ public class FamilyTreeService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final PersonUserLinkRepository personUserLinkRepository;
     private final AvatarGenerationService avatarGenerationService;
+    private final RelationshipRepository relationshipRepository;
+
 
     @Autowired
     private TreeAccessRepository treeAccessRepository;
@@ -111,27 +97,15 @@ public class FamilyTreeService {
         chatRoomMemberRepository.save(creatorMember);
     }
 
-    private FamilyTree findEditableTreeOrThrow(UUID treeId, UUID userId) {
+    private FamilyTree findOwnedTreeOrThrow(UUID treeId, UUID userId) {
         User user = loadUserOrThrow(userId);
-
-        // Kiểm tra owner
-        Optional<FamilyTree> ownedTree = familyTreeRepository.findByIdAndCreatedBy(treeId, user);
-        if (ownedTree.isPresent()) {
-            return ownedTree.get();
-        }
-
-        // Kiểm tra quyền edit từ TreeAccess
-        if (canEdit(treeId, userId)) {
-            return familyTreeRepository.findById(treeId)
-                    .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
-        }
-
-        throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
+        return familyTreeRepository.findByIdAndCreatedBy(treeId, user)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
     }
 
     @Transactional
     public FamilyTree update(UUID treeId, UUID userId, FamilyTreeUpdateRequest req) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         boolean nameChanged = req.getName() != null && !req.getName().equals(tree.getName());
 
         if (req.getName() != null) tree.setName(req.getName());
@@ -153,14 +127,14 @@ public class FamilyTreeService {
 
     @Transactional
     public void delete(UUID treeId, UUID userId) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         familyTreeRepository.delete(tree);
     }
 
     @Transactional
     public Person addMember(UUID treeId, UUID userId, PersonCreateRequest req) {
 
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         User creator = loadUserOrThrow(userId);
 
         String email = req.getEmail() != null ? req.getEmail().trim().toLowerCase() : null;
@@ -271,7 +245,7 @@ public class FamilyTreeService {
 
     @Transactional
     public Person updateMember(UUID treeId, UUID userId, UUID personId, PersonUpdateRequest req) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         Person p = personRepository.findById(personId)
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
@@ -303,7 +277,7 @@ public class FamilyTreeService {
 
     @Transactional
     public void deleteMember(UUID treeId, UUID userId, UUID personId) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         Person p = personRepository.findById(personId)
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
@@ -312,11 +286,309 @@ public class FamilyTreeService {
         personRepository.delete(p);
     }
 
+
+    @Transactional
+    public void deleteMemberSafe(UUID treeId, UUID userId, UUID personId) {
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        Person p = personRepository.findById(personId)
+                .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
+        if (!p.getFamilyTree().getId().equals(tree.getId())) {
+            throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
+        }
+
+        java.util.Set<UUID> parentIds = new java.util.HashSet<>(relationshipRepository.findParentIdsByPersonId(personId));
+        java.util.Set<UUID> anchorRoots = computeAncestorRoots(tree.getId(), parentIds);
+
+        List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(personId, personId);
+        // Seed set: children + spouses
+        java.util.Set<UUID> seedIds = new java.util.HashSet<>(relationshipRepository.findChildIdsByPersonId(personId));
+        if (!links.isEmpty()) {
+            for (Relationship r : links) {
+                String t = r.getRelationshipType();
+                if (t != null && t.trim().equalsIgnoreCase("spouse")) {
+                    UUID a = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                    UUID b = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                    UUID spouse = personId.equals(a) ? b : a;
+                    if (spouse != null) seedIds.add(spouse);
+                }
+            }
+            relationshipRepository.deleteAll(links);
+        }
+        personRepository.delete(p);
+
+        // Always prune using KEEP roots: ancestor roots if available, otherwise global roots
+        if (anchorRoots == null || anchorRoots.isEmpty()) {
+            pruneComponentFromSeeds(tree.getId(), seedIds, /*keepRoots*/ null);
+        } else {
+            pruneComponentFromSeeds(tree.getId(), seedIds, anchorRoots);
+        }
+    }
+
+    private java.util.Set<UUID> computeAncestorRoots(UUID treeId, java.util.Set<UUID> startParents) {
+        // Walk upwards via parent edges to any nodes with no parent; return that root set
+        java.util.Set<UUID> roots = new java.util.HashSet<>();
+        if (startParents == null || startParents.isEmpty()) return roots;
+        java.util.ArrayDeque<UUID> dq = new java.util.ArrayDeque<>(startParents);
+        java.util.Set<UUID> visited = new java.util.HashSet<>();
+        while (!dq.isEmpty()) {
+            UUID u = dq.pollFirst();
+            if (!visited.add(u)) continue;
+            java.util.List<UUID> uParents = relationshipRepository.findParentIdsByPersonId(u);
+            if (uParents == null || uParents.isEmpty()) {
+                roots.add(u);
+            } else {
+                dq.addAll(uParents);
+            }
+        }
+        return roots;
+    }
+
+    private void pruneComponentFromSeeds(UUID treeId, java.util.Set<UUID> seedIds, java.util.Set<UUID> keepRoots) {
+        pruneComponentFromSeedsOpt(treeId, seedIds, keepRoots, true);
+    }
+
+    private void pruneComponentFromSeedsOpt(UUID treeId, java.util.Set<UUID> seedIds, java.util.Set<UUID> keepRoots, boolean useGlobalRootsIfKeepEmpty) {
+        if (seedIds == null || seedIds.isEmpty()) return;
+
+        // Build graph from current persons and relationships (bloodline-only)
+        java.util.List<Person> persons = personRepository.findAllByFamilyTree_Id(treeId);
+        if (persons.isEmpty()) return;
+        java.util.List<Relationship> rels = relationshipRepository.findByFamilyTreeId(treeId);
+
+        java.util.Map<UUID, java.util.Set<UUID>> graph = new java.util.HashMap<>();
+        java.util.Set<UUID> allIds = new java.util.HashSet<>();
+        for (Person person : persons) {
+            allIds.add(person.getId());
+            graph.put(person.getId(), new java.util.HashSet<>());
+        }
+        for (Relationship r : rels) {
+            String type = r.getRelationshipType();
+            if (type == null) continue;
+            String t = type.trim().toLowerCase();
+            if ("parent".equals(t)) {
+                UUID a = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID b = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (a != null && b != null && allIds.contains(a) && allIds.contains(b)) {
+                    graph.get(a).add(b);
+                    graph.get(b).add(a);
+                }
+            } else if ("child".equals(t)) {
+                UUID b = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID a = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (a != null && b != null && allIds.contains(a) && allIds.contains(b)) {
+                    graph.get(a).add(b);
+                    graph.get(b).add(a);
+                }
+            }
+        }
+
+        // KEEP set
+        java.util.Set<UUID> keep = new java.util.HashSet<>();
+        java.util.ArrayDeque<UUID> dq = new java.util.ArrayDeque<>();
+        if (keepRoots != null && !keepRoots.isEmpty()) {
+            for (UUID r : keepRoots) { if (graph.containsKey(r) && keep.add(r)) dq.add(r); }
+        } else if (useGlobalRootsIfKeepEmpty) {
+            // global roots: nodes without parent
+            java.util.Set<UUID> hasParent = new java.util.HashSet<>();
+            for (Relationship r : rels) {
+                String t = r.getRelationshipType();
+                if (t != null && t.trim().equalsIgnoreCase("parent")) {
+                    UUID child = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                    if (child != null) hasParent.add(child);
+                } else if (t != null && t.trim().equalsIgnoreCase("child")) {
+                    UUID child = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                    if (child != null) hasParent.add(child);
+                }
+            }
+            for (UUID id : allIds) {
+                if (!hasParent.contains(id)) { if (keep.add(id)) dq.add(id); }
+            }
+        }
+        while (!dq.isEmpty()) {
+            UUID u = dq.pollFirst();
+            for (UUID v : graph.getOrDefault(u, java.util.Collections.emptySet())) {
+                if (keep.add(v)) dq.addLast(v);
+            }
+        }
+
+        // AFFECTED set = component reachable from seeds
+        java.util.Set<UUID> affected = new java.util.HashSet<>();
+        java.util.ArrayDeque<UUID> dq2 = new java.util.ArrayDeque<>();
+        for (UUID s : seedIds) { if (graph.containsKey(s) && affected.add(s)) dq2.add(s); }
+        while (!dq2.isEmpty()) {
+            UUID u = dq2.pollFirst();
+            for (UUID v : graph.getOrDefault(u, java.util.Collections.emptySet())) {
+                if (affected.add(v)) dq2.addLast(v);
+            }
+        }
+
+        // toDelete = affected - keep
+        java.util.List<UUID> toDelete = new java.util.ArrayList<>();
+        for (UUID id : affected) {
+            if (!keep.contains(id)) toDelete.add(id);
+        }
+
+        // Also include spouses of toDelete if those spouses are not in KEEP
+        if (!toDelete.isEmpty()) {
+            java.util.Set<UUID> extraSpouses = new java.util.HashSet<>();
+            for (UUID id : new java.util.ArrayList<>(toDelete)) {
+                java.util.List<Relationship> relLinks = relationshipRepository.findByPerson1IdOrPerson2Id(id, id);
+                for (Relationship r : relLinks) {
+                    String t = r.getRelationshipType();
+                    if (t != null && t.trim().equalsIgnoreCase("spouse")) {
+                        UUID a = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                        UUID b = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                        UUID sp = id.equals(a) ? b : a;
+                        if (sp != null && !keep.contains(sp)) extraSpouses.add(sp);
+                    }
+                }
+            }
+            for (UUID sp : extraSpouses) {
+                if (!toDelete.contains(sp)) toDelete.add(sp);
+            }
+        }
+
+        if (!toDelete.isEmpty()) {
+            for (UUID id : toDelete) {
+                java.util.List<Relationship> rm = relationshipRepository.findByPerson1IdOrPerson2Id(id, id);
+                if (!rm.isEmpty()) relationshipRepository.deleteAll(rm);
+                personRepository.findById(id).ifPresent(personRepository::delete);
+            }
+        }
+    }
+
+    private void pruneFromRoots(UUID treeId, java.util.Set<UUID> anchorRoots) {
+        if (anchorRoots == null || anchorRoots.isEmpty()) return;
+        java.util.List<Person> persons = personRepository.findAllByFamilyTree_Id(treeId);
+        if (persons.isEmpty()) return;
+        java.util.List<Relationship> rels = relationshipRepository.findByFamilyTreeId(treeId);
+
+        java.util.Map<UUID, java.util.Set<UUID>> graph = new java.util.HashMap<>();
+        java.util.Set<UUID> allIds = new java.util.HashSet<>();
+        for (Person person : persons) {
+            allIds.add(person.getId());
+            graph.put(person.getId(), new java.util.HashSet<>());
+        }
+        for (Relationship r : rels) {
+            String type = r.getRelationshipType();
+            if (type == null) continue;
+            String t = type.trim().toLowerCase();
+            if ("parent".equals(t)) {
+                UUID a = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID b = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (a != null && b != null && allIds.contains(a) && allIds.contains(b)) {
+                    graph.get(a).add(b);
+                    graph.get(b).add(a);
+                }
+            } else if ("child".equals(t)) {
+                UUID b = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID a = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (a != null && b != null && allIds.contains(a) && allIds.contains(b)) {
+                    graph.get(a).add(b);
+                    graph.get(b).add(a);
+                }
+            }
+        }
+
+        java.util.Set<UUID> reachable = new java.util.HashSet<>();
+        java.util.ArrayDeque<UUID> dq = new java.util.ArrayDeque<>();
+        for (UUID r : anchorRoots) {
+            if (graph.containsKey(r) && reachable.add(r)) dq.add(r);
+        }
+        while (!dq.isEmpty()) {
+            UUID u = dq.pollFirst();
+            for (UUID v : graph.getOrDefault(u, java.util.Collections.emptySet())) {
+                if (reachable.add(v)) dq.addLast(v);
+            }
+        }
+
+        java.util.List<UUID> toDelete = persons.stream()
+                .map(Person::getId)
+                .filter(id -> !reachable.contains(id))
+                .toList();
+        if (!toDelete.isEmpty()) {
+            for (UUID id : toDelete) {
+                java.util.List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(id, id);
+                if (!links.isEmpty()) relationshipRepository.deleteAll(links);
+                personRepository.findById(id).ifPresent(personRepository::delete);
+            }
+        }
+    }
+
+    private void pruneDisconnectedFromAncestors(UUID treeId, UUID personId) {
+        List<Person> persons = personRepository.findAllByFamilyTree_Id(treeId);
+        if (persons.isEmpty()) return;
+
+        List<Relationship> rels = relationshipRepository.findByFamilyTreeId(treeId);
+
+        java.util.Map<UUID, java.util.Set<UUID>> graph = new java.util.HashMap<>();
+        java.util.Set<UUID> allIds = new java.util.HashSet<>();
+        for (Person person : persons) {
+            allIds.add(person.getId());
+            graph.put(person.getId(), new java.util.HashSet<>());
+        }
+
+        java.util.Set<UUID> hasParent = new java.util.HashSet<>();
+        for (Relationship r : rels) {
+            String type = r.getRelationshipType();
+            if (type == null) continue;
+            String t = type.trim().toLowerCase();
+            if ("parent".equals(t)) {
+                UUID parent = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID child = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (parent != null && child != null && allIds.contains(parent) && allIds.contains(child)) {
+                    graph.get(parent).add(child);
+                    graph.get(child).add(parent);
+                    hasParent.add(child);
+                }
+            } else if ("child".equals(t)) {
+                UUID child = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID parent = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (parent != null && child != null && allIds.contains(parent) && allIds.contains(child)) {
+                    graph.get(parent).add(child);
+                    graph.get(child).add(parent);
+                    hasParent.add(child);
+                }
+            }
+        }
+
+        // Global roots: nodes without any parent in the current tree
+        java.util.List<UUID> roots = persons.stream()
+                .map(Person::getId)
+                .filter(id -> !hasParent.contains(id))
+                .toList();
+        if (roots.isEmpty()) return;
+
+        java.util.Set<UUID> reachable = new java.util.HashSet<>();
+        java.util.ArrayDeque<UUID> dq = new java.util.ArrayDeque<>();
+        for (UUID r : roots) { if (reachable.add(r)) dq.add(r); }
+        while (!dq.isEmpty()) {
+            UUID u = dq.pollFirst();
+            for (UUID v : graph.getOrDefault(u, java.util.Collections.emptySet())) {
+                if (reachable.add(v)) dq.addLast(v);
+            }
+        }
+
+        java.util.List<UUID> toDelete = persons.stream()
+                .map(Person::getId)
+                .filter(id -> !reachable.contains(id))
+                .toList();
+
+        if (!toDelete.isEmpty()) {
+            for (UUID id : toDelete) {
+                // Remove their relationships first to avoid FK issues
+                java.util.List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(id, id);
+                if (!links.isEmpty()) relationshipRepository.deleteAll(links);
+                personRepository.findById(id).ifPresent(personRepository::delete);
+            }
+        }
+    }
+
     // ==================== SHARING LOGIC ====================
 
     @Transactional
     public TreeShareResponse generatePublicShareLink(UUID treeId, UUID userId, String permission) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
 
         if (!permission.equals("view") && !permission.equals("edit")) {
             throw new AppException(ErrorCode.VALIDATION_FAILED);
@@ -345,7 +617,7 @@ public class FamilyTreeService {
         log.info("START: shareWithUser - treeId: {}, ownerId: {}, targetEmail: {}, accessLevel: {}",
                 treeId, ownerId, targetEmail, accessLevel);
 
-        FamilyTree tree = findEditableTreeOrThrow(treeId, ownerId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, ownerId);
         User owner = loadUserOrThrow(ownerId);
         User targetUser = userRepository.findByEmail(targetEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -395,19 +667,19 @@ public class FamilyTreeService {
 
     @Transactional(readOnly = true)
     public List<TreeAccess> getSharedUsers(UUID treeId, UUID userId) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         return treeAccessRepository.findAllByFamilyTreeIdWithUsers(tree.getId());
     }
 
     @Transactional
     public void revokeAccess(UUID treeId, UUID ownerId, UUID targetUserId) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, ownerId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, ownerId);
         treeAccessRepository.deleteByUserIdAndFamilyTreeId(targetUserId, tree.getId());
     }
 
     @Transactional
     public void disablePublicSharing(UUID treeId, UUID userId) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         tree.setIsPublic(false);
         familyTreeRepository.save(tree);
     }
@@ -555,5 +827,79 @@ public class FamilyTreeService {
 
         log.info("Total accessible trees for user {}: {}", userId, allTrees.size());
         return allTrees;
+    }
+
+    @Transactional
+    public void pruneDisconnectedBloodlineAutoRoot(UUID treeId, UUID userId) {
+        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        List<Person> persons = personRepository.findAllByFamilyTree_Id(tree.getId());
+        if (persons.isEmpty()) return;
+
+        List<Relationship> rels = relationshipRepository.findByFamilyTreeId(tree.getId());
+
+        Map<UUID, Set<UUID>> graph = new java.util.HashMap<>();
+        Set<UUID> allIds = new java.util.HashSet<>();
+        for (Person person : persons) {
+            allIds.add(person.getId());
+            graph.put(person.getId(), new java.util.HashSet<>());
+        }
+
+        Set<UUID> hasParent = new java.util.HashSet<>();
+
+        for (Relationship r : rels) {
+            String type = r.getRelationshipType();
+            if (type == null) continue;
+            String t = type.trim().toLowerCase();
+            if ("parent".equals(t)) {
+                UUID parent = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID child = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (parent != null && child != null && allIds.contains(parent) && allIds.contains(child)) {
+                    graph.get(parent).add(child);
+                    graph.get(child).add(parent);
+                    hasParent.add(child);
+                }
+            } else if ("child".equals(t)) {
+                UUID child = r.getPerson1() != null ? r.getPerson1().getId() : null;
+                UUID parent = r.getPerson2() != null ? r.getPerson2().getId() : null;
+                if (parent != null && child != null && allIds.contains(parent) && allIds.contains(child)) {
+                    graph.get(parent).add(child);
+                    graph.get(child).add(parent);
+                    hasParent.add(child);
+                }
+            }
+        }
+
+        List<UUID> roots = persons.stream()
+                .map(Person::getId)
+                .filter(id -> !hasParent.contains(id))
+                .collect(Collectors.toList());
+        if (roots.isEmpty()) return;
+
+        Set<UUID> reachable = new java.util.HashSet<>();
+        java.util.ArrayDeque<UUID> dq = new java.util.ArrayDeque<>();
+        for (UUID r : roots) {
+            if (reachable.add(r)) dq.add(r);
+        }
+        while (!dq.isEmpty()) {
+            UUID cur = dq.pollFirst();
+            for (UUID nb : graph.getOrDefault(cur, java.util.Collections.emptySet())) {
+                if (reachable.add(nb)) dq.addLast(nb);
+            }
+        }
+
+        List<UUID> toDelete = persons.stream()
+                .map(Person::getId)
+                .filter(id -> !reachable.contains(id))
+                .collect(Collectors.toList());
+
+        if (toDelete.isEmpty()) return;
+
+        for (UUID pid : toDelete) {
+            List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(pid, pid);
+            if (!links.isEmpty()) {
+                relationshipRepository.deleteAll(links);
+            }
+            personRepository.findById(pid).ifPresent(personRepository::delete);
+        }
     }
 }
