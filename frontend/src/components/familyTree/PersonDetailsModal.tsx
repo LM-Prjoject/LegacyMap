@@ -1,4 +1,4 @@
-import { X, Pencil, Trash2 } from "lucide-react";
+import { X, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Relationship } from "@/api/trees";
 import PopupModal from "@/components/popupModal/PopupModal"
@@ -13,6 +13,7 @@ interface PersonDetailsModalProps {
     onClose: () => void;
     onEditClick: () => void;
     onDelete?: (personId: string) => Promise<void> | void;
+    onPrepareDelete?: (personId: string) => Promise<{ count: number; orphanMemberIds?: string[] } | { count: number }>;
     readOnly?: boolean;
 }
 
@@ -101,6 +102,7 @@ export default function PersonDetailsModal({
                                                onClose,
                                                onEditClick,
                                                onDelete,
+                                               onPrepareDelete,
                                                readOnly = false,
                                            }: PersonDetailsModalProps) {
     const [filteredRelationships, setFilteredRelationships] = useState<
@@ -109,6 +111,9 @@ export default function PersonDetailsModal({
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [prepareDeleting, setPrepareDeleting] = useState(false);
+    const [orphanCount, setOrphanCount] = useState<number>(0);
+
     const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState<string>("");
     const [inviting, setInviting] = useState(false);
@@ -352,12 +357,34 @@ export default function PersonDetailsModal({
                             )}
                             {!readOnly && (
                                 <button
-                                    onClick={() => setShowDeleteModal(true)}
-                                    className="p-2 rounded-full hover:bg-red-50 text-red-600"
+                                    onClick={async () => {
+                                        if (prepareDeleting) return;
+                                        setOrphanCount(0);
+                                        if (onPrepareDelete && person?.id) {
+                                            try {
+                                                setPrepareDeleting(true);
+                                                const res = await onPrepareDelete(person.id);
+                                                const c = (res as any)?.count ?? 0;
+                                                setOrphanCount(typeof c === 'number' ? c : 0);
+                                            } catch {
+                                                setOrphanCount(0);
+                                            } finally {
+                                                setPrepareDeleting(false);
+                                            }
+                                        }
+                                        setShowDeleteModal(true);
+                                    }}
+                                    className={`p-2 rounded-full hover:bg-red-50 text-red-600 ${prepareDeleting ? 'opacity-60 cursor-not-allowed' : ''}`}
                                     aria-label="Xoá khỏi cây"
                                     title="Xoá khỏi cây"
+                                    aria-busy={prepareDeleting}
+                                    disabled={prepareDeleting}
                                 >
-                                    <Trash2 className="h-5 w-5" />
+                                    {prepareDeleting ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-5 w-5" />
+                                    )}
                                 </button>
                             )}
                             <button onClick={() => { onClose(); }} className="p-1 rounded-full hover:bg-gray-100" aria-label="Đóng">
@@ -495,7 +522,9 @@ export default function PersonDetailsModal({
                     body={
                         <div className="space-y-1">
                             <p>
-                                Bạn có chắc muốn xoá <span className="font-semibold">{person?.fullName}</span> khỏi cây gia phả?
+                                Bạn có chắc muốn xoá <span className="font-semibold">{person?.fullName}</span> khỏi cây gia phả{prepareDeleting ? '' : ','} {prepareDeleting ? '' : (
+                                    <>sau khi xóa thì Nếu có thành viên không còn liên kết với thế hệ gốc. Bạn có muốn xoá hết không?</>
+                                )}
                             </p>
                         </div>
                     }

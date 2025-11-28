@@ -111,6 +111,11 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,
+                                "/api/trees/**",
+                                "/legacy/api/trees/**"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST,
                                 "/api/user/heartbeat",
                                 "/legacy/api/user/heartbeat"
                         ).authenticated()
