@@ -1,5 +1,7 @@
 package com.legacymap.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,6 +13,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@JsonIgnoreProperties({"userProfile", "hibernateLazyInitializer", "handler"})  // ← Thêm dòng này
 @Entity
 @Table(name = "users")
 @Data
@@ -75,4 +78,7 @@ public class User {
         @Column(name = "password_version", nullable = false)
         @Builder.Default
         private Integer passwordVersion = 0;
+        @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+        @JsonIgnore
+        private UserProfile userProfile;
 }

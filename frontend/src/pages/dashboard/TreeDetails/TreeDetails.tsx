@@ -6,12 +6,13 @@ import MemberModal, { type MemberFormValues } from "@/components/familyTree/memb
 import PersonDetailsModal from "@/components/familyTree/PersonDetailsModal";
 import ShareTreeModal from "@/components/familyTree/ShareTreeModal";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
+import { TreeHistoryModal } from '../../../components/familyTree/historyModal/TreeHistoryModal';
 import api, { type Person, type Relationship, exportTreePdfWithImage } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
-import { ArrowLeft, LucideUserPlus, Share2, Download} from "lucide-react";
+import { ArrowLeft, LucideUserPlus, Share2, Download, History } from "lucide-react";
 import * as htmlToImage from "html-to-image";
 import { personLinkApi } from "@/api/personLink";
 
@@ -58,6 +59,8 @@ export default function TreeDetails() {
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [isViewingDetails, setIsViewingDetails] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
+
 
     const [tree, setTree] = useState<TreeView | null>(null);
     const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
@@ -954,7 +957,6 @@ export default function TreeDetails() {
             showToast.error(e?.message || "Xuất PDF thất bại, vui lòng thử lại.");
         }
     };
-
     return (
         <div className="relative min-h-screen">
             <div className="absolute inset-0 bg-slate-900/40 -z-10" />
@@ -976,6 +978,13 @@ export default function TreeDetails() {
                         </button>
 
                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowHistory(true)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                title="Lịch sử"
+                            >
+                                <History className="w-5 h-5" />
+                            </button>
                             <button
                                 onClick={handleExport}
                                 className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
@@ -1100,6 +1109,11 @@ export default function TreeDetails() {
                 treeId={treeId || ""}
                 userId={userId}
                 treeName={tree?.name || undefined}
+            />
+            <TreeHistoryModal
+                treeId={treeId || ""}
+                isOpen={showHistory}
+                onClose={() => setShowHistory(false)}
             />
         </div>
     );

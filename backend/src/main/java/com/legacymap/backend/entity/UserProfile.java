@@ -1,5 +1,6 @@
 package com.legacymap.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -9,6 +10,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@JsonIgnoreProperties({"user", "hibernateLazyInitializer", "handler"})  // ← Thêm dòng này
 @Entity
 @Table(name = "user_profiles")
 @Data
