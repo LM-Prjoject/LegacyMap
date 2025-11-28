@@ -1,7 +1,10 @@
 package com.legacymap.backend.service;
 
+import com.legacymap.backend.entity.Person;
+import com.legacymap.backend.entity.Relationship;
 import com.legacymap.backend.entity.User;
 import com.legacymap.backend.entity.FamilyTree;
+import com.legacymap.backend.enums.RelationshipType;
 import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.repository.UserRepository;
 import dev.langchain4j.data.message.*;
@@ -96,12 +99,13 @@ public class SupportChatService {
 
             if (latestTree != null) {
                 return AiMessage.from("""
-                        Chào anh/chị %s nè! heart_hands
-                        Em thấy anh/chị đang có tổng cộng %,d cây gia phả rồi á, giỏi quá trời luôn! sparkles
-                        Cây gần đây nhất là "%s" – em nhớ không nhầm thì có khoảng %d thế hệ rồi đó ạ!
-                        Hôm nay anh/chị cần em giúp gì nha? folded_hands
-                        """.formatted(name, totalTrees, latestTree.getName(), estimateGenerations(latestTree)));
+            Chào anh/chị %s nè! heart_hands
+            Em thấy anh/chị đang có tổng cộng %,d cây gia phả rồi á, giỏi quá trời luôn! sparkles
+            Cây gần đây nhất là "%s" – em nhớ không nhầm thì có khoảng %d thế hệ rồi đó ạ!
+            Hôm nay anh/chị cần em giúp gì nha? folded_hands
+            """.formatted(name, totalTrees, latestTree.getName(), estimateGenerations(latestTree)));
             }
+
 
             return AiMessage.from("""
                     Chào anh/chị %s nè! heart_hands
@@ -115,6 +119,32 @@ public class SupportChatService {
                 Hôm nay bạn cần em giúp gì nha?
                 """);
     }
+    private SystemMessage buildUserContext(User user) {
+        if (user == null) {
+            return SystemMessage.from("""
+            Người dùng hiện tại là khách, chưa đăng nhập.
+            Hãy gọi là "bạn".
+        """);
+        }
+
+        long totalTrees = familyTreeRepository.countByCreatedById(user.getId());
+
+        return SystemMessage.from("""
+        Thông tin người dùng hiện tại:
+        - Username: %s
+        - User ID: %s
+        - Tổng số cây gia phả: %d
+
+        Hãy sử dụng thông tin trên để cá nhân hóa câu trả lời.
+        Gọi họ bằng tên "%s".
+    """.formatted(
+                user.getUsername(),
+                user.getId().toString(),
+                totalTrees,
+                user.getUsername()
+        ));
+    }
+
 
     public Flux<String> streamResponse(String sessionId, String userMessage) {
         if (sessionId == null || sessionId.isBlank()) {
@@ -132,11 +162,13 @@ public class SupportChatService {
         // Thêm tin nhắn user
         UserMessage currentUserMessage = UserMessage.from(userMessage);
         history.add(currentUserMessage);
-
+        User currentUser = getCurrentUser();
         // Tạo context gửi cho Groq
         List<ChatMessage> messagesToSend = new ArrayList<>();
         messagesToSend.add(SYSTEM_PROMPT);
+        messagesToSend.add(buildUserContext(currentUser));  // ⭐ chèn thêm
         messagesToSend.addAll(history);
+        messagesToSend.add(currentUserMessage);
 
         return Flux.create(sink -> {
             chatModel.generate(messagesToSend, new dev.langchain4j.model.StreamingResponseHandler<AiMessage>() {
@@ -194,7 +226,127 @@ public class SupportChatService {
     }
 
     private int estimateGenerations(FamilyTree tree) {
-        // Ước lượng đơn giản, bạn có thể cải thiện
-        return 4;
+        // Load lại tree kèm đầy đủ persons + relationships (nếu bạn có EntityGraph)
+        FamilyTree fullTree = familyTreeRepository
+                .findByIdWithGraph(tree.getId())
+                .orElse(tree);
+
+        var persons = fullTree.getPersons();
+        if (persons == null || persons.isEmpty()) {
+            return 0;
+        }
+
+        var relationships = fullTree.getRelationships();
+        if (relationships == null) {
+            relationships = java.util.Collections.emptySet();
+        }
+
+        // ===== Map giống bên frontend =====
+        // parentOf[u] = danh sách con của u
+        java.util.Map<UUID, java.util.List<UUID>> parentOf = new java.util.HashMap<>();
+        // indeg[u] = số lượng cha/mẹ của u
+        java.util.Map<UUID, Integer> indeg = new java.util.HashMap<>();
+        java.util.List<UUID> ids = new java.util.ArrayList<>();
+
+        // Khởi tạo id & indegree
+        for (Person p : persons) {
+            UUID id = p.getId();
+            ids.add(id);
+            indeg.put(id, 0);
+            parentOf.put(id, new java.util.ArrayList<>());
+        }
+
+        // ===== SỬA CHỖ NÀY: dùng person1 / person2 & relationshipType string =====
+        for (Relationship r : relationships) {
+            String type = r.getRelationshipType();
+            if (type == null || !type.equalsIgnoreCase("parent")) {
+                // Chỉ quan tâm quan hệ cha/mẹ
+                continue;
+            }
+
+            Person p1 = r.getPerson1(); // giả sử: p1 là cha/mẹ
+            Person p2 = r.getPerson2(); //         p2 là con
+
+            if (p1 == null || p2 == null) {
+                continue;
+            }
+
+            UUID fromId = p1.getId(); // cha/mẹ
+            UUID toId   = p2.getId(); // con
+
+            parentOf.computeIfAbsent(fromId, k -> new java.util.ArrayList<>()).add(toId);
+            parentOf.computeIfAbsent(toId, k -> new java.util.ArrayList<>());
+
+            indeg.put(toId, indeg.getOrDefault(toId, 0) + 1);
+        }
+
+        // ===== Phần 1: nếu có root (indeg = 0) -> dùng BFS topo =====
+        java.util.List<UUID> roots = new java.util.ArrayList<>();
+        for (UUID id : ids) {
+            if (indeg.getOrDefault(id, 0) == 0) {
+                roots.add(id);
+            }
+        }
+
+        if (!roots.isEmpty()) {
+            java.util.Map<UUID, Integer> depth = new java.util.HashMap<>();
+            java.util.ArrayDeque<UUID> q = new java.util.ArrayDeque<>();
+
+            for (UUID r : roots) {
+                depth.put(r, 1);
+                q.add(r);
+            }
+
+            while (!q.isEmpty()) {
+                UUID u = q.poll();
+                int du = depth.getOrDefault(u, 1);
+                for (UUID v : parentOf.getOrDefault(u, java.util.Collections.emptyList())) {
+                    indeg.put(v, indeg.getOrDefault(v, 0) - 1);
+                    int dv = depth.getOrDefault(v, 0);
+                    if (dv < du + 1) {
+                        depth.put(v, du + 1);
+                    }
+                    if (indeg.getOrDefault(v, 0) == 0) {
+                        q.add(v);
+                    }
+                }
+            }
+
+            int ans = 1;
+            for (UUID id : ids) {
+                ans = Math.max(ans, depth.getOrDefault(id, 1));
+            }
+            return ans;
+        }
+
+        // ===== Phần 2: không có root -> dùng DFS + memo + detect cycle =====
+        java.util.Map<UUID, Integer> memo = new java.util.HashMap<>();
+        java.util.Set<UUID> visiting = new java.util.HashSet<>();
+
+        java.util.function.Function<UUID, Integer> dfs = new java.util.function.Function<UUID, Integer>() {
+            @Override
+            public Integer apply(UUID u) {
+                if (memo.containsKey(u)) return memo.get(u);
+                if (visiting.contains(u)) {
+                    // Phát hiện cycle, tránh infinite loop
+                    return 1;
+                }
+                visiting.add(u);
+                int best = 1;
+                for (UUID v : parentOf.getOrDefault(u, java.util.Collections.emptyList())) {
+                    best = Math.max(best, 1 + this.apply(v));
+                }
+                visiting.remove(u);
+                memo.put(u, best);
+                return best;
+            }
+        };
+
+        int ans = 1;
+        for (UUID id : ids) {
+            ans = Math.max(ans, dfs.apply(id));
+        }
+        return ans;
     }
+
 }
