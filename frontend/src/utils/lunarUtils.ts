@@ -8,8 +8,8 @@ export const getVietnameseLunarDay = (day: number): string => {
 };
 
 export const getVietnameseLunarMonth = (month: number, isLeap: boolean = false): string => {
-    const months = ['Giêng', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy', 'Tám', 'Chín', 'Mười', 'Mười Một', 'Chạp'];
-    return `${isLeap ? 'Nhuận ' : ''}${months[month - 1]}`;
+    const monthNumber = Math.abs(month);
+    return `${isLeap ? 'Nhuận ' : ''}${monthNumber}`;
 };
 
 export const getVietnameseStemBranch = (stemBranch: string): string => {
@@ -38,7 +38,6 @@ export const getVietnameseZodiac = (zodiac: string): string => {
     return map[zodiac] || zodiac;
 };
 
-// Lấy dữ liệu âm lịch + can chi + giờ
 export const getLunarInfo = (date: Date) => {
     const lsr = lunisolar(date);
     const isLeap = lsr.lunar.isLeapMonth;
@@ -46,6 +45,8 @@ export const getLunarInfo = (date: Date) => {
 
     const hourBranchIndex = Math.floor((hour + 1) / 2) % 12;
     const hourBranch = ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'][hourBranchIndex];
+
+    const lunarMonthNumber = Math.abs(lsr.lunar.month);
 
     // Can giờ (dựa trên can ngày + chi giờ)
     const dayStem = lsr.format('cD')[0];
@@ -59,7 +60,7 @@ export const getLunarInfo = (date: Date) => {
         year: lsr.lunar.year,
         isLeap,
         dayStr: getVietnameseLunarDay(lsr.lunar.day),
-        monthStr: getVietnameseLunarMonth(lsr.lunar.month, isLeap),
+        monthStr: getVietnameseLunarMonth(lunarMonthNumber, isLeap),
         yearStemBranch: getVietnameseStemBranch(lsr.format('cY')),
         dayStemBranch: getVietnameseStemBranch(lsr.format('cD')),
         hourCanChi: `${hourStem} ${hourBranch}`,

@@ -29,6 +29,7 @@ public class EventResponse {
     private Event.EventStatus status;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    private String lunarDate;
 
     @Data
     public static class RelatedPerson {
