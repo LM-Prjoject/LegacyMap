@@ -16,7 +16,7 @@ import EventsPage from '@/pages/event/EventsPage'
 import EventFormPage from "@/pages/event/EventFormPage.tsx"
 import { EventProvider } from '@/contexts/EventContext'
 import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx'
-import NotificationsPage from "@/pages/auth/NotificationsPage.tsx"
+import NotificationsPage from "@/pages/notifications/NotificationsPage.tsx"
 import SharedTreeView from '@/pages/SharedTreeView'
 
 // 🧱 Layout để giữ Navbar & gradient cố định

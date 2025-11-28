@@ -34,7 +34,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserRepository userRepository;
     private final FamilyTreeRepository familyTreeRepository;
     private final PersonRepository personRepository;
-    private final UserSessionService userSessionService;  // ✅ ADD THIS FIELD
+    private final UserSessionService userSessionService;
 
     @Override
     public List<UserListResponse> getAllUsers() {

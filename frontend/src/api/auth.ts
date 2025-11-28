@@ -114,7 +114,6 @@ export const authApi = {
         }
     },
 
-    // Cập nhật để trả về thông tin đăng nhập tự động
     async verifyEmail(token: string): Promise<ApiResponse<VerifyEmailResult>> {
         console.log('Đang xác minh email với token:', token.substring(0, 10) + '...');
         const { data } = await http.get<ApiResponse<VerifyEmailResult>>(`/auth/verify?token=${encodeURIComponent(token)}`);
@@ -122,30 +121,26 @@ export const authApi = {
         return data;
     },
 
-    // Thống nhất key token với chỗ bạn set trong SignIn.tsx là 'authToken'
     logout() {
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
     },
 
-    // Helper function để lưu token và user
     saveAuthData(token: string, user: any) {
         localStorage.setItem('authToken', token);
         localStorage.setItem('user', JSON.stringify(user));
         console.log('Đã lưu thông tin đăng nhập vào localStorage');
     },
     async getMe(): Promise<User> {
-        const { data } = await http.get<User>('/auth/me'); // interceptor đã gắn Bearer token
+        const { data } = await http.get<User>('/auth/me');
         return data;
     },
 
-    /** Lấy user theo id (BE `/api/users/{id}` trả ApiResponse<User>) */
     async getUser(id: string): Promise<User> {
         const { data } = await http.get<ApiResponse<User>>(`/users/${id}`);
         return data.result;
     },
 
-    /** Cập nhật profile (BE `/api/users/{id}` PUT, trả ApiResponse<UserProfile>) */
     async updateUser(id: string, profile: UserProfile): Promise<UserProfile> {
         const { data } = await http.put<ApiResponse<UserProfile>>(`/users/${id}`, profile);
         return data.result;
@@ -154,5 +149,20 @@ export const authApi = {
     async changePassword(data: { currentPassword: string; newPassword: string }) {
         const { data: res } = await http.post("/auth/change-password", data);
         return res;
+    },
+
+    async getLoginStatus(identifier: string): Promise<ApiResponse<any>> {
+        const { data } = await http.get<ApiResponse<any>>(
+            `/auth/status?identifier=${encodeURIComponent(identifier)}`
+        );
+        return data;
+    },
+
+    async createUnbanRequest(identifier: string, reason: string): Promise<ApiResponse<any>> {
+        const { data } = await http.post<ApiResponse<any>>('/auth/unban-requests', {
+            identifier,
+            reason,
+        });
+        return data;
     }
 };

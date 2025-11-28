@@ -68,8 +68,10 @@ public class User {
         @Builder.Default
         private Integer failedAttempts = 0;
 
-        // SỬA: Sử dụng đúng tên column trong database
-        @Column(name = "password_changedat") // Tên trong database là password_changedat (không có dấu gạch dưới)
+        @Column(name = "lock_until")
+        private OffsetDateTime lockUntil;
+
+        @Column(name = "password_changedat")
         private OffsetDateTime passwordChangedAt;
 
         @Column(name = "password_version", nullable = false)

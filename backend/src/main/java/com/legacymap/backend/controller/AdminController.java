@@ -7,6 +7,7 @@ import com.legacymap.backend.dto.response.FamilyTreeResponse;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.repository.FamilyTreeRepository;
 import com.legacymap.backend.service.AdminService;
+import com.legacymap.backend.service.UnbanRequestService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +28,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final FamilyTreeRepository familyTreeRepository;
+    private final UnbanRequestService unbanRequestService;
 
     @GetMapping("/users")
     public ResponseEntity<List<UserListResponse>> getAllUsers() {
@@ -191,5 +193,21 @@ public class AdminController {
             debug.put("errorType", e.getClass().getName());
             return ResponseEntity.status(500).body(debug);
         }
+    }
+
+    @PostMapping("/unban-requests/{id}/approve")
+    public ResponseEntity<ApiResponse> approveUnbanRequest(@PathVariable UUID id) {
+        unbanRequestService.approveRequest(id);
+        return ResponseEntity.ok(ApiResponse.builder()
+                .message("Đã chấp nhận yêu cầu mở khóa tài khoản.")
+                .build());
+    }
+
+    @PostMapping("/unban-requests/{id}/deny")
+    public ResponseEntity<ApiResponse> denyUnbanRequest(@PathVariable UUID id) {
+        unbanRequestService.denyRequest(id);
+        return ResponseEntity.ok(ApiResponse.builder()
+                .message("Đã từ chối yêu cầu mở khóa tài khoản.")
+                .build());
     }
 }
