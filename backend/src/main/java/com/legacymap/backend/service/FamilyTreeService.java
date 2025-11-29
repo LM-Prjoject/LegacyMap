@@ -8,7 +8,6 @@ import com.legacymap.backend.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.legacymap.backend.service.impl.AuditLogService;
 import com.legacymap.backend.dto.request.FamilyTreeCreateRequest;
 import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;

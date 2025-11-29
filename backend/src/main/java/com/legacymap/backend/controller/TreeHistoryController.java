@@ -1,7 +1,7 @@
 package com.legacymap.backend.controller;
 
 import com.legacymap.backend.dto.response.TreeHistoryResponse;
-import com.legacymap.backend.service.impl.AuditLogService;
+import com.legacymap.backend.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
