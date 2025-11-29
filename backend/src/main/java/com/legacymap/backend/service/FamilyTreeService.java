@@ -8,6 +8,7 @@ import com.legacymap.backend.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.legacymap.backend.service.impl.AuditLogService;
 import com.legacymap.backend.dto.request.FamilyTreeCreateRequest;
 import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
@@ -42,6 +43,9 @@ public class FamilyTreeService {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private AuditLogService historyService;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
@@ -171,7 +175,9 @@ public class FamilyTreeService {
                 .createdBy(creator)
                 .build();
 
-        return personRepository.save(p);
+        Person savedPerson = personRepository.save(p);
+        historyService.logMemberCreated(treeId, userId, savedPerson.getId(), savedPerson);
+        return savedPerson;
     }
 
     @Transactional(readOnly = true)
@@ -251,6 +257,24 @@ public class FamilyTreeService {
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
             throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
         }
+
+        // Clone person trước khi update
+        Person oldPerson = Person.builder()
+                .id(p.getId())
+                .familyTree(p.getFamilyTree())
+                .fullName(p.getFullName())
+                .gender(p.getGender())
+                .birthDate(p.getBirthDate())
+                .deathDate(p.getDeathDate())
+                .birthPlace(p.getBirthPlace())
+                .deathPlace(p.getDeathPlace())
+                .biography(p.getBiography())
+                .avatarUrl(p.getAvatarUrl())
+                .email(p.getEmail())
+                .phone(p.getPhone())
+                .createdBy(p.getCreatedBy())
+                .build();
+
         if (req.getFullName() != null) p.setFullName(req.getFullName());
         if (req.getGender() != null) p.setGender(req.getGender());
         if (req.getBirthDate() != null) p.setBirthDate(req.getBirthDate());
@@ -272,7 +296,10 @@ public class FamilyTreeService {
             p.setEmail(newEmail);
         }
         if (req.getPhone() != null) p.setPhone(req.getPhone());
-        return personRepository.save(p);
+
+        Person updated = personRepository.save(p);
+        historyService.logMemberUpdated(treeId, userId, p.getId(), oldPerson, updated);
+        return updated;
     }
 
     @Transactional
@@ -283,6 +310,8 @@ public class FamilyTreeService {
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
             throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
         }
+
+        historyService.logMemberDeleted(treeId, userId, p.getId(), p);
         personRepository.delete(p);
     }
 
