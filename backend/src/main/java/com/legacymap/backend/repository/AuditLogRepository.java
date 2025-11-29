@@ -12,8 +12,6 @@ import java.util.UUID;
 
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
-
-    // ✅ FIXED: Sử dụng JOIN FETCH thay vì EntityGraph
     @Query(value = "SELECT al FROM AuditLog al " +
             "LEFT JOIN FETCH al.user u " +
             "LEFT JOIN FETCH u.userProfile " +
@@ -21,8 +19,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
             "ORDER BY al.createdAt DESC",
             countQuery = "SELECT COUNT(al) FROM AuditLog al WHERE al.tree.id = :treeId")
     Page<AuditLog> findByTreeIdWithUserOrderByCreatedAtDesc(@Param("treeId") UUID treeId, Pageable pageable);
-
-    // ✅ FIXED: Method 2 với JOIN FETCH
+  
     @Query(value = "SELECT al FROM AuditLog al " +
             "LEFT JOIN FETCH al.user u " +
             "LEFT JOIN FETCH u.userProfile " +
@@ -31,7 +28,6 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
             countQuery = "SELECT COUNT(al) FROM AuditLog al WHERE al.tree.id = :treeId")
     Page<AuditLog> findByTreeIdOrderByCreatedAtDesc(@Param("treeId") UUID treeId, Pageable pageable);
 
-    // ✅ FIXED: Method 3 với JOIN FETCH
     @Query(value = "SELECT al FROM AuditLog al " +
             "LEFT JOIN FETCH al.user u " +
             "LEFT JOIN FETCH u.userProfile " +
@@ -39,7 +35,6 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
             countQuery = "SELECT COUNT(al) FROM AuditLog al")
     Page<AuditLog> findAllWithUserOrderByCreatedAtDesc(Pageable pageable);
 
-    // ✅ FIXED: Method 4 với JOIN FETCH
     @Query(value = "SELECT al FROM AuditLog al " +
             "LEFT JOIN FETCH al.user u " +
             "LEFT JOIN FETCH u.userProfile " +

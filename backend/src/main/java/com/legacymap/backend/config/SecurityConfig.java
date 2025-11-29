@@ -33,15 +33,15 @@ public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
-    private final UserSessionService userSessionService;  // ✅ THÊM DÒNG NÀY
+    private final UserSessionService userSessionService;
 
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
-    public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository, UserSessionService userSessionService) {  // ✅ THÊM THAM SỐ
+    public SecurityConfig(JwtUtil jwtUtil, UserRepository userRepository, UserSessionService userSessionService) {
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
-        this.userSessionService = userSessionService;  // ✅ THÊM DÒNG NÀY
+        this.userSessionService = userSessionService;
     }
 
     @Bean
@@ -74,7 +74,7 @@ public class SecurityConfig {
     SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
         log.info("Configuring API Security Chain");
 
-        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository, userSessionService);  // ✅ SỬA DÒNG NÀY
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtUtil, userRepository, userSessionService);
 
         http
                 .securityMatcher("/api/**", "/legacy/api/**")
@@ -102,12 +102,19 @@ public class SecurityConfig {
                                 "/api/auth/password/forgot",
                                 "/legacy/api/auth/password/forgot",
                                 "/api/auth/password/reset",
-                                "/legacy/api/auth/password/reset"
+                                "/legacy/api/auth/password/reset",
+                                "/api/auth/unban-requests", "/legacy/api/auth/unban-requests"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.GET,
                                 "/api/auth/verify/**",
-                                "/legacy/api/auth/verify/**"
+                                "/legacy/api/auth/verify/**",
+                                "/api/auth/status", "/legacy/api/auth/status"
+                        ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/trees/**",
+                                "/legacy/api/trees/**"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST,

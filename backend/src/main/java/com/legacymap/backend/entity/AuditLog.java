@@ -6,16 +6,15 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.type.SqlTypes;
 import org.hibernate.annotations.JdbcTypeCode;
-
-
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
 @Entity
 @Table(name = "audit_logs")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})  // ← Thêm dòng này
-@Getter @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Getter 
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -27,22 +26,23 @@ public class AuditLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
-
+//     @Column(name = "user_id")
+//     private UUID userId;
     @Column(name = "entity_type", nullable = false)
     private String entityType;
 
     @Column(name = "entity_id", nullable = false)
     private UUID entityId;
 
-    @Column(nullable = false)
+    @Column(name = "action", nullable = false, length = 50)
     private String action;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "old_data", columnDefinition = "jsonb")
+    @Column(name = "old_data",columnDefinition = "jsonb")
     private Map<String, Object> oldData;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "new_data", columnDefinition = "jsonb")
+    @Column(name = "new_data",columnDefinition = "jsonb")
     private Map<String, Object> newData;
 
     @ManyToOne(fetch = FetchType.LAZY)

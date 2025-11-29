@@ -1,10 +1,6 @@
 package com.legacymap.backend.service;
 
-import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -13,6 +9,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.legacymap.backend.entity.LunarDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +38,7 @@ public class EventService {
     private final FamilyTreeRepository familyTreeRepository;
     private final UserRepository userRepository;
     private final EventReminderService eventReminderService;
+    private final LunarCalendarService lunarCalendarService;
     private final ObjectMapper objectMapper;
 
     private User loadUserOrThrow(UUID userId) {
@@ -255,11 +253,66 @@ public class EventService {
             return List.of();
         }
 
+        if (event.getCalendarType() == Event.CalendarType.lunar) {
+            return expandLunarRecurrence(event, rangeStart, rangeEnd);
+        }
+
+        return expandSolarRecurrence(event, rangeStart, rangeEnd);
+    }
+
+    private List<EventResponse> expandLunarRecurrence(Event event, OffsetDateTime rangeStart, OffsetDateTime rangeEnd) {
         List<EventResponse> occurrences = new ArrayList<>();
+
+        try {
+            LunarDate originalLunarDate = lunarCalendarService.solarToLunar(
+                    event.getStartDate().atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate()
+            );
+
+            int startYear = rangeStart.getYear() - 1;
+            int endYear = rangeEnd.getYear() + 1;
+
+            for (int year = startYear; year <= endYear; year++) {
+                try {
+                    LocalDate solarDate = lunarCalendarService.lunarToSolar(
+                            new LunarDate(originalLunarDate.getDay(), originalLunarDate.getMonth(), year, originalLunarDate.isLeapMonth())
+                    );
+
+                    OffsetDateTime occurrenceStart = solarDate.atStartOfDay()
+                            .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                            .toOffsetDateTime()
+                            .withOffsetSameInstant(ZoneOffset.UTC);
+
+                    OffsetDateTime occurrenceEnd = occurrenceStart.plusSeconds(
+                            event.getEndDate() != null
+                                    ? Duration.between(event.getStartDate(), event.getEndDate()).getSeconds()
+                                    : 3600
+                    );
+
+                    if (!occurrenceStart.isAfter(rangeEnd) && !occurrenceEnd.isBefore(rangeStart)) {
+                        EventResponse resp = mapToResponse(event);
+                        resp.setStartDate(occurrenceStart.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toOffsetDateTime());
+                        resp.setEndDate(occurrenceEnd.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toOffsetDateTime());
+                        resp.setLunarDate(getLunarDateString(occurrenceStart));
+                        occurrences.add(resp);
+                    }
+                } catch (Exception e) {
+                    log.warn("Unable to convert lunar date for year {}: {}", year, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            return expandSolarRecurrence(event, rangeStart, rangeEnd);
+        }
+
+        return occurrences;
+    }
+
+    private List<EventResponse> expandSolarRecurrence(Event event, OffsetDateTime rangeStart, OffsetDateTime rangeEnd) {
+        List<EventResponse> occurrences = new ArrayList<>();
+
         OffsetDateTime current = event.getStartDate();
         ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
 
-        long durationSeconds = event.getEndDate() != null
+        long durationSeconds = event.getEndDate() != null && event.getStartDate() != null
                 ? Duration.between(event.getStartDate(), event.getEndDate()).getSeconds()
                 : 3600;
 
@@ -284,6 +337,11 @@ public class EventService {
                 EventResponse resp = mapToResponse(event);
                 resp.setStartDate(occurrenceStartUtc.atZoneSameInstant(vietnamZone).toOffsetDateTime());
                 resp.setEndDate(occurrenceEndUtc.atZoneSameInstant(vietnamZone).toOffsetDateTime());
+
+                if (event.getCalendarType() == Event.CalendarType.lunar) {
+                    resp.setLunarDate(getLunarDateString(occurrenceStartUtc));
+                }
+
                 occurrences.add(resp);
             }
 
@@ -301,6 +359,20 @@ public class EventService {
         }
 
         return occurrences;
+    }
+
+    private String getLunarDateString(OffsetDateTime dateTime) {
+        try {
+            LocalDate solarDate = dateTime.atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate();
+            com.legacymap.backend.entity.LunarDate lunarDate = lunarCalendarService.solarToLunar(solarDate);
+
+            return String.format("%d/%d/%d %s",
+                    lunarDate.getDay(), lunarDate.getMonth(), lunarDate.getYear(),
+                    lunarDate.isLeapMonth() ? "(tháng nhuận)" : "");
+        } catch (Exception e) {
+            log.warn("Không thể chuyển đổi sang âm lịch cho ngày {}: {}", dateTime, e.getMessage());
+            return "";
+        }
     }
 
     @Transactional(readOnly = true)

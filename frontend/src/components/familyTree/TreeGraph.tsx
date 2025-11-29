@@ -8,6 +8,7 @@ export interface CustomNodeAttributes {
     couple?: boolean;
     husbandId?: string;
     wifeId?: string;
+    memberIds?: string[];
     avatars?: string[];
     names?: string[];
     lifes?: string[];
@@ -108,45 +109,6 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             else bucket.others.add(parentId);
         }
 
-        const spouses = new Map<string, Set<string>>();
-        const ensureSpouse = (id: string) => {
-            if (!spouses.has(id)) spouses.set(id, new Set<string>());
-            return spouses.get(id)!;
-        };
-
-        for (const r of relationships) {
-            const t = String(r.type).toUpperCase();
-            if (t !== "SPOUSE") continue;
-            ensureSpouse(r.fromPersonId).add(r.toPersonId);
-            ensureSpouse(r.toPersonId).add(r.fromPersonId);
-        }
-
-        for (const [_childId, buckets] of out.entries()) {
-            const allParents = new Set<string>([
-                ...buckets.fathers,
-                ...buckets.mothers,
-                ...buckets.others,
-            ]);
-
-            for (const pid of Array.from(allParents)) {
-                const spSet = spouses.get(pid);
-                if (!spSet) continue;
-
-                for (const sp of spSet) {
-                    if (allParents.has(sp)) continue;
-
-                    const g = genderOf.get(sp);
-                    if (g === "MALE") {
-                        buckets.fathers.add(sp);
-                    } else if (g === "FEMALE") {
-                        buckets.mothers.add(sp);
-                    } else {
-                        buckets.others.add(sp);
-                    }
-                }
-            }
-        }
-
         return out;
     }, [relationships, genderOf]);
 
@@ -196,7 +158,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
         const byId = new Map(persons.map((p) => [p.id, p]));
         const children = new Map<string, Set<string>>();
         const parentMap = new Map<string, Set<string>>();
-        const spouseMap = new Map<string, string>();
+        const spouseMap = new Map<string, Set<string>>();
 
         persons.forEach((p) => {
             children.set(p.id, new Set());
@@ -209,30 +171,52 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                 children.get(r.fromPersonId)?.add(r.toPersonId);
                 parentMap.get(r.toPersonId)?.add(r.fromPersonId);
             } else if (type === "SPOUSE") {
-                spouseMap.set(r.fromPersonId, r.toPersonId);
-                spouseMap.set(r.toPersonId, r.fromPersonId);
+                if (!spouseMap.has(r.fromPersonId)) spouseMap.set(r.fromPersonId, new Set<string>());
+                if (!spouseMap.has(r.toPersonId)) spouseMap.set(r.toPersonId, new Set<string>());
+                spouseMap.get(r.fromPersonId)!.add(r.toPersonId);
+                spouseMap.get(r.toPersonId)!.add(r.fromPersonId);
             }
         });
 
         const rootsRaw = persons.filter((p) => {
             const hasParents = (parentMap.get(p.id)?.size ?? 0) > 0;
             if (hasParents) return false;
-
-            const spouseId = spouseMap.get(p.id);
-            if (spouseId) {
-                const spouseHasParents = (parentMap.get(spouseId)?.size ?? 0) > 0;
-                if (spouseHasParents) return false;
+            const spSet = spouseMap.get(p.id);
+            if (spSet && spSet.size) {
+                for (const spId of spSet) {
+                    const spouseHasParents = (parentMap.get(spId)?.size ?? 0) > 0;
+                    if (spouseHasParents) return false;
+                }
             }
             return true;
         });
 
-        const seenCouple = new Set<string>();
+        const getSpouseGroup = (startId: string): Set<string> => {
+            const visited = new Set<string>();
+            const stack: string[] = [];
+            visited.add(startId);
+            stack.push(startId);
+            while (stack.length) {
+                const cur = stack.pop()!;
+                const neighbors = spouseMap.get(cur);
+                if (!neighbors) continue;
+                for (const nb of neighbors) {
+                    if (!visited.has(nb)) {
+                        visited.add(nb);
+                        stack.push(nb);
+                    }
+                }
+            }
+            return visited;
+        };
+
+        const seenGroup = new Set<string>();
         const roots = rootsRaw.filter((p) => {
-            const s = spouseMap.get(p.id);
-            if (!s) return true;
-            const key = [p.id, s].sort().join("|");
-            if (seenCouple.has(key)) return false;
-            seenCouple.add(key);
+            const group = Array.from(getSpouseGroup(p.id)).sort();
+            const key = group.join("|");
+            if (!key) return true;
+            if (seenGroup.has(key)) return false;
+            seenGroup.add(key);
             return true;
         });
 
@@ -244,7 +228,6 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                     children: [],
                 };
             }
-
             const p = byId.get(id);
             if (!p) {
                 return {
@@ -257,36 +240,29 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             const nextPath = new Set(path);
             nextPath.add(id);
 
-            const spouseId = spouseMap.get(id);
+            const groupSet = getSpouseGroup(id);
+            if (groupSet && groupSet.size > 1) {
+                const memberIds = Array.from(groupSet);
+                const members = memberIds.map(mid => byId.get(mid)).filter(Boolean) as Person[];
+                if (members.length) {
 
-            if (spouseId) {
-                const spouse = byId.get(spouseId);
-                if (spouse) {
-                    const husband = p.gender === "MALE" ? p : spouse;
-                    const wife = p.gender === "MALE" ? spouse : p;
-
-                    const coupleChildren = Array.from(
-                        new Set([
-                            ...(children.get(husband.id) || []),
-                            ...(children.get(wife.id) || []),
-                        ])
-                    ).map((cid) => buildNode(cid, nextPath));
+                    const allChildren = new Set<string>();
+                    for (const m of members) {
+                        for (const cid of Array.from(children.get(m.id) || [])) allChildren.add(cid);
+                    }
+                    const groupChildren = Array.from(allChildren).map((cid) => buildNode(cid, nextPath));
 
                     return {
-                        name: husband.fullName + " & " + wife.fullName,
+                        name: members.map(m => m.fullName).join(" & "),
                         attributes: {
-                            id: husband.id,
+                            id: members[0].id,
                             couple: true,
-                            husbandId: husband.id,
-                            wifeId: wife.id,
-                            avatars: [
-                                (husband as any).avatarUrl ?? "",
-                                (wife as any).avatarUrl ?? "",
-                            ],
-                            names: [husband.fullName, wife.fullName],
-                            lifes: [lifeTextOf(husband), lifeTextOf(wife)],
-                        },
-                        children: coupleChildren,
+                            memberIds: members.map(m => m.id),
+                            avatars: members.map(m => (m as any).avatarUrl ?? ""),
+                            names: members.map(m => m.fullName),
+                            lifes: members.map(m => lifeTextOf(m)),
+                        } as any,
+                        children: groupChildren,
                     };
                 }
             }
@@ -337,46 +313,50 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
         recordPos(id, { x: rd3tNode.hierarchyPointNode.x, y: rd3tNode.hierarchyPointNode.y });
         const color = colorForNode(id);
 
-        if (attrs.couple && Array.isArray(attrs.avatars) && attrs.avatars.length === 2) {
-            const [husbandName, wifeName] = attrs.names || ["", ""];
-            const [husbandAvatar, wifeAvatar] = attrs.avatars;
-            const [husbandLife, wifeLife] = attrs.lifes || ["—", "—"];
-            const husbandId = attrs.husbandId || "";
-            const wifeId = attrs.wifeId || "";
+        if (attrs.couple && Array.isArray(attrs.names) && attrs.names.length >= 1) {
+            const names = attrs.names || [];
+            const avatars = attrs.avatars || [];
+            const lifes = attrs.lifes || [];
+            const memberIds = (attrs as any).memberIds as string[] | undefined;
+
+            // Record same layout position for every member in the group so edges can map
+            if (Array.isArray(memberIds)) {
+                for (const mid of memberIds) {
+                    if (mid) recordPos(mid, { x: rd3tNode.hierarchyPointNode.x, y: rd3tNode.hierarchyPointNode.y });
+                }
+            }
+
+            const count = names.length;
+            const spacing = 95; // horizontal spacing between spouse cards
+            const totalWidth = (count - 1) * spacing;
+            const startX = -totalWidth / 2;
 
             return (
                 <g>
-                    <g
-                        transform="translate(-45,-40)"
-                        onMouseEnter={() => setHoveredId(husbandId)}
-                        onMouseLeave={() => setHoveredId(null)}
-                    >
-                        {colorForNode(husbandId) && <HighlightBox color={colorForNode(husbandId)!} />}
-                        {MemberCard(onNodeClick, selectedNodeId === husbandId)({
-                            ...rd3tNode,
-                            nodeDatum: {
-                                ...rd3tNode.nodeDatum,
-                                name: husbandName,
-                                attributes: toRawAttrs({ id: husbandId, avatar: husbandAvatar, life: husbandLife }),
-                            } as RawNodeDatum,
-                        } as CustomNodeElementProps)}
-                    </g>
-
-                    <g
-                        transform="translate(45,-40)"
-                        onMouseEnter={() => setHoveredId(wifeId)}
-                        onMouseLeave={() => setHoveredId(null)}
-                    >
-                        {colorForNode(wifeId) && <HighlightBox color={colorForNode(wifeId)!} />}
-                        {MemberCard(onNodeClick, selectedNodeId === wifeId)({
-                            ...rd3tNode,
-                            nodeDatum: {
-                                ...rd3tNode.nodeDatum,
-                                name: wifeName,
-                                attributes: toRawAttrs({ id: wifeId, avatar: wifeAvatar, life: wifeLife }),
-                            } as RawNodeDatum,
-                        } as CustomNodeElementProps)}
-                    </g>
+                    {names.map((nm, i) => {
+                        const mid = memberIds?.[i] || "";
+                        const av = avatars[i] || "";
+                        const lf = lifes[i] || "—";
+                        const tx = startX + i * spacing;
+                        return (
+                            <g
+                                key={mid || i}
+                                transform={`translate(${tx},-40)`}
+                                onMouseEnter={() => mid && setHoveredId(mid)}
+                                onMouseLeave={() => setHoveredId(null)}
+                            >
+                                {mid && colorForNode(mid) && <HighlightBox color={colorForNode(mid)!} />}
+                                {MemberCard(onNodeClick, mid ? selectedNodeId === mid : false)({
+                                    ...rd3tNode,
+                                    nodeDatum: {
+                                        ...rd3tNode.nodeDatum,
+                                        name: nm,
+                                        attributes: toRawAttrs({ id: mid, avatar: av, life: lf }),
+                                    } as RawNodeDatum,
+                                } as CustomNodeElementProps)}
+                            </g>
+                        );
+                    })}
                 </g>
             );
         }

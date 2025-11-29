@@ -129,6 +129,24 @@ export const adminApi = {
         }
     },
 
+    async approveUnbanRequest(requestId: string): Promise<void> {
+        try {
+            await http.post(`/admin/unban-requests/${requestId}/approve`);
+        } catch (error: any) {
+            console.error('Error approving unban request:', error.response?.data || error.message);
+            throw error;
+        }
+    },
+
+    async denyUnbanRequest(requestId: string): Promise<void> {
+        try {
+            await http.post(`/admin/unban-requests/${requestId}/deny`);
+        } catch (error: any) {
+            console.error('Error denying unban request:', error.response?.data || error.message);
+            throw error;
+        }
+    },
+
     // FAMILY TREE MANAGEMENT
     async getAllFamilyTrees(): Promise<FamilyTree[]> {
         try {

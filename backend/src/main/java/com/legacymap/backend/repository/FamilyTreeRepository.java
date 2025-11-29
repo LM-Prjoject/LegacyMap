@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +17,15 @@ import com.legacymap.backend.entity.User;
 public interface FamilyTreeRepository extends JpaRepository<FamilyTree, UUID> {
     Optional<FamilyTree> findFirstByCreatedByIdOrderByUpdatedAtDesc(UUID createdById);
     long countByCreatedById(UUID createdById);
+    @EntityGraph(attributePaths = {
+            "persons",
+            "relationships",
+            "relationships.person1",
+            "relationships.person2"
+    })
+    @Query("SELECT ft FROM FamilyTree ft WHERE ft.id = :id")
+    Optional<FamilyTree> findByIdWithGraph(@Param("id") UUID id);
+
     // MAIN: Eager fetch User để tránh LazyInitializationException
     @Query("SELECT DISTINCT ft FROM FamilyTree ft LEFT JOIN FETCH ft.createdBy ORDER BY ft.createdAt DESC")
     List<FamilyTree> findAllWithUserOrderByCreatedAtDesc();

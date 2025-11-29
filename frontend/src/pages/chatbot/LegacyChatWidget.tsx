@@ -56,28 +56,30 @@ export default function LegacyChatWidget() {
     positionRef.current = position;
   }, [position]);
 
-  const dragRef = useRef({
-    isDragging: false,
-    offsetX: 0,
-    offsetY: 0
-  });
+const dragRef = useRef({
+  isDragging: false,
+  offsetX: 0,
+  offsetY: 0,
+  hasMoved: false,
+});
 
-  // Đặt vị trí mặc định: góc phải trên (dựa theo kích thước CHAT_WIDTH)
-  useEffect(() => {
-    const offsetTop = 72; // để tránh đè lên navbar
-    const x =
-      window.innerWidth - CHAT_WIDTH - EDGE_PADDING; // canh sao cho panel vừa khít bên phải
-    const y = offsetTop;
-    setPosition({
-      x: Math.max(EDGE_PADDING, x),
-      y: Math.max(EDGE_PADDING, y)
-    });
-  }, []);
+useEffect(() => {
+  const offsetTop = 72; // để tránh đè lên navbar
+  const x = window.innerWidth - BUTTON_SIZE - EDGE_PADDING;
+  const y = offsetTop;
+
+  setPosition({
+    x: Math.max(EDGE_PADDING, x),
+    y: Math.max(EDGE_PADDING, y)
+  });
+}, []);
+
 
   const handleDragStart = (e: React.MouseEvent<HTMLButtonElement>) => {
     dragRef.current.isDragging = true;
     dragRef.current.offsetX = e.clientX - positionRef.current.x;
     dragRef.current.offsetY = e.clientY - positionRef.current.y;
+      dragRef.current.hasMoved = false; 
   };
 
   const handleDragMove = useCallback(
@@ -86,7 +88,7 @@ export default function LegacyChatWidget() {
 
       const x = e.clientX - dragRef.current.offsetX;
       const y = e.clientY - dragRef.current.offsetY;
-
+    dragRef.current.hasMoved = true;
       // Nếu đang mở -> giới hạn theo kích thước panel
       // Nếu đang đóng -> chỉ theo kích thước nút
       const currentWidth = isOpen ? CHAT_WIDTH : BUTTON_SIZE;
@@ -140,6 +142,15 @@ export default function LegacyChatWidget() {
       return next;
     });
   };
+
+  const handleButtonClick = () => {
+  if (dragRef.current.hasMoved) {
+    // vừa kéo xong → bỏ qua click này
+    dragRef.current.hasMoved = false;
+    return;
+  }
+  toggleOpen();
+};
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -392,7 +403,7 @@ export default function LegacyChatWidget() {
       <button
         type="button"
         onMouseDown={handleDragStart}
-        onClick={toggleOpen}
+        onClick={handleButtonClick} 
         className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg shadow-[#C9A961]/20 hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-move"
       >
         {isOpen ? (

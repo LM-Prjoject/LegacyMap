@@ -11,6 +11,7 @@ import com.legacymap.backend.repository.AuthTokenRepository;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.repository.UserProfileRepository;
 import com.legacymap.backend.service.AuthenticationService;
+import com.legacymap.backend.service.UnbanRequestService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import jakarta.validation.Valid;
@@ -42,6 +43,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final AuthenticationService authenticationService;
+    private final UnbanRequestService unbanRequestService;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
@@ -88,13 +90,13 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<AuthenticationResponse> login(
             @RequestBody AuthenticationRequest request,
-            HttpServletRequest httpRequest  // ✅ THÊM THAM SỐ NÀY
+            HttpServletRequest httpRequest
     ) {
         try {
             AuthenticationResponse response = authenticationService.login(
                     request.getIdentifier(),
                     request.getPassword(),
-                    httpRequest  // ✅ TRUYỀN REQUEST VÀO
+                    httpRequest
             );
             return ApiResponse.success(response, "Login successful");
 
@@ -181,4 +183,59 @@ public class AuthController {
         return authenticationService.changePassword(request);
     }
 
+    @GetMapping("/status")
+    public ApiResponse<Map<String, Object>> getLoginStatus(
+            @RequestParam("identifier") String identifier
+    ) {
+        Optional<User> userOpt = userRepository.findByEmail(identifier);
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByUsername(identifier);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+
+        if (userOpt.isEmpty()) {
+            result.put("exists", false);
+            result.put("isLocked", false);
+            result.put("isBanned", false);
+            result.put("failedAttempts", 0);
+            result.put("lockSecondsLeft", 0);
+            result.put("canRequestUnban", false);
+            return ApiResponse.success(result, "OK");
+        }
+
+        User user = userOpt.get();
+        result.put("exists", true);
+        result.put("failedAttempts", user.getFailedAttempts());
+        result.put("isBanned", user.getIsBanned());
+        result.put("isActive", user.getIsActive());
+
+        OffsetDateTime lockUntil = user.getLockUntil();
+        result.put("lockUntil", lockUntil);
+
+        boolean isLocked = false;
+        long secondsLeft = 0;
+
+        if (lockUntil != null) {
+            OffsetDateTime now = OffsetDateTime.now();
+            if (now.isBefore(lockUntil)) {
+                isLocked = true;
+                secondsLeft = java.time.Duration.between(now, lockUntil).getSeconds();
+            }
+        }
+
+        result.put("isLocked", isLocked);
+        result.put("lockSecondsLeft", Math.max(secondsLeft, 0));
+        boolean canRequestUnban = Boolean.TRUE.equals(user.getIsBanned());
+        result.put("canRequestUnban", canRequestUnban);
+        return ApiResponse.success(result, "OK");
+    }
+
+    @PostMapping("/unban-requests")
+    public ApiResponse<Void> createUnbanRequest(
+            @RequestBody @Valid com.legacymap.backend.dto.request.UnbanRequestCreateRequest request
+    ) {
+        unbanRequestService.createRequest(request.getIdentifier(), request.getReason());
+        return ApiResponse.success(null, "Yêu cầu mở khóa đã được ghi nhận, vui lòng chờ admin xử lý.");
+    }
 }
