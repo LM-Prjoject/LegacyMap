@@ -623,7 +623,7 @@ const EventsPage: React.FC = () => {
                             setSelectedDate(null);
                         }}
                         onUpdate={() => {
-                            handleRefetch();
+
                         }}
                         selectedDate={selectedDate}
                     />
