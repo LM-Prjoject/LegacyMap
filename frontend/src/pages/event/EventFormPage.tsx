@@ -41,6 +41,12 @@ const EventFormPage: React.FC = () => {
     const [searchMember, setSearchMember] = useState('');
     const [showMemberDropdown, setShowMemberDropdown] = useState(false);
     const [selectAll, setSelectAll] = useState(false);
+    const [errors, setErrors] = useState<{
+        title?: string;
+        startDate?: string;
+        tree?: string;
+        relatedPersons?: string;
+    }>({});
 
     useEffect(() => {
         if (!isPersonalEvent) {
@@ -94,6 +100,24 @@ const EventFormPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const titleError = validateField('title', formData.title);
+        const startDateError = validateField('startDate', formData.startDate);
+        const treeError = validateField('tree', selectedTreeId);
+        const relatedPersonsError = validateField('relatedPersons', formData.relatedPersons);
+
+        setErrors({
+            title: titleError,
+            startDate: startDateError,
+            tree: treeError,
+            relatedPersons: relatedPersonsError,
+        });
+
+        if (titleError || startDateError || treeError) {
+            setError('Vui lòng kiểm tra lại các trường bắt buộc');
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -133,6 +157,10 @@ const EventFormPage: React.FC = () => {
             ...prev,
             [field]: value
         }));
+
+        if (field === 'title' || field === 'startDate') {
+            setErrors(prev => ({ ...prev, [field]: undefined }));
+        }
     };
 
     const handleReminderChange = <K extends keyof NonNullable<EventCreateRequest["reminder"]>>(
@@ -150,6 +178,35 @@ const EventFormPage: React.FC = () => {
                 reminder,
             };
         });
+    };
+
+    const validateField = (field: string, value: any) => {
+        switch (field) {
+            case 'title':
+                return value.trim() ? '' : 'Vui lòng nhập tên sự kiện';
+            case 'startDate':
+                return value ? '' : 'Vui lòng chọn thời gian bắt đầu';
+            case 'tree':
+                return !isPersonalEvent && !selectedTreeId ? 'Vui lòng chọn cây gia phả' : '';
+            case 'relatedPersons':
+                return !isPersonalEvent &&
+                selectedTreeId &&
+                (!formData.relatedPersons || formData.relatedPersons.length === 0)
+                    ? 'Vui lòng chọn ít nhất một người liên quan'
+                    : '';
+            default:
+                return '';
+        }
+    };
+
+    const handleBlur = (field: 'title' | 'startDate' | 'tree') => {
+        let value = '';
+        if (field === 'title') value = formData.title;
+        if (field === 'startDate') value = formData.startDate;
+        if (field === 'tree') value = selectedTreeId;
+
+        const error = validateField(field, value);
+        setErrors(prev => ({ ...prev, [field]: error }));
     };
 
     const reminderOptions = [
@@ -260,25 +317,35 @@ const EventFormPage: React.FC = () => {
                             {familyTrees.length === 0 ? (
                                 <p className="text-yellow-300">Bạn chưa có cây gia phả nào. Vui lòng tạo trước.</p>
                             ) : (
-                                <div className="relative">
-                                    <select
-                                        value={selectedTreeId}
-                                        onChange={(e) => setSelectedTreeId(e.target.value)}
-                                        className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
-                                        style={{
-                                            background: 'rgba(255, 255, 255, 0.05)',
-                                            border: '1px solid rgba(255, 216, 155, 0.2)',
-                                            color: 'white'
-                                        }}
-                                    >
-                                        {familyTrees.map(tree => (
-                                            <option key={tree.id} value={tree.id} className="bg-[#2a3548]">
-                                                {tree.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[rgb(255,216,155)] pointer-events-none" />
-                                </div>
+                                <>
+                                    <div className="relative">
+                                        <select
+                                            value={selectedTreeId}
+                                            onChange={(e) => setSelectedTreeId(e.target.value)}
+                                            onBlur={() => handleBlur('tree')}
+                                            className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
+                                            style={{
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                border: '1px solid rgba(255, 216, 155, 0.2)',
+                                                color: 'white'
+                                            }}
+                                        >
+                                            {familyTrees.map(tree => (
+                                                <option key={tree.id} value={tree.id} className="bg-[#2a3548]">
+                                                    {tree.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[rgb(255,216,155)] pointer-events-none" />
+                                    </div>
+
+                                    {errors.tree && (
+                                        <div className="mt-2 flex items-center gap-2 text-red-400 text-sm animate-pulse">
+                                            <X className="w-4 h-4" />
+                                            <span>{errors.tree}</span>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
@@ -292,7 +359,7 @@ const EventFormPage: React.FC = () => {
                             <div className="flex items-center gap-3 mb-4">
                                 <ContactRound className="w-5 h-5 text-[rgb(255,216,155)]" />
                                 <label className="text-lg font-bold text-[rgb(255,216,155)]">
-                                    Người liên quan
+                                    Người liên quan <span className="text-red-400">*</span>
                                 </label>
                             </div>
 
@@ -369,6 +436,13 @@ const EventFormPage: React.FC = () => {
                                     ))}
                                 </div>
                             )}
+
+                            {errors.relatedPersons && (
+                                <div className="mt-3 flex items-center gap-2 text-red-400 text-sm animate-pulse">
+                                    <X className="w-4 h-4" />
+                                    <span>{errors.relatedPersons}</span>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -385,6 +459,7 @@ const EventFormPage: React.FC = () => {
                             type="text"
                             value={formData.title}
                             onChange={(e) => handleInputChange('title', e.target.value)}
+                            onBlur={() => handleBlur('title')}
                             placeholder="Nhập tên sự kiện"
                             className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
                             style={{
@@ -394,6 +469,13 @@ const EventFormPage: React.FC = () => {
                             }}
                             required
                         />
+
+                        {errors.title && (
+                            <div className="mt-2 flex items-center gap-2 text-red-400 text-sm animate-pulse">
+                                <X className="w-4 h-4" />
+                                <span>{errors.title}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Event Type */}
@@ -481,6 +563,7 @@ const EventFormPage: React.FC = () => {
                                     type="datetime-local"
                                     value={formData.startDate}
                                     onChange={(e) => handleInputChange('startDate', e.target.value)}
+                                    onBlur={() => handleBlur('startDate')}
                                     min={minDateTime}
                                     disabled={formData.isFullDay}
                                     className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
@@ -491,6 +574,13 @@ const EventFormPage: React.FC = () => {
                                     }}
                                     required
                                 />
+
+                                {errors.startDate && (
+                                    <div className="mt-2 flex items-center gap-2 text-red-400 text-sm animate-pulse">
+                                        <X className="w-4 h-4" />
+                                        <span>{errors.startDate}</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* End Date & Time */}

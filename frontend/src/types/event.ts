@@ -75,6 +75,7 @@ export interface EventDetailModalProps {
     selectedDate?: Date | null;
 }
 
+
 export enum EventType {
     DEATH_ANNIVERSARY = 'death_anniversary',
     WEDDING_ANNIVERSARY = 'wedding_anniversary',
