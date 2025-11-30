@@ -209,6 +209,19 @@ const EventFormPage: React.FC = () => {
         setErrors(prev => ({ ...prev, [field]: error }));
     };
 
+    const getMaxPossibleDaysBefore = (startDateIso: string): number => {
+        const now = new Date();
+        const start = new Date(startDateIso);
+
+        const isSameDay = now.toDateString() === start.toDateString();
+        if (isSameDay) return 0;
+
+        const diffMs = start.getTime() - now.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        return Math.max(0, diffDays);
+    };
+
     const reminderOptions = [
         { value: 0, label: 'Đúng giờ' },
         { value: 1, label: '1 ngày trước' },
@@ -730,23 +743,60 @@ const EventFormPage: React.FC = () => {
                             <div>
                                 <label className="block text-s font-medium text-white/70 mb-2">Thời gian nhắc nhở</label>
                                 <div className="relative">
-                                    <select
-                                        value={String(formData.reminder?.daysBefore ?? 3)}
-                                        onChange={(e) => handleReminderChange('daysBefore', Number(e.target.value))}
-                                        className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
-                                        style={{
-                                            background: 'rgba(255, 255, 255, 0.05)',
-                                            border: '1px solid rgba(255, 216, 155, 0.3)',
-                                            color: 'white'
-                                        }}
-                                    >
-                                        {reminderOptions.map(option => (
-                                            <option key={option.value} value={String(option.value)} className="bg-[#2a3548]">
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(255,216,155)] pointer-events-none" />
+                                    {(() => {
+                                        const maxDays = formData.startDate ? getMaxPossibleDaysBefore(formData.startDate) : 7;
+                                        const currentDays = formData.reminder?.daysBefore ?? 3;
+                                        const isInvalid = currentDays > maxDays;
+
+                                        useEffect(() => {
+                                            if (formData.startDate && isInvalid) {
+                                                handleReminderChange('daysBefore', maxDays);
+                                            }
+                                        }, [formData.startDate]);
+
+                                        return (
+                                            <>
+                                                <select
+                                                    value={isInvalid ? maxDays : currentDays}
+                                                    onChange={(e) => handleReminderChange('daysBefore', Number(e.target.value))}
+                                                    className={`w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                                                        isInvalid ? 'ring-2 ring-red-500' : 'focus:ring-[rgb(255,216,155)]'
+                                                    }`}
+                                                    style={{
+                                                        background: 'rgba(255, 255, 255, 0.05)',
+                                                        border: '1px solid rgba(255, 216, 155, 0.3)',
+                                                        color: 'white'
+                                                    }}
+                                                >
+                                                    {reminderOptions
+                                                        .filter(opt => opt.value <= maxDays)
+                                                        .map(option => (
+                                                            <option key={option.value} value={String(option.value)} className="bg-[#2a3548]">
+                                                                {option.label}
+                                                            </option>
+                                                        ))}
+                                                    {maxDays < 7 && reminderOptions.some(o => o.value > maxDays && o.value <= 7) && (
+                                                        <option disabled className="text-gray-500">
+                                                            Các lựa chọn không khả dụng
+                                                        </option>
+                                                    )}
+                                                </select>
+                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(255,216,155)] pointer-events-none" />
+
+                                                {isInvalid && (
+                                                    <p className="text-red-400 text-sm mt-2 flex items-center gap-1 animate-pulse">
+                                                        <X className="w-4 h-4" />
+                                                        Chỉ còn {maxDays === 0 ? 'vài giờ nữa' : `${maxDays} ngày`} → đã tự động điều chỉnh thành "{maxDays === 0 ? 'Đúng giờ' : `${maxDays} ngày trước`}"
+                                                    </p>
+                                                )}
+                                                {maxDays === 0 && currentDays === 0 && (
+                                                    <p className="text-yellow-300 text-sm mt-2">
+                                                        Sự kiện hôm nay, chỉ nhắc đúng giờ
+                                                    </p>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </div>
 

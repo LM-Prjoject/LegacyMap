@@ -163,6 +163,19 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
         return event?.startDate;
     }, [selectedDate, event]);
 
+    const getMaxPossibleDaysBefore = (startDateIso: string): number => {
+        const now = new Date();
+        const start = new Date(startDateIso);
+
+        const isSameDay = now.toDateString() === start.toDateString();
+        if (isSameDay) return 0;
+
+        const diffMs = start.getTime() - now.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        return Math.max(0, diffDays);
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -385,48 +398,77 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                     <div className="flex-1">
                                         <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Thông báo nhắc nhở</div>
                                         {isEditing ? (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="text-sm text-white/80">Thời gian nhắc</label>
-                                                    <select
-                                                        value={editedEvent.reminder?.daysBefore ?? 3}
-                                                        onChange={e => setEditedEvent(prev => ({
-                                                            ...prev,
-                                                            reminder: {
-                                                                ...(prev.reminder || { daysBefore: 3, methods: ['notification'] }),
-                                                                daysBefore: Number(e.target.value)
-                                                            }
-                                                        }))}
-                                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border border-[#D1B066]/20 focus:border-[#D1B066] text-white text-sm outline-none cursor-pointer"
-                                                    >
-                                                    <option value={0}>Đúng giờ</option>
-                                                    <option value={1}>1 ngày trước</option>
-                                                    <option value={3}>3 ngày trước</option>
-                                                    <option value={7}>1 tuần trước</option>
-                                                    </select>
-                                                </div>
-                                                <div>
-                                                    <label className="text-sm text-white/80">Phương thức</label>
-                                                    <select
-                                                        value={editedEvent.reminder?.methods?.[0] || 'notification'}
-                                                        onChange={e => setEditedEvent(prev => ({
-                                                            ...prev,
-                                                            reminder: {
-                                                                ...(prev.reminder || { daysBefore: 3, methods: ['notification'] }),
-                                                                methods: [e.target.value as any]
-                                                            }
-                                                        }))}
-                                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border border-[#D1B066]/20 focus:border-[#D1B066] text-white text-sm outline-none cursor-pointer"
-                                                    >
-                                                        <option value="notification">Thông báo</option>
-                                                        <option value="email">Email</option>
-                                                        <option value="both">Cả hai</option>
-                                                    </select>
-                                                </div>
-                                            </div>
+                                            <>
+                                                {(() => {
+                                                    const startDate = editedEvent.startDate || event?.startDate;
+                                                    const maxDays = startDate ? getMaxPossibleDaysBefore(localInputToIso(startDate, editedEvent.isFullDay)) : 7;
+                                                    const currentDays = editedEvent.reminder?.daysBefore ?? 3;
+                                                    const isInvalid = currentDays > maxDays;
+
+                                                    useEffect(() => {
+                                                        if (isInvalid) {
+                                                            setEditedEvent(prev => ({
+                                                                ...prev,
+                                                                reminder: { ...(prev.reminder || { methods: ['notification'] }), daysBefore: maxDays }
+                                                            }));
+                                                        }
+                                                    }, [maxDays]);
+
+                                                    return (
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-sm text-white/80">Thời gian nhắc</label>
+                                                                <select
+                                                                    value={isInvalid ? maxDays : currentDays}
+                                                                    onChange={e => setEditedEvent(prev => ({
+                                                                        ...prev,
+                                                                        reminder: {
+                                                                            ...(prev.reminder || { daysBefore: 3, methods: ['notification'] }),
+                                                                            daysBefore: Number(e.target.value)
+                                                                        }
+                                                                    }))}
+                                                                    className={`w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border text-white text-sm outline-none cursor-pointer ${
+                                                                        isInvalid ? 'border-red-500 ring-2 ring-red-500' : 'border-[#D1B066]/20 focus:border-[#D1B066]'
+                                                                    }`}
+                                                                >
+                                                                    {[0,1,3,7].filter(d => d <= maxDays).map(d => (
+                                                                        <option key={d} value={d}>
+                                                                            {d === 0 ? 'Đúng giờ' : `${d} ngày trước`}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                                {isInvalid && (
+                                                                    <p className="text-red-400 text-xs mt-1">Đã tự động điều chỉnh (chỉ còn {maxDays} ngày)</p>
+                                                                )}
+                                                                {maxDays === 0 && <p className="text-yellow-300 text-xs mt-1">Hôm nay → chỉ nhắc đúng giờ</p>}
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-sm text-white/80">Phương thức</label>
+                                                                <select
+                                                                    value={editedEvent.reminder?.methods?.[0] || 'notification'}
+                                                                    onChange={e => setEditedEvent(prev => ({
+                                                                        ...prev,
+                                                                        reminder: {
+                                                                            ...(prev.reminder || { daysBefore: 3, methods: ['notification'] }),
+                                                                            methods: [e.target.value as any]
+                                                                        }
+                                                                    }))}
+                                                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border border-[#D1B066]/20 focus:border-[#D1B066] text-white text-sm outline-none cursor-pointer"
+                                                                >
+                                                                    <option value="notification">Thông báo</option>
+                                                                    <option value="email">Email</option>
+                                                                    <option value="both">Cả hai</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </>
                                         ) : (
                                             <p className="text-white">
-                                                {event.reminder ? `${event.reminder.daysBefore} ngày trước ` : 'Chưa cài đặt'}
+                                                {event?.reminder
+                                                    ? `${event.reminder.daysBefore === 0 ? 'Đúng giờ' : `${event.reminder.daysBefore} ngày trước`}, ${event.reminder.methods?.includes('both') ? 'Thông báo + Email' : event.reminder.methods?.[0] === 'email' ? 'Email' : 'Thông báo'}`
+                                                    : 'Chưa cài đặt'}
                                             </p>
                                         )}
                                     </div>
