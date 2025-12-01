@@ -4,19 +4,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.legacymap.backend.dto.request.UpdateRoomRequest;
+import com.legacymap.backend.dto.request.*;
 import com.legacymap.backend.entity.ChatRoom;
+import com.legacymap.backend.entity.User;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import com.legacymap.backend.dto.request.BranchRoomCreateRequest;
-import com.legacymap.backend.dto.request.ChatRoomCreateRequest;
-import com.legacymap.backend.dto.request.DirectRoomCreateRequest;
 import com.legacymap.backend.dto.response.ChatRoomResponse;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.ChatRoomService;
@@ -47,6 +46,19 @@ public class ChatRoomController {
     public ResponseEntity<ChatRoomResponse> createBranchRoom(@Valid @RequestBody BranchRoomCreateRequest request) {
         UUID userId = getCurrentUserId();
         return ResponseEntity.ok(chatRoomService.createBranchRoom(userId, request));
+    }
+
+    @PostMapping("/{roomId}/members/{userId}/role")
+    public ResponseEntity<ChatRoomResponse> updateMemberRole(
+            @PathVariable UUID roomId,
+            @PathVariable UUID userId,
+            @RequestBody @Valid UpdateMemberRoleRequest request) {
+
+        UUID actorId = getCurrentUserId();
+
+        ChatRoomResponse response = chatRoomService.updateMemberRole(
+                actorId, roomId, userId, request.getRole());
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{roomId}/members/me")

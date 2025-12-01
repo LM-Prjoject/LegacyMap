@@ -459,6 +459,46 @@ public class ChatRoomService {
                 .toList();
     }
 
+    @Transactional
+    public ChatRoomResponse updateMemberRole(UUID actorId, UUID roomId, UUID targetUserId, ChatRoomMember.ChatMemberRole newRole) {
+        ChatRoomMember actorMember = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, actorId)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED));
+
+        ChatRoomMember targetMember = chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, targetUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "The member does not exist in the room"));
+
+        ChatRoom room = actorMember.getRoom();
+
+        if (actorMember.getRole() != ChatRoomMember.ChatMemberRole.admin) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Only the admin has permission to change roles");
+        }
+
+        if (actorId.equals(targetUserId)) {
+            long adminCount = chatRoomMemberRepository.findByRoom_Id(roomId).stream()
+                    .filter(m -> m.getRole() == ChatRoomMember.ChatMemberRole.admin)
+                    .count();
+
+            if (adminCount <= 1 && newRole != ChatRoomMember.ChatMemberRole.admin) {
+                throw new AppException(ErrorCode.BAD_REQUEST, "You cannot remove your own admin role when you are the only admin");
+            }
+        }
+
+        targetMember.setRole(newRole);
+        chatRoomMemberRepository.save(targetMember);
+
+        String actorName = actorMember.getUser().getUsername();
+        String targetName = targetMember.getUser().getUsername();
+        String roleName = newRole == ChatRoomMember.ChatMemberRole.admin ? "Quản trị viên"
+                : newRole == ChatRoomMember.ChatMemberRole.moderator ? "Điều phối viên"
+                : "Thành viên";
+
+        broadcastSystemMessage(roomId, actorName + " đã " +
+                (newRole == ChatRoomMember.ChatMemberRole.admin ? "thăng cấp " : "đặt ")
+                + targetName + " làm " + roleName);
+
+        return toResponse(room);
+    }
+
     @Transactional(readOnly = true)
     public ChatRoom getRoomOrThrow(UUID roomId) {
         return chatRoomRepository.findById(roomId)
