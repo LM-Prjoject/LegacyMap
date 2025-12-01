@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User } from '../../types/ts_user';
-import { useUsers } from '../../hooks/useUsers';
+import { User } from '@/types/ts_user';
+import { useUsers } from '@/hooks/useUsers';
+import PopupModal from "@/components/popupModal/PopupModal";
 
 const UserDetail: React.FC = () => {
     const { userId } = useParams<{ userId: string }>();
@@ -166,41 +167,22 @@ const UserDetail: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modal */}
-            {showBanModal && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="bg-gradient-to-br from-[#1b2233] to-[#2e3a57] border border-[#2e3a57]/80 rounded-xl p-6 max-w-md w-full shadow-lg">
-                        <h3 className="text-xl font-semibold mb-4">
-                            {user.isBanned ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
-                        </h3>
-                        <p className="text-[#f4e9c8]/70 mb-6">
-                            {user.isBanned
-                                ? `Bạn có chắc chắn muốn mở khóa tài khoản của ${getDisplayName(user)}?`
-                                : `Bạn có chắc chắn muốn khóa tài khoản của ${getDisplayName(user)}?`}
-                        </p>
-                        <div className="flex justify-end space-x-3">
-                            <button
-                                onClick={() => setShowBanModal(false)}
-                                disabled={actionLoading}
-                                className="px-4 py-2 border border-[#d1b98a]/50 text-[#f4e9c8] rounded-lg hover:bg-[#2e3a57]/50 transition-all"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                onClick={handleBanToggle}
-                                disabled={actionLoading}
-                                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                                    user.isBanned
-                                        ? 'bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] text-[#20283d]'
-                                        : 'bg-gradient-to-br from-[#7f1d1d] to-[#b91c1c] text-[#f4e9c8]'
-                                } ${actionLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
-                            >
-                                {actionLoading ? 'Đang xử lý...' : user.isBanned ? 'Mở khóa' : 'Khóa'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PopupModal
+                show={showBanModal}
+                onClose={() => !actionLoading && setShowBanModal(false)}
+                onConfirm={handleBanToggle}
+                title={user.isBanned ? "Mở khóa tài khoản" : "Khóa tài khoản"}
+                body={
+                    user.isBanned
+                        ? `Bạn có chắc chắn muốn mở khóa tài khoản của ${getDisplayName(user)}?`
+                        : `Bạn có chắc chắn muốn khóa tài khoản của ${getDisplayName(user)}?`
+                }
+                confirmText={user.isBanned ? "Mở khóa" : "Khóa"}
+                cancelText="Hủy"
+                variant={user.isBanned ? "default" : "danger"}
+                loading={actionLoading}
+                disableCloseWhileLoading={true}
+            />
         </div>
     );
 };

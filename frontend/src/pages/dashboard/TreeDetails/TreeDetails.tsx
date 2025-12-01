@@ -6,7 +6,7 @@ import MemberModal, { type MemberFormValues } from "@/components/familyTree/memb
 import PersonDetailsModal from "@/components/familyTree/PersonDetailsModal";
 import ShareTreeModal from "@/components/familyTree/ShareTreeModal";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
-import { TreeHistoryModal } from '../../../components/familyTree/historyModal/TreeHistoryModal';
+import { TreeHistoryModal } from '@/components/familyTree/historyModal/TreeHistoryModal';
 import api, { type Person, type Relationship, exportTreePdfWithImage } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
@@ -113,7 +113,7 @@ export default function TreeDetails() {
                 const allTrees: any[] = [...owned, ...viewable];
                 const found: any = allTrees.find((t) => t.id === treeId) || null;
 
-                let createdById: string | null = null;
+                let createdById: string | null;
                 try {
                     createdById = await api.getTreeOwner(treeId);
                 } catch {
@@ -606,19 +606,7 @@ export default function TreeDetails() {
             const others = persons.filter((p) => p.id !== personId);
             if (!others.length) return [];
 
-            // Build existingKeys each call to reflect latest rels
-            const existingKeys = new Set(
-                rels.map((r) => {
-                    const t = String(r.type).toUpperCase();
-                    if (t === "SPOUSE" || t === "SIBLING") {
-                        const [a, b] = [r.fromPersonId, r.toPersonId].sort();
-                        return `PAIR:${a}-${b}:${t}`;
-                    }
-                    const parent = t === "PARENT" ? r.fromPersonId : r.toPersonId;
-                    const child = t === "PARENT" ? r.toPersonId : r.fromPersonId;
-                    return `PARENT:${parent}->${child}`;
-                })
-            );
+            const existingKeys = buildExistingRelationshipKeys(rels);
 
             const out: Array<{ candidateId: string; relation: any; confidence: number; reasons?: string[] }> = [];
 
@@ -717,12 +705,10 @@ export default function TreeDetails() {
         if (roots.length) {
             const depth: Record<string, number> = {};
             const q: string[] = [];
-
             for (const r of roots) {
                 depth[r] = 1;
                 q.push(r);
             }
-
             while (q.length) {
                 const u = q.shift()!;
                 const du = depth[u] || 1;
@@ -732,7 +718,6 @@ export default function TreeDetails() {
                     if (indeg[v] === 0) q.push(v);
                 }
             }
-
             let ans = 1;
             for (const id of ids) ans = Math.max(ans, depth[id] || 1);
             return ans;
@@ -763,7 +748,7 @@ export default function TreeDetails() {
         return ans;
     }, [persons, relsNormalized]);
 
-    const createdByName = (ownerProfile?.fullName || "—").toString().trim();
+    const createdByName = user?.profile?.fullName?.trim?.() || "—";
 
     const anyModalOpen = memberOpen || isEditing || isViewingDetails || modalOpen;
 

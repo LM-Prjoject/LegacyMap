@@ -102,13 +102,11 @@ export const router = createBrowserRouter([
         ],
     },
 
-    // ✅ SHARED TREE ROUTE (Công khai - không cần đăng nhập)
     {
         path: '/trees/shared/:shareToken',
         element: <SharedTreeView />,
     },
 
-    // 🔐 Auth routes (ngoài layout)
     {
         path: '/signin',
         element: (
@@ -146,7 +144,6 @@ export const router = createBrowserRouter([
         ),
     },
 
-    // 🧩 Admin routes – GIỮ NGUYÊN KHÔNG ĐỘNG TỚI
     {
         path: '/admin',
         element: (
@@ -162,19 +159,9 @@ export const router = createBrowserRouter([
             { path: 'users', element: <UserManagement /> },
             { path: 'users/:userId', element: <UserDetail /> },
             { path: 'trees', element: <FamilyTreesPage /> },
-            {
-                path: 'settings',
-                element: (
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">⚙️ Settings</h2>
-                        <p className="text-gray-600">Coming soon...</p>
-                    </div>
-                ),
-            },
         ],
     },
 
-    // 🔀 Redirect routes
     { path: '/app', element: <Navigate to="/dashboard" replace /> },
     { path: '/forgot-password', element: <Navigate to="/password-reset" replace /> },
     { path: '/reset-password', element: <Navigate to="/password-reset" replace /> },

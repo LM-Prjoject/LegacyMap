@@ -37,14 +37,12 @@ public class AdminController {
         return ResponseEntity.ok(users);
     }
 
-    // ✅ ĐẶT Ở ĐÂY - TRƯỚC /users/{userId}
     @GetMapping("/users/online")
     public ResponseEntity<Map<String, Object>> getOnlineUsers() {
         try {
             List<UUID> onlineUserIds = adminService.getOnlineUserIds();
             long onlineCount = onlineUserIds.size();
 
-            log.info("👥 {} users currently online", onlineCount);
 
             Map<String, Object> response = new HashMap<>();
             response.put("onlineUserIds", onlineUserIds);
@@ -57,7 +55,6 @@ public class AdminController {
         }
     }
 
-    // ✅ ĐẶT SAU - Generic route
     @GetMapping("/users/{userId}")
     public ResponseEntity<UserDetailResponse> getUserDetail(@PathVariable UUID userId) {
         UserDetailResponse userDetail = adminService.getUserDetail(userId);
@@ -82,27 +79,10 @@ public class AdminController {
 
     @GetMapping("/family-trees")
     public ResponseEntity<List<FamilyTreeResponse>> getAllFamilyTrees() {
-        log.info("🌳 AdminController.getAllFamilyTrees() CALLED");
         try {
-            log.info("📊 Accessing all family trees");
-
             List<FamilyTreeResponse> familyTrees = adminService.getAllFamilyTrees();
-
-            log.info("✅ Admin retrieved {} family trees", familyTrees.size());
-
-            // ✅ Log chi tiết response
-            if (familyTrees != null && !familyTrees.isEmpty()) {
-                log.info("📦 First tree: ID={}, Name={}",
-                        familyTrees.get(0).getId(),
-                        familyTrees.get(0).getName());
-            } else {
-                log.warn("⚠️ Family trees list is empty or null");
-            }
-
             return ResponseEntity.ok(familyTrees);
-
         } catch (Exception e) {
-            log.error("❌ Error getting family trees: {}", e.getMessage(), e);
             return ResponseEntity.status(500).build();
         }
     }
@@ -110,88 +90,10 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getAdminStats() {
         try {
-            log.info("Admin accessing stats");
             Map<String, Object> stats = adminService.getAdminStats();
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
-            log.error("Error getting admin stats: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
-        }
-    }
-
-    // ✅ DEBUG ENDPOINT - Xóa sau khi fix xong
-    @GetMapping("/debug/trees")
-    public ResponseEntity<Map<String, Object>> debugTrees() {
-        log.info("🔍 DEBUG: Checking family trees");
-
-        Map<String, Object> debug = new HashMap<>();
-
-        try {
-            // ✅ Đếm trực tiếp trong database
-            long count = familyTreeRepository.count();
-            debug.put("totalTreesInDB", count);
-            log.info("📊 Total trees in DB: {}", count);
-
-            // ✅ Lấy tất cả không JOIN
-            List<FamilyTree> simple = familyTreeRepository.findAllByOrderByCreatedAtDesc();
-            debug.put("simpleQueryCount", simple.size());
-            log.info("📊 Simple query returned: {}", simple.size());
-
-            // ✅ Lấy với JOIN FETCH
-            List<FamilyTree> withJoin = familyTreeRepository.findAllWithUserOrderByCreatedAtDesc();
-            debug.put("joinQueryCount", withJoin.size());
-            log.info("📊 JOIN FETCH query returned: {}", withJoin.size());
-
-            // ✅ Log chi tiết first tree
-            if (!simple.isEmpty()) {
-                FamilyTree first = simple.get(0);
-                Map<String, Object> firstTree = new HashMap<>();
-                firstTree.put("id", first.getId());
-                firstTree.put("name", first.getName());
-                firstTree.put("description", first.getDescription());
-                firstTree.put("isPublic", first.getIsPublic());
-                firstTree.put("createdAt", first.getCreatedAt());
-
-                try {
-                    if (first.getCreatedBy() != null) {
-                        firstTree.put("createdByEmail", first.getCreatedBy().getEmail());
-                        firstTree.put("createdByUsername", first.getCreatedBy().getUsername());
-                    } else {
-                        firstTree.put("createdBy", "NULL");
-                    }
-                } catch (Exception e) {
-                    firstTree.put("createdByError", e.getMessage());
-                }
-
-                debug.put("firstTree", firstTree);
-            }
-
-            // ✅ Test service method
-            try {
-                List<FamilyTreeResponse> serviceResult = adminService.getAllFamilyTrees();
-                debug.put("serviceMethodCount", serviceResult.size());
-
-                if (!serviceResult.isEmpty()) {
-                    Map<String, Object> firstDto = new HashMap<>();
-                    FamilyTreeResponse dto = serviceResult.get(0);
-                    firstDto.put("id", dto.getId());
-                    firstDto.put("name", dto.getName());
-                    firstDto.put("createdByEmail", dto.getCreatedByEmail());
-                    firstDto.put("memberCount", dto.getMemberCount());
-                    debug.put("firstDTO", firstDto);
-                }
-            } catch (Exception e) {
-                debug.put("serviceMethodError", e.getMessage());
-                log.error("❌ Service method error: {}", e.getMessage(), e);
-            }
-
-            return ResponseEntity.ok(debug);
-
-        } catch (Exception e) {
-            log.error("❌ Debug error: {}", e.getMessage(), e);
-            debug.put("error", e.getMessage());
-            debug.put("errorType", e.getClass().getName());
-            return ResponseEntity.status(500).body(debug);
         }
     }
 

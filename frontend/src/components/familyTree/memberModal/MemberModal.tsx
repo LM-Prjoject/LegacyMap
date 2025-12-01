@@ -197,11 +197,6 @@ export default function MemberModal({
         setSubmitted(true);
 
         if (!canSubmitAll) {
-            if (nameError) showToast.error(nameError);
-            else if (birthDateError) showToast.error(birthDateError);
-            else if (deathDateError) showToast.error(deathDateError);
-            else if (genderError) showToast.error(genderError);
-            else if (emailError) showToast.error(emailError);
             return;
         }
 
