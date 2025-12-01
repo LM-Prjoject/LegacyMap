@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, {ReactNode, useEffect, useState} from 'react';
 import { adminApi, FamilyTree } from '@/api/ts_admin';
+import {OctagonX, TreePine, LoaderCircle,Earth, Lock} from "lucide-react";
 
 const FamilyTreesPage: React.FC = () => {
     const [familyTrees, setFamilyTrees] = useState<FamilyTree[]>([]);
@@ -63,7 +64,7 @@ const FamilyTreesPage: React.FC = () => {
         return (
             <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-8">
                 <div className="flex items-center">
-                    <span className="text-4xl mr-3">⚠️</span>
+                    <OctagonX size="24"/>
                     <div>
                         <h3 className="text-xl font-bold text-red-300 mb-2">
                             Lỗi Tải Dữ Liệu
@@ -83,11 +84,10 @@ const FamilyTreesPage: React.FC = () => {
 
     return (
         <div className="text-[#f4e9c8]">
-            {/* Header */}
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-4xl font-bold mb-2 flex items-center">
-                        <span className="text-4xl mr-3">🌳</span>
+                        <TreePine size="30" className="text-green-600"/>
                         Quản Lý Cây Gia Phả
                     </h1>
                     <p className="text-[#f4e9c8]/70">
@@ -98,34 +98,32 @@ const FamilyTreesPage: React.FC = () => {
                     onClick={fetchFamilyTrees}
                     className="flex items-center px-6 py-3 bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] text-[#20283d] rounded-lg hover:scale-105 transition-all font-bold"
                 >
-                    <span className="mr-2">🔄</span>
+                    <LoaderCircle size="24"/>
                     Làm Mới
                 </button>
             </div>
 
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <StatCard
                     label="Tổng Cây Gia Phả"
                     value={familyTrees.length}
-                    icon="🌳"
+                    icon={<TreePine size={30} className="text-green-600" />}
                     color="gold"
                 />
                 <StatCard
                     label="Cây Công Khai"
                     value={familyTrees.filter((t) => t.isPublic).length}
-                    icon="🌍"
+                    icon={<Earth size={30} className="text-green-600" />}
                     color="green"
                 />
                 <StatCard
                     label="Cây Riêng Tư"
                     value={familyTrees.filter((t) => !t.isPublic).length}
-                    icon="🔒"
+                    icon={<Lock size={30} className="text-green-600" />}
                     color="blue"
                 />
             </div>
 
-            {/* Search and Filter */}
             <div className="bg-gradient-to-br from-[#1b2233] to-[#2e3a57] border border-[#2e3a57] rounded-xl p-6 mb-6 shadow-lg">
                 <div className="flex flex-col md:flex-row gap-4">
                     <input
@@ -162,7 +160,6 @@ const FamilyTreesPage: React.FC = () => {
                 )}
             </div>
 
-            {/* Table */}
             {filteredTrees.length === 0 ? (
                 <div className="bg-gradient-to-br from-[#1b2233] to-[#2e3a57] border border-[#2e3a57] rounded-xl p-16 text-center">
                     <div className="text-6xl mb-4">🌱</div>
@@ -203,7 +200,7 @@ const FamilyTreesPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
                                         <div className="w-10 h-10 bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] rounded-lg flex items-center justify-center mr-3 text-[#20283d] text-xl">
-                                            🌳
+                                            <TreePine size="25"/>
                                         </div>
                                         <div>
                                             <div className="text-sm font-medium">
@@ -231,7 +228,19 @@ const FamilyTreesPage: React.FC = () => {
                                 : 'bg-gray-700/30 text-gray-300 border border-gray-500/30'
                         }`}
                     >
-                      {tree.isPublic ? '🌍 Công khai' : '🔒 Riêng tư'}
+                      <span className="flex items-center gap-2">
+                    {tree.isPublic ? (
+                    <>
+                    <Earth size={26} className="text-green-400" />
+                    <span>Công khai</span>
+                    </>
+    ) : (
+                     <>
+                    <Lock size={26} className="text-yellow-300" />
+                    <span>Riêng tư</span>
+                    </>
+    )}
+</span>
                     </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f4e9c8]/70">
@@ -247,7 +256,6 @@ const FamilyTreesPage: React.FC = () => {
     );
 };
 
-/* ========== Sub Components ========== */
 
 const StatCard = ({
                       label,
@@ -257,7 +265,7 @@ const StatCard = ({
                   }: {
     label: string;
     value: number;
-    icon: string;
+    icon: ReactNode;
     color: 'gold' | 'green' | 'blue';
 }) => {
     const colors = {

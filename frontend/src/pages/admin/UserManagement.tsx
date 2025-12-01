@@ -1,9 +1,9 @@
-// src/pages/admin/UserManagement.tsx
-import React from 'react';
+import React, {ReactNode} from 'react';
 import { useNavigate } from 'react-router-dom';
-import UserList from '../../components/admin/UserList';
-import { User } from '../../types/ts_user';
-import { useUsers } from '../../hooks/useUsers';
+import UserList from '@/components/admin/UserList';
+import { User } from "@/types/ts_user.ts";
+import { useUsers } from "@/hooks/useUsers.ts";
+import {Circle, Users, UserX, Crown, OctagonX} from "lucide-react";
 
 const UserManagement: React.FC = () => {
     const navigate = useNavigate();
@@ -26,7 +26,7 @@ const UserManagement: React.FC = () => {
         return (
             <div className="bg-[#2e3a57]/80 border border-red-500/40 text-red-300 rounded-2xl p-8 shadow-lg shadow-black/30">
                 <div className="flex items-start">
-                    <span className="text-4xl mr-4">⚠️</span>
+                   <OctagonX size="24"/>
                     <div className="flex-1">
                         <h3 className="text-xl font-bold mb-2 text-[#f4e9c8]">Lỗi Tải Dữ Liệu</h3>
                         <p className="text-red-300 mb-4">{error}</p>
@@ -44,7 +44,6 @@ const UserManagement: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
                     <h2 className="text-4xl font-bold bg-gradient-to-r from-[#d1b98a] to-[#f4e9c8] bg-clip-text text-transparent mb-2">
@@ -76,30 +75,34 @@ const UserManagement: React.FC = () => {
                 </button>
             </div>
 
-            {/* Stats Summary */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard label="Tổng Người Dùng" value={users.length} icon="👥" color="gold" />
+                <StatCard
+                    label="Tổng Người Dùng"
+                    value={users.length}
+                    icon={<Users size={28} className="text-[#ffffff]" />}
+                    color="gold"
+                />
                 <StatCard
                     label="Đang Hoạt Động"
                     value={users.filter((u: User) => !u.isBanned).length}
-                    icon="✅"
+                    icon={<Circle size={28} className="text-green-400" />}
                     color="green"
                 />
                 <StatCard
                     label="Đã Bị Khóa"
                     value={users.filter((u: User) => u.isBanned).length}
-                    icon="🚫"
+                    icon={<UserX size={28} className="text-red-300" />}
                     color="red"
                 />
                 <StatCard
                     label="Quản Trị Viên"
                     value={users.filter((u: User) => u.role === 'ADMIN').length}
-                    icon="👑"
+                    icon={<Crown size={28} className="text-[#f4e9c8]" />}
                     color="blue"
                 />
             </div>
 
-            {/* User List */}
+
             <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
                 <UserList users={users} onBan={banUser} onUnban={unbanUser} onViewDetail={handleViewDetail} />
             </div>
@@ -107,11 +110,10 @@ const UserManagement: React.FC = () => {
     );
 };
 
-// 🟡 StatCard (chỉ đổi style, không đổi logic)
 interface StatCardProps {
     label: string;
     value: number;
-    icon: string;
+    icon: ReactNode;
     color: 'blue' | 'green' | 'red' | 'gold';
 }
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User } from '../../types/ts_user';
+import { User } from '@/types/ts_user';
 import UserCard from './UserCard';
-import { adminApi } from '../../api/ts_admin'; // Thêm adminApi
+import { adminApi } from '@/api/ts_admin';
+import {Search,ChartColumnBig, ArrowLeft, ArrowRight} from "lucide-react"
 
 interface UserListProps {
     users: User[];
@@ -30,12 +31,11 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
         };
 
         fetchOnlineUsers();
-        const interval = setInterval(fetchOnlineUsers, 30000); // Cập nhật mỗi 30s
+        const interval = setInterval(fetchOnlineUsers, 30000);
 
         return () => clearInterval(interval);
     }, []);
 
-    // ✅ Lọc người dùng
     const filteredUsers = users.filter((user) => {
         const matchesSearch =
             user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -50,7 +50,6 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
         return matchesSearch && matchesRole && matchesStatus;
     });
 
-    // ✅ Phân trang
     const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
     const indexOfLast = currentPage * usersPerPage;
     const indexOfFirst = indexOfLast - usersPerPage;
@@ -69,13 +68,12 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
             <div className="bg-[#1b2233]/95 p-6 rounded-2xl border border-[#d1b98a]/20 shadow-lg shadow-black/30">
                 <div className="flex items-center mb-4">
                     <div className="w-10 h-10 bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] rounded-lg flex items-center justify-center mr-3 text-[#20283d] font-bold">
-                        🔍
+                       <Search size="24"/>
                     </div>
                     <h3 className="text-lg font-bold text-[#f4e9c8]">Bộ Lọc & Tìm Kiếm</h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Tìm kiếm */}
                     <div>
                         <label className="block text-sm font-medium text-[#f4e9c8]/80 mb-2">Tìm kiếm</label>
                         <input
@@ -90,7 +88,6 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                         />
                     </div>
 
-                    {/* Lọc vai trò */}
                     <div>
                         <label className="block text-sm font-medium text-[#f4e9c8]/80 mb-2">Vai trò</label>
                         <select
@@ -108,7 +105,6 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                         </select>
                     </div>
 
-                    {/* Lọc trạng thái */}
                     <div>
                         <label className="block text-sm font-medium text-[#f4e9c8]/80 mb-2">Trạng thái</label>
                         <select
@@ -126,12 +122,11 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                     </div>
                 </div>
 
-                {/* Kết quả */}
                 <div className="mt-4 pt-4 border-t border-[#2e3a57]">
                     <div className="flex items-center text-sm text-[#f4e9c8]/80">
-                        <span className="text-xl mr-2">📊</span>
+                        <ChartColumnBig size="24" />
                         <span>
-              Hiển thị{' '}
+               Hiển thị{' '}
                             <span className="text-[#d1b98a] font-bold">
                 {currentUsers.length}
               </span>{' '}
@@ -147,7 +142,6 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                 </div>
             </div>
 
-            {/* Danh sách người dùng */}
             <div className="grid gap-4">
                 {currentUsers.length > 0 ? (
                     currentUsers.map((user) => (
@@ -157,12 +151,12 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                             onBan={onBan}
                             onUnban={onUnban}
                             onViewDetail={onViewDetail}
-                            isOnline={onlineUserIds.has(user.id)} // ✅ THÊM
+                            isOnline={onlineUserIds.has(user.id)}
                         />
                     ))
                 ) : (
                     <div className="bg-[#1b2233]/90 p-16 rounded-2xl border-2 border-dashed border-[#2e3a57] text-center">
-                        <div className="text-6xl mb-4">🔍</div>
+                        <Search size="24" className="text-6xl mb-4"/>
                         <p className="text-[#f4e9c8] text-xl font-semibold mb-2">
                             Không tìm thấy người dùng
                         </p>
@@ -173,7 +167,6 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                 )}
             </div>
 
-            {/* ✅ Phân trang */}
             {totalPages > 1 && (
                 <div className="flex justify-center items-center mt-6 gap-2">
                     <button
@@ -185,13 +178,13 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                                 : 'bg-[#2e3a57] text-[#f4e9c8] hover:bg-[#d1b98a] hover:text-[#20283d]'
                         }`}
                     >
-                        ← Trước
+                        <ArrowLeft/>
+                        Trước
                     </button>
 
                     <div className="flex gap-1 mx-4">
                         {[...Array(totalPages)].map((_, i) => {
                             const page = i + 1;
-                            // Hiển thị tối đa 5 trang, với trang hiện tại ở giữa
                             if (
                                 page === 1 ||
                                 page === totalPages ||
@@ -230,7 +223,8 @@ const UserList: React.FC<UserListProps> = ({ users, onBan, onUnban, onViewDetail
                                 : 'bg-[#2e3a57] text-[#f4e9c8] hover:bg-[#d1b98a] hover:text-[#20283d]'
                         }`}
                     >
-                        Sau →
+
+                        Sau <ArrowRight/>
                     </button>
                 </div>
             )}

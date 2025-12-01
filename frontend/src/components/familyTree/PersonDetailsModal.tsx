@@ -112,7 +112,7 @@ export default function PersonDetailsModal({
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [prepareDeleting, setPrepareDeleting] = useState(false);
-    const [orphanCount, setOrphanCount] = useState<number>(0);
+    const [_, setOrphanCount] = useState<number>(0);
 
     const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteEmail, setInviteEmail] = useState<string>("");
@@ -122,7 +122,6 @@ export default function PersonDetailsModal({
 
     useEffect(() => {
         setInviteEmail(person?.email || "");
-        // Reset state when switching to a different person to avoid leaking previous verified state
         setCanInvite(true);
         setInvitedPending(false);
         const currentId = person?.id as string | undefined;
@@ -134,24 +133,23 @@ export default function PersonDetailsModal({
                 setCanInvite(false);
                 setInvitedPending(false);
             }
-            // Backend check to ensure accuracy even if NotificationsPage wasn't opened
+
             personLinkApi.checkVerified(currentId)
                 .then((res: any) => {
                     if (cancelled) return;
-                    if (person?.id !== currentId) return; // ignore stale response
-                    const result = res?.result ?? res; // ApiResponse wrapper or raw boolean
+                    if (person?.id !== currentId) return;
+                    const result = res?.result ?? res;
                     if (result === true) {
                         setCanInvite(false);
                         setInvitedPending(false);
                         try { localStorage.setItem(key, 'true'); } catch {}
                     } else if (result === false) {
-                        // Ensure invite is possible for a non-verified person and clear any stale local cache
                         setCanInvite(true);
                         setInvitedPending(false);
                         try { localStorage.removeItem(key); } catch {}
                     }
                 })
-                .catch(() => {/* ignore, keep UI as-is */});
+                .catch(() => {});
         }
         return () => { cancelled = true; };
     }, [person?.email, person?.id]);
@@ -207,7 +205,6 @@ export default function PersonDetailsModal({
             await personLinkApi.invite(person.id, inviterId, email);
             showToast.success("Đã gửi lời mời xác minh (thông báo + email)");
             setInvitedPending(true);
-            // If person currently has no email, reflect invited email locally for immediate UX
             try {
                 if (!person.email) {
                     person.email = email;
@@ -219,8 +216,7 @@ export default function PersonDetailsModal({
             const code = e?.response?.data?.code;
             const backendMsg = e?.response?.data?.message;
             if (code === 1008) {
-                // VALIDATION_FAILED từ BE: có thể do hồ sơ đã có self-verified hoặc email không hợp lệ
-                const hint = backendMsg || "Dữ liệu không hợp lệ. Có thể hồ sơ đã có xác nhận hoặc email không hợp lệ.";
+                const hint = backendMsg || "Dữ liệu không hợp lệ.";
                 showToast.error(hint);
                 setCanInvite(false);
             } else {

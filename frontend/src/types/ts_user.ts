@@ -7,7 +7,7 @@ export interface User {
     isActive: boolean;
     isBanned: boolean;
     bannedAt: string | null;
-    lastLogin?: string;  // ✅ Đã có
+    lastLogin?: string;
     createdAt: string;
     updatedAt?: string;
     provider?: string;
