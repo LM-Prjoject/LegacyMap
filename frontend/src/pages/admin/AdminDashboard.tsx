@@ -1,10 +1,10 @@
-// src/pages/admin/AdminDashboard.tsx
-import React, { useEffect, useState } from 'react';
+import React, {ReactNode, useEffect, useState} from 'react';
 import { Link } from 'react-router-dom';
-import { User } from '../../types/ts_user';
-import { useUsers } from '../../hooks/useUsers';
-import { useFamilyTrees } from '../../hooks/useFamilyTrees';
-import { adminApi, AdminStats } from '../../api/ts_admin';  // ✅ Import AdminStats từ ts_admin
+import { User } from"@/types/ts_user.ts";
+import { useUsers } from "@/hooks/useUsers.ts";
+import { useFamilyTrees } from "@/hooks/useFamilyTrees.ts";
+import { adminApi, AdminStats } from "@/api/ts_admin.ts";
+import {Circle, UsersRound, Trees, TrendingUp, TreePine, ArrowRight} from "lucide-react"
 
 const AdminDashboard: React.FC = () => {
     const { users, loading: usersLoading, error: usersError } = useUsers();
@@ -12,18 +12,13 @@ const AdminDashboard: React.FC = () => {
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [statsLoading, setStatsLoading] = useState(true);
 
-    // ✅ Load stats từ backend
     useEffect(() => {
         const loadStats = async () => {
             try {
                 setStatsLoading(true);
                 const data = await adminApi.getAdminStats();
-                console.log('📊 Stats loaded:', data);
-                console.log('📊 ActivityStats:', data.activityStats);
 
-                // ✅ Validate data structure
                 if (!data.activityStats) {
-                    console.warn('⚠️ activityStats is missing, using defaults');
                     data.activityStats = {
                         loginsToday: 0,
                         loginsThisWeek: 0,
@@ -36,8 +31,7 @@ const AdminDashboard: React.FC = () => {
 
                 setStats(data);
             } catch (error) {
-                console.error('❌ Error loading admin stats:', error);
-                // ✅ Set default stats nếu lỗi
+
                 setStats({
                     totalUsers: 0,
                     activeUsers: 0,
@@ -77,7 +71,6 @@ const AdminDashboard: React.FC = () => {
 
     return (
         <div>
-            {/* Header */}
             <div className="mb-8">
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-[#d1b98a] to-[#f4e9c8] bg-clip-text text-transparent mb-2">
                     Tổng Quan Hệ Thống
@@ -85,49 +78,49 @@ const AdminDashboard: React.FC = () => {
                 <p className="text-[#f4e9c8]/70">Quản lý gia phả và người dùng</p>
             </div>
 
-            {/* Errors */}
             {usersError && (
                 <div className="bg-red-500/10 border border-red-500/40 text-red-300 px-6 py-4 rounded-xl mb-6">
-                    <strong>⚠️ Lỗi:</strong> {usersError}
+                    <strong>Lỗi:</strong> {usersError}
                 </div>
             )}
             {treesError && (
                 <div className="bg-red-500/10 border border-red-500/40 text-red-300 px-6 py-4 rounded-xl mb-6">
-                    <strong>⚠️ Lỗi:</strong> {treesError}
+                    <strong>Lỗi:</strong> {treesError}
                 </div>
             )}
 
-            {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <StatCard
                     title="Tổng Người Dùng"
                     value={(stats?.totalUsers || 0).toLocaleString()}
-                    icon="👥"
                     change={`${stats?.newUsersThisMonth || 0} mới tháng này`}
-                />
+                >
+                    <UsersRound size={28} className="text-[#20283d]" />
+                </StatCard>
                 <StatCard
                     title="Đang Online"
                     value={(stats?.onlineUsers || 0).toLocaleString()}
-                    icon="🟢"
                     change={`${stats?.activeUsers || 0} đang hoạt động`}
-                />
+                >
+                    <Circle size={28} className="text-green-600" />
+                </StatCard>
                 <StatCard
                     title="Gia Phả Hoạt Động"
                     value={(stats?.totalFamilyTrees || 0).toLocaleString()}
-                    icon="🌲"
                     change={`${stats?.totalMembers || 0} thành viên`}
-                />
+                >
+                    <Trees size={28} className="text-green-600" />
+                </StatCard>
                 <StatCard
                     title="Tỷ Lệ Hoạt Động"
                     value={`${stats?.totalUsers && stats?.activeUsers ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0}%`}
-                    icon="📈"
                     change={`${stats?.bannedUsers || 0} bị khóa`}
-                />
+                >
+                    <TrendingUp size={28} className="text-red-600" />
+                </StatCard>
             </div>
 
-            {/* Charts & Role Stats */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {/* ✅ User Activity - Lấy số liệu thật từ backend */}
                 <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
                     <h3 className="text-xl font-bold text-[#f4e9c8] mb-6">Hoạt Động Người Dùng</h3>
                     <div className="space-y-4">
@@ -215,7 +208,6 @@ const AdminDashboard: React.FC = () => {
                                         <div className="w-10 h-10 bg-[#d1b98a] rounded-lg flex items-center justify-center text-[#20283d] font-bold">
                                             {user.email?.charAt(0).toUpperCase()}
                                         </div>
-                                        {/* ✅ Chấm online/offline */}
                                         {!user.isBanned && user.lastLogin && (
                                             <div
                                                 className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#1b2233] ${
@@ -247,12 +239,11 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Family Trees */}
                 <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-[#f4e9c8]">Cây Gia Phả Mới</h3>
                         <Link to="/admin/trees" className="text-[#d1b98a] hover:text-[#f4e9c8] text-sm transition-colors">
-                            Xem tất cả →
+                            Xem tất cả <ArrowRight/>
                         </Link>
                     </div>
                     <div className="space-y-3">
@@ -263,7 +254,7 @@ const AdminDashboard: React.FC = () => {
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-[#d1b98a]/90 rounded-lg flex items-center justify-center">
-                                        🌳
+                                        <TreePine/>
                                     </div>
                                     <div>
                                         <p className="font-medium text-[#f4e9c8] text-sm">{tree.name}</p>
@@ -289,18 +280,17 @@ const AdminDashboard: React.FC = () => {
     );
 };
 
-// StatCard
 interface StatCardProps {
     title: string;
     value: string;
-    icon: string;
+    children: ReactNode;
     change: string;
 }
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, children, change }) => (
     <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30 hover:shadow-[#d1b98a]/20 transition-all">
         <div className="flex items-start justify-between mb-4">
             <div className="w-14 h-14 bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] rounded-xl flex items-center justify-center text-2xl text-[#20283d] font-semibold">
-                {icon}
+                {children}
             </div>
         </div>
         <div>
@@ -311,7 +301,6 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, change }) => (
     </div>
 );
 
-// ✅ ActivityBar với số liệu thật
 interface ActivityBarProps {
     label: string;
     value: number;
@@ -336,7 +325,6 @@ const ActivityBar: React.FC<ActivityBarProps> = ({ label, value, count, total, c
     </div>
 );
 
-// RoleBar
 interface RoleBarProps {
     label: string;
     count: number;

@@ -87,7 +87,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/**").permitAll()
 
-                        // ==================== PUBLIC ENDPOINTS (phải đặt TRƯỚC) ====================
+                        // ==================== PUBLIC ENDPOINTS  ====================
 
                         // Authentication endpoints
                         .requestMatchers(HttpMethod.POST,
@@ -163,6 +163,11 @@ public class SecurityConfig {
                         // Events & Notifications
                         .requestMatchers("/api/events/**", "/legacy/api/events/**").authenticated()
                         .requestMatchers("/api/notifications/**", "/legacy/api/notifications/**").authenticated()
+
+                        .requestMatchers(HttpMethod.GET, "/api/chat/rooms/**", "/legacy/api/chat/rooms/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/chat/rooms/**", "/legacy/api/chat/rooms/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/chat/rooms/**", "/legacy/api/chat/rooms/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/chat/rooms/**", "/legacy/api/chat/rooms/**").authenticated()
 
                         // Debug & Docs
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()

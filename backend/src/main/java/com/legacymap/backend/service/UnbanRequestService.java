@@ -63,7 +63,6 @@ public class UnbanRequestService {
 
         auditLogService.log(
                 user.getId(),
-                null,
                 "USER",
                 user.getId(),
                 "UNBAN_REQUEST",

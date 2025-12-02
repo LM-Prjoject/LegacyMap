@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Scroll, X, Loader2, User, Link2, ChevronDown } from 'lucide-react';
 import { treeHistoryApi, TreeHistoryItem } from '../../../api/treeHistory';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -75,7 +76,7 @@ export const TreeHistoryModal: React.FC<Props> = ({ treeId, isOpen, onClose }) =
                 <div className="relative flex items-center justify-between p-6 border-b border-[#ffd89b]/20 bg-gradient-to-r from-[#ffd89b]/5 to-transparent">
                     <div className="flex items-center gap-3">
                         <div className="relative p-2.5 bg-gradient-to-br from-[#ffd89b]/20 to-[#d4af7a]/20 rounded-xl border border-[#ffd89b]/30">
-                            <span className="text-2xl">📜</span>
+                            <Scroll className="w-6 h-6 text-[#ffd89b]" />
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-[#ffd89b]">Lịch sử chỉnh sửa</h2>
@@ -84,9 +85,9 @@ export const TreeHistoryModal: React.FC<Props> = ({ treeId, isOpen, onClose }) =
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-[#ffd89b]/10 rounded-lg transition-all text-gray-400 hover:text-[#ffd89b] border border-transparent hover:border-[#ffd89b]/30"
+                        className="p-2 transition-colors"
                     >
-                        ✕
+                        <X className="w-5 h-5 text-[#ffd89b] transition-colors" />
                     </button>
                 </div>
 
@@ -98,10 +99,12 @@ export const TreeHistoryModal: React.FC<Props> = ({ treeId, isOpen, onClose }) =
                             <p className="text-gray-400 font-medium">Đang tải lịch sử...</p>
                         </div>
                     ) : history.length === 0 ? (
-                        <div className="text-center py-12">
-                            <div className="text-7xl opacity-20 mb-6">📜</div>
-                            <h3 className="text-xl font-bold text-white mb-3">Chưa có lịch sử chỉnh sửa</h3>
-                            <p className="text-gray-400 mb-6 max-w-md mx-auto">
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                            <div className="p-4 bg-gradient-to-br from-[#ffd89b]/10 to-[#ffd89b]/5 rounded-2xl mb-4">
+                                <Scroll className="w-12 h-12 text-[#ffd89b]/50" />
+                            </div>
+                            <p className="text-lg font-medium text-white mb-2">Chưa có lịch sử chỉnh sửa</p>
+                            <p className="text-sm text-center max-w-md">
                                 Lịch sử các thay đổi về thành viên và mối quan hệ sẽ được hiển thị tại đây.
                             </p>
                         </div>
@@ -147,12 +150,14 @@ export const TreeHistoryModal: React.FC<Props> = ({ treeId, isOpen, onClose }) =
 
                                             {item.entityType === 'MEMBER' && (
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 text-xs rounded-lg border border-blue-500/30">
-                                                    👤 Thành viên
+                                                   <User className="w-3 h-3" />
+                                                    Thành viên
                                                 </span>
                                             )}
                                             {item.entityType === 'RELATIONSHIP' && (
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 text-purple-400 text-xs rounded-lg border border-purple-500/30">
-                                                    🔗 Quan hệ
+                                                    <Link2 className="w-3 h-3" />
+                                                    Quan hệ
                                                 </span>
                                             )}
                                         </div>
@@ -165,9 +170,19 @@ export const TreeHistoryModal: React.FC<Props> = ({ treeId, isOpen, onClose }) =
                                 <button
                                     onClick={() => setPage(p => p + 1)}
                                     disabled={loading}
-                                    className="w-full py-3 bg-gradient-to-r from-white/5 to-white/10 hover:from-[#ffd89b]/10 hover:to-[#ffd89b]/20 text-[#ffd89b] font-medium rounded-xl border border-[#ffd89b]/30 transition-all duration-300"
+                                    className="w-full py-3 bg-gradient-to-r from-white/5 to-white/10 hover:from-[#ffd89b]/10 hover:to-[#ffd89b]/20 text-[#ffd89b] font-medium rounded-xl border border-[#ffd89b]/30 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {loading ? 'Đang tải...' : 'Xem thêm lịch sử'}
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Đang tải...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ChevronDown className="w-4 h-4" />
+                                            Xem thêm lịch sử
+                                        </>
+                                    )}
                                 </button>
                             )}
                         </div>

@@ -1,7 +1,7 @@
-// src/components/admin/AdminLayout.tsx
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import logoImg from '@/assets/logo.png';
+import { LayoutDashboard, Users, TreePine } from "lucide-react";
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -29,10 +29,21 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     }, []);
 
     const menuItems = [
-        { path: '/admin/dashboard', label: 'Tổng Quan', icon: '🏠' },
-        { path: '/admin/users', label: 'Người Dùng', icon: '👥' },
-        { path: '/admin/trees', label: 'Gia Phả', icon: '🌲' },
-        { path: '/admin/settings', label: 'Cài Đặt', icon: '⚙️' },
+        {
+            path: '/admin/dashboard',
+            label: 'Tổng Quan',
+            icon: <LayoutDashboard size={25} />,
+        },
+        {
+            path: '/admin/users',
+            label: 'Người Dùng',
+            icon: <Users size={25} />,
+        },
+        {
+            path: '/admin/trees',
+            label: 'Gia Phả',
+            icon: <TreePine size={25}  />,
+        },
     ];
 
     const isActive = (path: string) => {
@@ -96,7 +107,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 color: 'white',
                 overflow: 'hidden'
             }}>
-                {/* Background effects */}
                 <div style={{
                     position: 'absolute',
                     top: 0,
@@ -110,7 +120,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     pointerEvents: 'none'
                 }} />
 
-                {/* SIDEBAR */}
                 <aside style={{
                     width: '300px',
                     minWidth: '300px',
@@ -125,7 +134,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     zIndex: 50,
                     flexShrink: 0
                 }}>
-                    {/* Logo Section */}
                     <Link
                         to="/"
                         style={{
@@ -181,7 +189,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                         </div>
                     </Link>
 
-                    {/* MENU ITEMS */}
                     <nav
                         className="admin-sidebar-nav"
                         style={{
@@ -201,7 +208,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                     to={item.path}
                                     className={`admin-sidebar-link ${active ? 'active' : ''}`}
                                 >
-                                    <span style={{ fontSize: '24px' }}>{item.icon}</span>
+                                    <span
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            color: active ? "#20283d" : "#e5e7eb"
+                                        }}
+                                    >
+                                    {item.icon}
+                                    </span>
                                     <span>{item.label}</span>
                                 </Link>
                             );
@@ -209,7 +224,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     </nav>
                 </aside>
 
-                {/* MAIN CONTENT AREA */}
                 <main style={{
                     flex: 1,
                     display: 'flex',
@@ -220,7 +234,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     height: '100vh',
                     maxHeight: '100vh'
                 }}>
-                    {/* Header - Fixed */}
                     <div style={{
                         height: '120px',
                         minHeight: '120px',
@@ -255,7 +268,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                         </span>
                     </div>
 
-                    {/* Scrollable Content */}
                     <div style={{
                         flex: 1,
                         height: 'calc(100vh - 120px)',
@@ -268,7 +280,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     </div>
                 </main>
 
-                {/* Bottom glow */}
                 <div style={{
                     position: 'fixed',
                     bottom: 0,

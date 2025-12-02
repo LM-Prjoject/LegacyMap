@@ -133,7 +133,7 @@ export default function UnbanRequestModal({
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-4 py-2 text-sm rounded-lg bg-[#DEC593] text-white font-medium hover:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="px-4 py-2 text-sm rounded-lg bg-amber-300 text-white font-medium hover:bg-amber-500 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {loading ? "Đang gửi..." : "Gửi yêu cầu"}
                         </button>

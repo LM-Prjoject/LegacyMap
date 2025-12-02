@@ -5,15 +5,16 @@ import {
     getUserDisplayName,
     formatUserDate,
     getLastLoginText
-} from '../../types/ts_user';
+} from '@/types/ts_user';
 import BanUnbanButton from './BanUnbanButton';
+import { Lock, LockOpen } from "lucide-react";
 
 interface UserCardProps {
     user: User;
     onBan: (userId: string) => Promise<void>;
     onUnban: (userId: string) => Promise<void>;
     onViewDetail?: (userId: string) => void;
-    isOnline?: boolean; // ✅ THÊM
+    isOnline?: boolean;
 }
 
 const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail, isOnline: isOnlineProp }) => {
@@ -34,9 +35,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail,
 
     return (
         <div className="bg-gradient-to-br from-[#1b2233] to-[#2e3a57] p-6 rounded-2xl border border-[#2e3a57] hover:border-[#d1b98a]/60 hover:shadow-lg hover:shadow-[#d1b98a]/20 transition-all duration-300">
-            {/* ✅ HEADER: Avatar + Name + Actions trên cùng 1 hàng */}
             <div className="flex items-start justify-between gap-4 mb-4">
-                {/* LEFT: Avatar + Basic Info */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="relative flex-shrink-0">
                         <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] text-[#20283d] font-extrabold text-xl">
@@ -47,7 +46,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail,
                                 className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#1b2233] ${
                                     isOnline ? 'bg-green-400' : 'bg-gray-500'
                                 }`}
-                                title={isOnline ? 'Đang online' : 'Offline'}
+                                title={isOnline ? 'Đang hoạt động' : 'Offline'}
                             />
                         )}
                     </div>
@@ -63,7 +62,6 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail,
                     </div>
                 </div>
 
-                {/* RIGHT: Action Buttons - Đặt riêng bên phải */}
                 <div className="flex flex-col gap-2 flex-shrink-0 w-[140px]">
                     <BanUnbanButton
                         userId={user.id}
@@ -71,6 +69,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail,
                         role={user.role || user.roleName}
                         onBan={onBan}
                         onUnban={onUnban}
+                        displayName={getUserDisplayName(user)}
                     />
 
                     {onViewDetail && (
@@ -84,7 +83,6 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail,
                 </div>
             </div>
 
-            {/* ✅ DETAILS: Thông tin chi tiết bên dưới */}
             <div className="space-y-2 pt-4 border-t border-[#2e3a57]">
                 <div className="flex items-center text-sm">
                     <span className="text-[#f4e9c8]/60 mr-2 w-24 flex-shrink-0">Vai trò:</span>
@@ -100,7 +98,19 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail,
                             ? 'bg-red-800/30 text-red-300 border border-red-500/30'
                             : 'bg-green-700/30 text-green-300 border border-green-400/30'
                     }`}>
-                        {user.isBanned ? '🚫 Đã khóa' : '✅ Hoạt động'}
+                        <span className="flex items-center gap-1">
+                        {user.isBanned ? (
+                <>
+                        <Lock size={16} className="text-red-300" />
+                        <span>Đã khóa</span>
+                </>
+                        ) : (
+                <>
+                        <LockOpen size={16} className="text-green-300" />
+                        <span>Hoạt động</span>
+                </>
+                        )}
+                    </span>
                     </span>
                 </div>
 
@@ -111,7 +121,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, onBan, onUnban, onViewDetail,
 
                 {user.isBanned && user.bannedAt && (
                     <div className="text-sm bg-red-900/20 px-3 py-2 rounded-lg border border-red-700/30 mt-2">
-                        <span className="text-red-300">⚠️ Bị khóa: {formatUserDate(user.bannedAt)}</span>
+                        <span className="text-red-300">Bị khóa: {formatUserDate(user.bannedAt)}</span>
                     </div>
                 )}
             </div>

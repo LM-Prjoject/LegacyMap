@@ -36,11 +36,9 @@ public class ChatSyncService {
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         
         FamilyTree familyTree = person.getFamilyTree();
-        
-        // 1. Auto-join Family Room
+
         syncUserToFamilyRoom(userId, familyTree.getId());
-        
-        // 2. Auto-join Branch Rooms (where ancestors are root)
+
         syncUserToBranchRooms(userId, personId);
     }
     
@@ -61,13 +59,10 @@ public class ChatSyncService {
     }
     
     private void syncUserToBranchRooms(UUID userId, UUID personId) {
-        // 1. Find all ancestor IDs of the person (trace up to find all ancestors)
         Set<UUID> ancestorIds = findAncestors(personId);
-        
-        // 2. Find all branch rooms where any ancestor is the root person
+
         List<ChatRoomBranch> branchRooms = chatRoomBranchRepository.findByBranchPersonIdIn(ancestorIds);
-        
-        // 3. Add user to all relevant branch rooms
+
         for (ChatRoomBranch branch : branchRooms) {
             if (!chatRoomMemberRepository.existsByRoomIdAndUserId(branch.getRoom().getId(), userId)) {
                 ChatRoomMember member = ChatRoomMember.builder()
@@ -85,10 +80,8 @@ public class ChatSyncService {
     @Async
     @Transactional
     public void syncAllMembersToFamilyRoom(UUID familyTreeId) {
-        // Lấy phòng chat gia đình
         chatRoomRepository.findByFamilyTreeIdAndRoomType(familyTreeId, ChatRoom.ChatRoomType.family)
             .ifPresent(familyRoom -> {
-                // Lấy tất cả người dùng đã xác minh trong cây gia phả
                 List<PersonUserLink> verifiedLinks = personUserLinkRepository
                     .findApprovedLinksByFamilyTreeId(familyTreeId);
                 
@@ -106,8 +99,7 @@ public class ChatSyncService {
                 }
             });
     }
-    
-    //Find all ancestors by traversing up the tree (from person to parents, grandparents, etc.)
+
     private Set<UUID> findAncestors(UUID personId) {
         Set<UUID> ancestorIds = new HashSet<>();
         Queue<UUID> queue = new LinkedList<>();

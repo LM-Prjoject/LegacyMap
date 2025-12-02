@@ -8,7 +8,7 @@ import type {
   DirectRoomCreatePayload,
   MarkMessagesReadPayload,
   UserSearchResult,
-  ChatMessage,
+  ChatMessage, ChatMemberRole,
 } from '@/types/chat';
 
 const BASE = '/chat';
@@ -86,6 +86,14 @@ export const chatApi = {
     );
     return data;
   },
+
+  async updateMemberRole(roomId: string, userId: string, role: ChatMemberRole) {
+    const { data } = await http.post<ChatRoom>(
+        `${BASE}/rooms/${roomId}/members/${userId}/role`,
+        { role }
+    );
+    return data;
+  }
 };
 
 export const userLookupApi = {

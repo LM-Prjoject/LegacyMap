@@ -89,7 +89,7 @@ export default function TreesList() {
             <Navbar />
             <main className="flex-1 w-full px-8 lg:px-20 py-6">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="flex-col items-center">
+                    <div className="flex">
                     <button
                         onClick={() => navigate("/")}
                         className="inline-flex items-center gap-2 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"
@@ -97,7 +97,7 @@ export default function TreesList() {
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <h2 className="text-ivory text-xl font-semibold ml-5">Cây của tôi</h2>
+                    <h1 className="text-ivory text-xl font-semibold ml-3 mt-1.5">Cây của tôi</h1>
                     </div>
                     <button
                         onClick={() => setShowModal(true)}
