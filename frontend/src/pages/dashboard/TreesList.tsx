@@ -45,7 +45,25 @@ export default function TreesList() {
         load();
     }, [load]);
 
-    const goToDetail = (id: string) => navigate(`/trees/${id}`);
+    const goToDetail = async (id: string) => {
+        if (!userId) return;
+        
+        try {
+            // Kiểm tra quyền truy cập
+            const { accessLevel } = await api.checkTreeAccess(id, userId);
+            
+            if (accessLevel === 'view') {
+                // Chỉ có quyền xem → chuyển đến ShareTreeViewById
+                navigate(`/share-tree-view/${id}`);
+            } else {
+                // Có quyền edit hoặc admin → vào TreeDetails
+                navigate(`/trees/${id}`);
+            }
+        } catch (e) {
+            // Nếu lỗi, vẫn thử vào TreeDetails (fallback)
+            navigate(`/trees/${id}`);
+        }
+    };
 
     const startEdit = (tree: FamilyTree) => setEditingTree(tree);
 

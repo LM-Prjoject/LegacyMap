@@ -19,6 +19,8 @@ export default function SharedTreeView() {
     const [relationships, setRelationships] = useState<Relationship[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [accessLevel, setAccessLevel] = useState<'view' | 'edit' | 'admin' | null>(null);
+    // ✅ THÊM: State debug info
+    const [debugInfo, setDebugInfo] = useState<any>(null);
 
     // ✅ THÊM: State quản lý modal auth
     const [showAuthModal, setShowAuthModal] = useState<'signin' | 'signup' | 'reset' | null>(null);
@@ -26,6 +28,10 @@ export default function SharedTreeView() {
     // Check xem có editMode từ URL không
     const [editMode, setEditMode] = useState(false);
     const isLoggedIn = !!localStorage.getItem('authToken');
+
+    // ✅ THÊM: Lấy user từ localStorage
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
 
     useEffect(() => {
         if (!shareToken) {
@@ -43,7 +49,6 @@ export default function SharedTreeView() {
         loadSharedTree();
     }, [shareToken]);
 
-    // HOÀN TOÀN THAY THẾ loadSharedTree bằng phiên bản mới dùng getSharedTreeAccessInfo
     const loadSharedTree = async () => {
         if (!shareToken) return;
 
@@ -51,37 +56,49 @@ export default function SharedTreeView() {
         setError(null);
 
         try {
-            // Lấy userId nếu đã đăng nhập
             const userStr = localStorage.getItem('user');
             const userId = userStr ? JSON.parse(userStr).id : null;
 
-            // BƯỚC 1: Gọi API mới để lấy thông tin access
+            // BƯỚC 1: Lấy thông tin access
             const accessInfo = await api.getSharedTreeAccessInfo(shareToken, userId);
 
             console.log('Access Info:', accessInfo);
+            console.log('🔍 canEdit:', accessInfo.canEdit);  // ✅ THÊM: Debug log
+            console.log('🔍 userId:', userId);                // ✅ THÊM: Debug log
 
-            // BƯỚC 2: Nếu user đã đăng nhập VÀ có quyền edit → chuyển thẳng vào trang chỉnh sửa
-            if (userId && accessInfo.canEdit) {
-                console.log('User có quyền edit → chuyển đến TreeDetails');
+            // ✅ THÊM: Lưu debug info
+            setDebugInfo(accessInfo);
 
-                // Lưu cây vào dashboard (nếu chưa có)
+            // ✅ BƯỚC 2: Nếu user đã đăng nhập → LƯU TREE VÀO DASHBOARD (dù view hay edit)
+            if (userId) {
                 try {
                     await api.saveSharedTreeToDashboard(userId, accessInfo.treeId);
-                    showToast.success('Cây gia phả đã được thêm vào danh sách của bạn');
+                    console.log('✅ Tree đã được lưu vào dashboard');
                 } catch (e: any) {
-                    console.warn('Tree có thể đã có trong dashboard:', e.message);
-                    // Không throw lỗi → vẫn redirect
+                    console.warn('⚠️ Lỗi khi lưu tree:', e.message);
+                    // Bỏ qua lỗi nếu tree đã có trong dashboard
                 }
-
-                // Chuyển hướng đến trang chỉnh sửa chính thức
-                navigate(`/trees/${accessInfo.treeId}`);
-                return; // DỪNG HOÀN TOÀN tại đây
             }
 
-            // BƯỚC 3: Nếu không có quyền edit → hiển thị trang xem
+            // ✅ BƯỚC 3: Nếu có quyền EDIT → Chuyển sang trang chỉnh sửa
+            if (userId && accessInfo.canEdit) {
+                console.log('User có quyền edit → chuyển đến TreeDetails');
+                showToast.success('Cây gia phả đã sẵn sàng để chỉnh sửa');
+
+                setTimeout(() => {
+                    navigate(`/trees/${accessInfo.treeId}`);
+                }, 500);
+                return;
+            }
+
+            // ✅ BƯỚC 4: Nếu chỉ có quyền VIEW → Hiển thị trang xem + nút yêu cầu edit
             const treeData = await api.getSharedTree(shareToken, userId);
             setTree(treeData);
-            setAccessLevel(accessInfo.canEdit ? 'edit' : 'view');
+
+            // ✅ SỬA: Logic set accessLevel an toàn hơn
+            const level = accessInfo?.canEdit ? 'edit' : 'view';
+            setAccessLevel(level);
+            console.log('🔍 Access Level:', level); // ✅ THÊM: Debug log
 
             // Load thành viên và quan hệ
             const [membersData, relationshipsData] = await Promise.all([
@@ -89,7 +106,7 @@ export default function SharedTreeView() {
                 api.getSharedTreeRelationships(shareToken, userId),
             ]);
 
-            // Chuẩn hóa quan hệ: CHILD → PARENT (đảo chiều)
+            // Chuẩn hóa quan hệ
             const normalizedRelationships = relationshipsData.map(rel => {
                 if (String(rel.type).toUpperCase() === 'CHILD') {
                     return {
@@ -104,6 +121,11 @@ export default function SharedTreeView() {
 
             setMembers(membersData);
             setRelationships(normalizedRelationships);
+
+            // ✅ Hiển thị toast cho biết đã lưu
+            if (userId) {
+                showToast.success('Cây gia phả đã được lưu vào dashboard của bạn');
+            }
 
         } catch (e: any) {
             const errorMsg = e?.message || 'Không thể tải cây gia phả';
@@ -121,16 +143,18 @@ export default function SharedTreeView() {
         setShowAuthModal('signin');
     };
 
-    // Bật/tắt chế độ chỉnh sửa (chỉ dành cho người có quyền)
-    const handleToggleEditMode = () => {
-        if (editMode) {
-            setEditMode(false);
-            window.history.replaceState({}, '', `/trees/shared/${shareToken}`);
-            showToast.info('Đã tắt chế độ chỉnh sửa');
-        } else {
-            setEditMode(true);
-            window.history.replaceState({}, '', `/trees/shared/${shareToken}?editMode=true`);
-            showToast.success('Đã bật chế độ chỉnh sửa');
+    // ✅ THÊM: Handler yêu cầu quyền edit
+    const handleRequestEditAccess = async () => {
+        if (!tree?.id || !user?.id) {
+            showToast.error('Không thể gửi yêu cầu');
+            return;
+        }
+
+        try {
+            await api.requestEditAccess(user.id, tree.id);
+            showToast.success('Đã gửi yêu cầu quyền chỉnh sửa đến chủ sở hữu');
+        } catch (e: any) {
+            showToast.error(e?.message || 'Gửi yêu cầu thất bại');
         }
     };
 
@@ -280,32 +304,58 @@ export default function SharedTreeView() {
             <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 py-6 mt-12 relative">
                 <div className="max-w-7xl mx-auto px-4 text-center text-slate-400 text-sm">
                     <p>Được chia sẻ từ <span className="text-white font-semibold">LegacyMap</span></p>
-                    <p className="mt-2">
-                        {accessLevel === 'edit'
-                            ? 'Bạn có quyền chỉnh sửa cây gia phả này.'
-                            : tree.isPublic
-                                ? 'Đây là cây gia phả công khai.'
-                                : 'Cây gia phả này được chia sẻ với bạn.'}
 
+                    <div className="mt-4 flex flex-col items-center gap-3">
+                        {/* ✅ Trạng thái quyền */}
+                        <p className="text-base">
+                            {accessLevel === 'edit' ? (
+                                <span className="text-green-400">✓ Bạn có quyền chỉnh sửa cây gia phả này</span>
+                            ) : tree.isPublic ? (
+                                <span>Đây là cây gia phả công khai (chỉ xem)</span>
+                            ) : (
+                                <span>Cây gia phả này được chia sẻ với bạn (chỉ xem)</span>
+                            )}
+                        </p>
+
+                        {/* ✅ THÊM: Debug info (tạm thời) */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <pre className="text-xs text-slate-400 bg-black/20 p-2 rounded max-w-full overflow-auto">
+                                {JSON.stringify({
+                                    isLoggedIn,
+                                    accessLevel,
+                                    treeId: tree?.id,
+                                    debugInfo
+                                }, null, 2)}
+                            </pre>
+                        )}
+
+                        {/* ✅ SỬA: Nút yêu cầu quyền edit - CHỈ HIỆN KHI: đã login + KHÔNG có quyền edit */}
+                        {isLoggedIn && accessLevel !== 'edit' && tree?.id && (
+                            <button
+                                onClick={handleRequestEditAccess}
+                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg"
+                            >
+                                📝 Yêu cầu quyền chỉnh sửa
+                            </button>
+                        )}
+
+                        {/* ✅ Nút đăng nhập - CHỈ HIỆN KHI chưa login */}
                         {!isLoggedIn && (
                             <button
                                 onClick={handleLoginRedirect}
-                                className="ml-2 text-blue-400 hover:text-blue-300 underline font-semibold"
+                                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium shadow-lg"
                             >
-                                Đăng nhập để xem thêm
+                                🔐 Đăng nhập để lưu vào dashboard
                             </button>
                         )}
 
-                        {/* Nút bật/tắt edit mode nếu có quyền */}
-                        {isLoggedIn && accessLevel === 'edit' && (
-                            <button
-                                onClick={handleToggleEditMode}
-                                className="ml-4 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm"
-                            >
-                                {editMode ? 'Đang chỉnh sửa' : 'Bật chế độ chỉnh sửa'}
-                            </button>
+                        {/* ✅ Thông báo nếu đã lưu */}
+                        {isLoggedIn && (
+                            <p className="text-green-400 text-xs">
+                                ✓ Cây này đã được lưu vào dashboard của bạn
+                            </p>
                         )}
-                    </p>
+                    </div>
                 </div>
             </footer>
 
