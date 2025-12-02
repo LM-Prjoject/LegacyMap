@@ -43,7 +43,6 @@ public class FamilyTreeService {
     private final AvatarGenerationService avatarGenerationService;
     private final RelationshipRepository relationshipRepository;
 
-
     @Autowired
     private TreeAccessRepository treeAccessRepository;
 
@@ -126,6 +125,23 @@ public class FamilyTreeService {
                 .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
     }
 
+    private FamilyTree findEditableTreeOrThrow(UUID treeId, UUID userId) {
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+        
+        // Check if user is owner or has edit access
+        if (tree.getCreatedBy().getId().equals(userId)) {
+            return tree;
+        }
+        
+        Optional<TreeAccess> access = treeAccessRepository.findByUserIdAndFamilyTreeId(userId, treeId);
+        if (access.isPresent() && "edit".equals(access.get().getAccessLevel())) {
+            return tree;
+        }
+        
+        throw new AppException(ErrorCode.PERMISSION_DENIED);
+    }
+
     @Transactional
     public FamilyTree update(UUID treeId, UUID userId, FamilyTreeUpdateRequest req) {
         FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
@@ -157,7 +173,7 @@ public class FamilyTreeService {
     @Transactional
     public Person addMember(UUID treeId, UUID userId, PersonCreateRequest req) {
 
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         User creator = loadUserOrThrow(userId);
 
         String email = req.getEmail() != null ? req.getEmail().trim().toLowerCase() : null;
@@ -269,7 +285,7 @@ public class FamilyTreeService {
 
     @Transactional
     public Person updateMember(UUID treeId, UUID userId, UUID personId, PersonUpdateRequest req) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         Person p = personRepository.findById(personId)
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
@@ -322,7 +338,7 @@ public class FamilyTreeService {
 
     @Transactional
     public void deleteMember(UUID treeId, UUID userId, UUID personId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         Person p = personRepository.findById(personId)
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         if (!p.getFamilyTree().getId().equals(tree.getId())) {
@@ -333,10 +349,9 @@ public class FamilyTreeService {
         personRepository.delete(p);
     }
 
-
     @Transactional
     public void deleteMemberSafe(UUID treeId, UUID userId, UUID personId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
         Person p = personRepository.findById(personId)
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
         if (!p.getFamilyTree().getId().equals(tree.getId())) {

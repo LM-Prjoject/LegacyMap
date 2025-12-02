@@ -359,7 +359,6 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-
     @PostMapping("/{treeId}/share/public")
     public ResponseEntity<ApiResponse<TreeShareResponse>> generatePublicLink(
             @PathVariable("treeId") UUID treeId,
@@ -563,7 +562,6 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success(info));
     }
 
-
     @Transactional(readOnly = true)
     @GetMapping("/shared/{shareToken}")
     public ResponseEntity<ApiResponse<FamilyTreeResponse>> getSharedTree(
@@ -662,7 +660,6 @@ public class FamilyTreeController {
 
         return ResponseEntity.ok(ApiResponse.success(rels));
     }
-
 
     private PersonResponse toPersonResponse(Person person) {
         return PersonResponse.builder()
