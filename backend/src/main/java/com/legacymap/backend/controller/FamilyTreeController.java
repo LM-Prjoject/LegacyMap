@@ -78,8 +78,6 @@ public class FamilyTreeController {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    // ==================== TREE MANAGEMENT ENDPOINTS ====================
-
     @PostMapping
     public ResponseEntity<ApiResponse<FamilyTreeResponse>> createTree(
             @RequestParam("userId") String userId,
@@ -116,8 +114,6 @@ public class FamilyTreeController {
         familyTreeService.delete(treeId, parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success());
     }
-
-    // ==================== MEMBER MANAGEMENT ENDPOINTS ====================
 
     @PostMapping("/{treeId}/members")
     public ResponseEntity<ApiResponse<PersonResponse>> addMember(
@@ -193,8 +189,6 @@ public class FamilyTreeController {
         familyTreeService.deleteMemberSafe(treeId, parseUserId(userId), personId);
         return ResponseEntity.ok(ApiResponse.success());
     }
-
-    // ==================== RELATIONSHIP MANAGEMENT ENDPOINTS ====================
 
     @GetMapping("/{treeId}/relationships")
     public ResponseEntity<ApiResponse<List<RelationshipDTO>>> listRelationships(
@@ -285,7 +279,6 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-    // ==================== SHARE ENDPOINTS ====================
 
     @PostMapping("/{treeId}/share/public")
     public ResponseEntity<ApiResponse<TreeShareResponse>> generatePublicLink(
@@ -419,10 +412,6 @@ public class FamilyTreeController {
         ));
     }
 
-    /**
-     * API mới: Lấy thông tin access từ shareToken
-     * - Dùng để frontend biết: có public không? có quyền edit không? owner là ai? v.v.
-     */
     @GetMapping("/shared/{shareToken}/access-info")
     public ResponseEntity<ApiResponse<SharedTreeAccessInfoResponse>> getSharedTreeAccessInfo(
             @PathVariable("shareToken") UUID shareToken,
@@ -436,7 +425,6 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success(info));
     }
 
-    // ==================== PUBLIC SHARE ENDPOINTS ====================
 
     @Transactional(readOnly = true)
     @GetMapping("/shared/{shareToken}")
@@ -470,7 +458,6 @@ public class FamilyTreeController {
 
         List<Person> members = familyTreeService.listMembers(tree.getId(), tree.getCreatedBy().getId());
 
-        // ✅ Convert Entity sang DTO
         List<PersonResponse> response = members.stream()
                 .map(this::toPersonResponse)
                 .collect(Collectors.toList());
@@ -538,7 +525,6 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success(rels));
     }
 
-    // ==================== HELPER METHODS ====================
 
     private PersonResponse toPersonResponse(Person person) {
         return PersonResponse.builder()

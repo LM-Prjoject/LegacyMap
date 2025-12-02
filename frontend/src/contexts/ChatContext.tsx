@@ -121,6 +121,8 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     window.dispatchEvent(event);
   }, [totalUnread]);
 
+
+
   const updateMessage = useCallback(async (roomId: string, messageId: string, payload: { messageText: string }) => {
     if (!roomId || !messageId) {
       console.error('Missing roomId or messageId for updateMessage');
