@@ -978,6 +978,7 @@ export default function TreeDetails() {
                         </button>
 
                         <div className="flex items-center gap-2">
+                            {/* ✅ Chỉ hiện History và Download cho MỌI USER */}
                             <button
                                 onClick={() => setShowHistory(true)}
                                 className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
@@ -993,22 +994,46 @@ export default function TreeDetails() {
                             >
                                 <Download size={20} />
                             </button>
-                            <button
-                                onClick={() => setShareModalOpen(true)}
-                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-1.5 shadow-sm hover:shadow transition-all"
-                                title="Chia sẻ cây gia phả"
-                            >
-                                <Share2 size={20} />
-                                <span className="hidden sm:inline">Chia sẻ</span>
-                            </button>
 
-                            <button
-                                onClick={handleAddClick}
-                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
-                                title="Thêm thành viên"
-                            >
-                                <LucideUserPlus className="w-5 h-5" />
-                            </button>
+                            {/* ✅ CHỈ HIỆN cho OWNER hoặc EDITOR (readOnly === false) */}
+                            {!readOnly && (
+                                <>
+                                    <button
+                                        onClick={() => setShareModalOpen(true)}
+                                        className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-1.5 shadow-sm hover:shadow transition-all"
+                                        title="Chia sẻ cây gia phả"
+                                    >
+                                        <Share2 size={20} />
+                                        <span className="hidden sm:inline">Chia sẻ</span>
+                                    </button>
+                                    <button
+                                        onClick={handleAddClick}
+                                        className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                        title="Thêm thành viên"
+                                    >
+                                        <LucideUserPlus className="w-5 h-5" />
+                                    </button>
+                                </>
+                            )}
+
+                            {/* ✅ NÚT YÊU CẦU QUYỀN EDIT - CHỈ HIỆN cho VIEWER */}
+                            {readOnly && (
+                                <button
+                                    onClick={async () => {
+                                        if (!treeId || !userId) return;
+                                        try {
+                                            await api.requestEditAccess(userId, treeId);
+                                            showToast.success("Đã gửi yêu cầu quyền chỉnh sửa");
+                                        } catch (e: any) {
+                                            showToast.error(e?.message || "Gửi yêu cầu thất bại");
+                                        }
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 shadow-sm hover:shadow transition-all text-white"
+                                    title="Yêu cầu quyền chỉnh sửa"
+                                >
+                                    📝 Yêu cầu quyền edit
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

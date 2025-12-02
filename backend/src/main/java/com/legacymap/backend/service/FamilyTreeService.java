@@ -14,8 +14,10 @@ import com.legacymap.backend.dto.request.FamilyTreeCreateRequest;
 import com.legacymap.backend.dto.request.FamilyTreeUpdateRequest;
 import com.legacymap.backend.dto.request.PersonCreateRequest;
 import com.legacymap.backend.dto.request.PersonUpdateRequest;
+import com.legacymap.backend.dto.request.NotificationCreateRequest;
 import com.legacymap.backend.dto.response.TreeShareResponse;
 import com.legacymap.backend.dto.response.SharedTreeAccessInfoResponse;
+import com.legacymap.backend.dto.response.NotificationResponse;
 import com.legacymap.backend.entity.FamilyTree;
 import com.legacymap.backend.entity.Person;
 import com.legacymap.backend.entity.TreeAccess;
@@ -24,6 +26,7 @@ import com.legacymap.backend.entity.ChatRoom;
 import com.legacymap.backend.entity.ChatRoomMember;
 import com.legacymap.backend.entity.ChatRoomMemberId;
 import com.legacymap.backend.entity.PersonUserLink;
+import com.legacymap.backend.entity.Notification;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.ChatRoomMemberRepository;
@@ -38,6 +41,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 @Slf4j
 @Service
@@ -61,6 +69,13 @@ public class FamilyTreeService {
     @Autowired
     private AuditLogService historyService;
 
+    @Autowired
+    private NotificationService notificationService;
+    @Autowired
+    private com.legacymap.backend.repository.NotificationRepository notificationRepository;
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
@@ -74,6 +89,12 @@ public class FamilyTreeService {
         return familyTreeRepository.findById(treeId)
                 .map(t -> t.getCreatedBy() != null ? t.getCreatedBy().getId() : null)
                 .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public FamilyTree getTreeById(UUID treeId) {
+        return familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
     }
 
     @Transactional
@@ -176,7 +197,6 @@ public class FamilyTreeService {
         }
 
         String avatarUrl = req.getAvatarUrl();
-
         if (avatarUrl == null || avatarUrl.isBlank()) {
             avatarUrl = avatarGenerationService.generateAvatar(
                     req.getFullName(),
@@ -584,5 +604,141 @@ public class FamilyTreeService {
 
         log.info("Total accessible trees for user {}: {}", userId, allTrees.size());
         return allTrees;
+    }
+
+    // ==================== EDIT ACCESS REQUEST METHODS ====================
+
+    @Transactional
+    public void requestEditAccess(UUID treeId, UUID requesterId) {
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        User requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        User owner = tree.getCreatedBy();
+        if (owner == null) {
+            throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
+        }
+
+        Optional<TreeAccess> existingAccess = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(requesterId, treeId);
+
+        if (existingAccess.isPresent() && "edit".equals(existingAccess.get().getAccessLevel())) {
+            throw new AppException(ErrorCode.ALREADY_HAS_EDIT_ACCESS);
+        }
+
+        // ✅ Tạo JsonNode thay vì String
+        ObjectNode relatedEntityJson = objectMapper.createObjectNode();
+        relatedEntityJson.put("treeId", treeId.toString());
+        relatedEntityJson.put("requesterId", requesterId.toString());
+
+        Notification notification = Notification.builder()
+                .user(owner)
+                .type(Notification.NotificationType.edit_request)
+                .title("Yêu cầu quyền chỉnh sửa")
+                .message(String.format(
+                        "%s (%s) yêu cầu quyền chỉnh sửa cây gia phả '%s'",
+                        requester.getUserProfile() != null ? requester.getUserProfile().getFullName() : requester.getUsername(),
+                        requester.getEmail(),
+                        tree.getName()
+                ))
+                .relatedEntity(relatedEntityJson)  // ← Dùng JsonNode
+                .isRead(false)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        Notification savedNotification = notificationRepository.save(notification);
+        
+        // Gửi SSE notification đến owner
+        notificationService.sendNotificationToUser(owner.getId(), mapNotificationToResponse(savedNotification));
+
+        log.info("Edit request sent: Tree={}, Requester={}, Owner={}",
+                treeId, requesterId, owner.getId());
+    }
+    @Transactional
+    public void approveEditRequest(UUID treeId, UUID ownerId, UUID requesterId) {
+        FamilyTree tree = findEditableTreeOrThrow(treeId, ownerId);
+        User requester = loadUserOrThrow(requesterId);
+
+        // Cập nhật hoặc tạo TreeAccess với quyền edit
+        Optional<TreeAccess> existing = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(requesterId, treeId);
+
+        TreeAccess access;
+        if (existing.isPresent()) {
+            access = existing.get();
+            access.setAccessLevel("edit");
+        } else {
+            access = TreeAccess.builder()
+                    .userId(requesterId)
+                    .familyTreeId(treeId)
+                    .accessLevel("edit")
+                    .grantedBy(loadUserOrThrow(ownerId))
+                    .build();
+        }
+
+        treeAccessRepository.save(access);
+
+        // Gửi notification cho requester
+        NotificationCreateRequest notifRequest = new NotificationCreateRequest();
+        notifRequest.setTitle("Yêu cầu được chấp nhận");
+        notifRequest.setMessage(String.format(
+                "Bạn đã được cấp quyền chỉnh sửa cây gia phả \"%s\"",
+                tree.getName()
+        ));
+        notifRequest.setType(Notification.NotificationType.access_granted);
+        notifRequest.setRelatedEntity(Map.of(
+                "type", "edit_granted",
+                "treeId", treeId.toString()
+        ));
+
+        notificationService.createNotification(requesterId, notifRequest);
+
+        log.info("Edit access approved: Tree={}, Requester={}", treeId, requesterId);
+    }
+
+    @Transactional
+    public void rejectEditRequest(UUID treeId, UUID ownerId, UUID requesterId) {
+        FamilyTree tree = findEditableTreeOrThrow(treeId, ownerId);
+
+        // Gửi notification từ chối
+        NotificationCreateRequest notifRequest = new NotificationCreateRequest();
+        notifRequest.setTitle("Yêu cầu bị từ chối");
+        notifRequest.setMessage(String.format(
+                "Yêu cầu chỉnh sửa cây gia phả \"%s\" đã bị từ chối",
+                tree.getName()
+        ));
+        notifRequest.setType(Notification.NotificationType.system);
+
+        notificationService.createNotification(requesterId, notifRequest);
+
+        log.info("Edit access rejected: Tree={}, Requester={}", treeId, requesterId);
+    }
+
+    private NotificationResponse mapNotificationToResponse(Notification notification) {
+        NotificationResponse response = new NotificationResponse();
+        response.setId(notification.getId());
+        response.setUserId(notification.getUser().getId());
+        response.setTitle(notification.getTitle());
+        response.setMessage(notification.getMessage());
+        response.setType(notification.getType());
+        response.setIsRead(notification.getIsRead());
+
+        OffsetDateTime createdAt = notification.getCreatedAt() != null
+                ? notification.getCreatedAt()
+                : OffsetDateTime.now(ZoneOffset.UTC);
+
+        ZoneId vnZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        response.setCreatedAt(createdAt.atZoneSameInstant(vnZone).toOffsetDateTime());
+
+        if (notification.getRelatedEntity() != null) {
+            response.setRelatedEntity(objectMapper.convertValue(
+                    notification.getRelatedEntity(),
+                    objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class)
+            ));
+        }
+
+        return response;
     }
 }
