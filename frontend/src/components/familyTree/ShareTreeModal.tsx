@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Link2, Users, Copy, Check, Mail, Trash2, ExternalLink } from "lucide-react";
+import { X, Link2, Users, Copy, Check, Mail, Trash2, ExternalLink, Edit3, Eye } from "lucide-react";
 import api, { type TreeShareResponse, type TreeAccessResponse } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 
@@ -39,7 +39,6 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                 api.getSharedUsers(userId, treeId),
             ]);
 
-            // ✅ THÊM: Sync publicPermission từ response
             if (link.sharePermission) {
                 setPublicPermission(link.sharePermission as "view" | "edit");
             }
@@ -73,7 +72,7 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
             showToast.success(`Đã chia sẻ với ${email}`);
             setEmail("");
             setShowShareForm(false);
-            await loadShareData(); // ✅ Reload để cập nhật permission
+            await loadShareData();
         } catch (e: any) {
             showToast.error(e?.message || "Chia sẻ thất bại");
         } finally {
@@ -85,19 +84,18 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
         try {
             await api.revokeAccess(userId, treeId, targetUserId);
             showToast.success(`Đã thu hồi quyền của ${userEmail}`);
-            await loadShareData(); // ✅ Reload để cập nhật danh sách
+            await loadShareData();
         } catch (e: any) {
             showToast.error(e?.message || "Thu hồi quyền thất bại");
         }
     };
 
-    // ✅ Thêm hàm xử lý thay đổi public permission
     const handlePublicPermissionChange = async (newPermission: "view" | "edit") => {
         try {
             // Tạo lại public link với permission mới
             const newLink = await api.generatePublicShareLink(userId, treeId, newPermission);
             setPublicLink(newLink);
-            setPublicPermission(newPermission); // ✅ Cập nhật state từ response
+            setPublicPermission(newPermission);
             showToast.success(`Đã cập nhật quyền truy cập công khai thành: ${newPermission === "view" ? "Chỉ xem" : "Có thể chỉnh sửa"}`);
         } catch (e: any) {
             showToast.error(e?.message || "Cập nhật quyền thất bại");
@@ -140,9 +138,9 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-[#ffd89b]/10 rounded-lg transition-all duration-300 text-gray-400 hover:text-[#ffd89b] border border-transparent hover:border-[#ffd89b]/30"
+                        className="p-2 transition-colors"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-5 h-5 text-[#ffd89b] transition-colors" />
                     </button>
                 </div>
 
@@ -174,24 +172,26 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                                         <button
                                             type="button"
                                             onClick={() => handlePublicPermissionChange("view")}
-                                            className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium ${
+                                            className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
                                                 publicPermission === "view"
                                                     ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
                                                     : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
                                             }`}
                                         >
-                                            👀 Chỉ xem
+                                            <Eye className="w-4 h-4" />
+                                            Chỉ xem
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => handlePublicPermissionChange("edit")}
-                                            className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium ${
+                                            className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
                                                 publicPermission === "edit"
                                                     ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
                                                     : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
                                             }`}
                                         >
-                                            ✏️ Có thể chỉnh sửa
+                                            <Edit3 className="w-4 h-4" />
+                                            Có thể chỉnh sửa
                                         </button>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-2">

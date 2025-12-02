@@ -250,7 +250,9 @@ const NotificationsPage = () => {
         if (!userId) return;
 
         try {
-            setLoading(pageNum === 0);
+            if (pageNum === 0) {
+                setLoading(true);
+            }
             setError(null);
 
             const data = await notificationApi.getNotifications(pageNum, 15);
@@ -350,10 +352,11 @@ const NotificationsPage = () => {
         if (userId && !userLoading) {
             loadNotifications(0, false);
             loadClaims();
+        } else if (userId === null && !userLoading) {
+            setLoading(false);
         }
-    }, [userId, userLoading, loadNotifications, loadClaims]);
+    }, [userId, userLoading]);
 
-    // Nếu đang load user hoặc notifications lần đầu
     if (userLoading || (loading && notifications.length === 0)) {
         return (
             <>
@@ -368,7 +371,6 @@ const NotificationsPage = () => {
         );
     }
 
-    // Nếu không có user
     if (!userId) {
         return (
             <>
@@ -387,7 +389,6 @@ const NotificationsPage = () => {
         );
     }
 
-    // Icons & Colors
     const getIcon = (type: string) => {
         switch (type) {
             case 'event_reminder': return <Calendar className="w-5 h-5" />;
@@ -461,7 +462,6 @@ const NotificationsPage = () => {
         return claims.some(c => c.personId === target.personId);
     };
 
-    // Actions
     const markAsRead = async (id: string) => {
         try {
             await notificationApi.markAsRead(id);
