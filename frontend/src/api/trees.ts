@@ -103,9 +103,9 @@ export interface FamilyTree {
   id: string;
   name: string;
   description?: string | null;
-  createdBy?: string;          // ✅ THÊM: từ backend
-  createdByEmail?: string;     // ✅ THÊM: từ backend
-  createdByUsername?: string;  // ✅ THÊM: từ backend
+  createdBy?: string;          // 
+  createdByEmail?: string;     // 
+  createdByUsername?: string;  // 
   isPublic: boolean;
   coverImageUrl?: string | null;
   createdAt?: string;
@@ -113,9 +113,9 @@ export interface FamilyTree {
   shareToken?: string;
   shareUrl?: string;
   sharePermission?: 'view' | 'edit';
-  memberCount?: number;        // ✅ THÊM: từ backend
+  memberCount?: number;        // 
 
-  // ✅ GIỮ LẠI cho tương thích
+  // 
   userId?: string;             // Alias cho createdBy
 }
 
@@ -374,6 +374,18 @@ async function deleteMember(userId: string, treeId: string, personId: string): P
   }
 }
 
+async function deleteMemberSafe(userId: string, treeId: string, personId: string): Promise<void> {
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/members/${encodeURIComponent(personId)}/safe?userId=${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<any>>(res);
+    throw new Error(j?.message || "Xóa thành viên (an toàn) thất bại");
+  }
+}
+
 async function listRelationships(
     userId: string,
     treeId: string
@@ -564,8 +576,7 @@ export interface TreeShareResponse {
   shareUrl: string;
   publicShareUrl: string;
   sharedWithCount: number;
-  sharePermission?: 'view' | 'edit'; // ✅ THÊM
-
+  sharePermission?: 'view' | 'edit'; // 
 }
 
 export interface TreeAccessResponse {
@@ -590,10 +601,10 @@ export interface TreeShareRequest {
 async function generatePublicShareLink(
     userId: string,
     treeId: string,
-    permission: "view" | "edit" = "view" // ✅ Thêm param này
+    permission: "view" | "edit" = "view" // 
 ): Promise<TreeShareResponse> {
   const res = await fetch(
-      `${API_BASE}/trees/${encodeURIComponent(treeId)}/share/public?userId=${encodeURIComponent(userId)}&permission=${permission}`, // ✅ Thêm &permission=${permission}
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/share/public?userId=${encodeURIComponent(userId)}&permission=${permission}`, // 
       {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
@@ -696,7 +707,7 @@ async function getSharedTree(
       ? `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}?userId=${encodeURIComponent(userId)}`
       : `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}`;
 
-  console.log('🔗 Fetching shared tree from:', url);
+  console.log(' Fetching shared tree from:', url);
 
   const res = await fetch(url, {
     headers: userId ? authHeaders() : { Accept: "application/json" },
@@ -705,16 +716,16 @@ async function getSharedTree(
   const json = await safeJson<ApiResponse<FamilyTree>>(res);
 
   if (!res.ok) {
-    console.error('❌ API Error:', res.status, json);
+    console.error(' API Error:', res.status, json);
     throw new Error(json?.message || "Không thể truy cập cây gia phả");
   }
 
-  // ✅ SỬA: Extract data từ response
+  // 
   const treeData = pickData<FamilyTree>(json);
 
-  // ✅ CRITICAL FIX: Đảm bảo có ID
+  // CRITICAL FIX: Đảm bảo có ID
   if (!treeData.id) {
-    console.error('⚠️ Missing tree.id in response');
+    console.error(' Missing tree.id in response');
 
     // Thử extract từ nhiều nguồn
     const possibleId =
@@ -725,13 +736,13 @@ async function getSharedTree(
 
     if (possibleId) {
       treeData.id = String(possibleId);
-      console.log('✅ Recovered tree.id:', possibleId);
+      console.log(' Recovered tree.id:', possibleId);
     } else {
-      throw new Error('Tree ID not found in response'); // ✅ Throw error thay vì tạo temp ID
+      throw new Error('Tree ID not found in response'); // Throw error thay vì tạo temp ID
     }
   }
 
-  console.log('✅ Final tree data:', {
+  console.log(' Final tree data:', {
     id: treeData.id,
     name: treeData.name,
     sharePermission: treeData.sharePermission
@@ -997,6 +1008,64 @@ async function rejectEditRequest(
   }
 }
 
+// ==================== SIMULATE DELETE API ====================
+
+export interface SimulateDeleteResult {
+  count: number;
+  orphanMemberIds: string[];
+}
+
+export interface ConfirmDeleteResult {
+  deletedCount: number;
+  deletedMemberIds: string[];
+}
+
+async function simulateDeleteMember(
+  userId: string,
+  treeId: string,
+  personId: string
+): Promise<SimulateDeleteResult> {
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/members/${encodeURIComponent(personId)}/delete:simulate?userId=${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const json = await safeJson<ApiResponse<SimulateDeleteResult>>(res);
+  if (!res.ok) {
+    throw new Error((json as any)?.message || "Không thể mô phỏng xoá thành viên");
+  }
+  return pickData<SimulateDeleteResult>(json);
+}
+
+async function confirmDeleteMember(
+  userId: string,
+  treeId: string,
+  personId: string
+): Promise<ConfirmDeleteResult> {
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/members/${encodeURIComponent(personId)}/delete:confirm?userId=${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const json = await safeJson<ApiResponse<ConfirmDeleteResult>>(res);
+  if (!res.ok) {
+    throw new Error((json as any)?.message || "Không thể xác nhận xoá thành viên");
+  }
+  return pickData<ConfirmDeleteResult>(json);
+}
+
+async function pruneDisconnected(userId: string, treeId: string): Promise<void> {
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/maintenance/prune?userId=${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<any>>(res);
+    throw new Error(j?.message || "Dọn nhánh rời root thất bại");
+  }
+}
+
 const api = {
   listTrees,
   listViewableTrees,
@@ -1008,6 +1077,7 @@ const api = {
   addMember,
   updateMember,
   deleteMember,
+  deleteMemberSafe,
   listRelationships,
   listRelationshipsForViewer,
   listPersonRelationships,
@@ -1030,11 +1100,14 @@ const api = {
   saveSharedTreeToDashboard,
   saveSharedTreeByToken,
   getSharedTreeRelationshipsExport,
+  pruneDisconnected,
   getSharedTreeAccessInfo,
   exportTreePdfWithImage,
   requestEditAccess,
   approveEditRequest,
   rejectEditRequest,
+  simulateDeleteMember,
+  confirmDeleteMember,
 };
 
 export default api;

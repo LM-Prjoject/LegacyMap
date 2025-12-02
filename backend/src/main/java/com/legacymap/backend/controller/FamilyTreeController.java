@@ -233,6 +233,15 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    @DeleteMapping("/{treeId}/members/{personId}/safe")
+    public ResponseEntity<ApiResponse<Void>> deleteMemberSafe(
+            @PathVariable("treeId") UUID treeId,
+            @PathVariable("personId") UUID personId,
+            @RequestParam("userId") String userId) {
+        familyTreeService.deleteMemberSafe(treeId, parseUserId(userId), personId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
     // ==================== RELATIONSHIP MANAGEMENT ENDPOINTS ====================
 
     @GetMapping("/{treeId}/relationships")
@@ -345,6 +354,14 @@ public class FamilyTreeController {
             @PathVariable("relationshipId") UUID relationshipId,
             @RequestParam("userId") String userId) {
         relationshipService.delete(treeId, parseUserId(userId), relationshipId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/{treeId}/maintenance/prune")
+    public ResponseEntity<ApiResponse<Void>> pruneDisconnected(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("userId") String userId) {
+        familyTreeService.pruneDisconnectedBloodlineAutoRoot(treeId, parseUserId(userId));
         return ResponseEntity.ok(ApiResponse.success());
     }
 

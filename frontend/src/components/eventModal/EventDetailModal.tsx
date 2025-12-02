@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, Calendar, Bell, MapPin, Save, FileText, Share2 } from 'lucide-react';
-import { eventsApi } from '@/api/eventApi.ts';
-import { Event, EventType, CalendarType } from '@/types/event.ts';
+import { X, Edit2, Trash2, Calendar, Bell, MapPin, Save, FileText } from 'lucide-react';
+import lunisolar from 'lunisolar';
+import { eventsApi } from '@/api/eventApi';
+import { Event, EventType, CalendarType } from '@/types/event';
+import { getVietnameseLunarDay, getVietnameseLunarMonth, getVietnameseStemBranch } from '@/utils/lunarUtils';
+import { EventDetailModalProps} from "@/types/event";
 
-interface EventDetailModalProps {
-    eventId: string;
-    isOpen: boolean;
-    onClose: () => void;
-    onDelete?: () => void;
-    onUpdate?: (updatedEvent?: Event) => void;
-}
 
-const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, onClose, onDelete, onUpdate }) => {
+const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, onClose, onDelete, onUpdate, selectedDate }) => {
     const [event, setEvent] = useState<Event | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editedEvent, setEditedEvent] = useState<Partial<Event>>({});
@@ -19,7 +15,6 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Lock scroll
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -83,14 +78,17 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
         }
     };
 
-    const handleShare = () => {
-        if (event && navigator.share) {
-            navigator.share({
-                title: event.title,
-                text: `Sự kiện: ${event.title} - ${new Date(event.startDate).toLocaleDateString('vi-VN')}`,
-            });
+    const getDisplayDate = () => {
+        if (selectedDate && event) {
+            const originalDate = new Date(event.startDate);
+            const displayDate = new Date(selectedDate);
+            displayDate.setHours(originalDate.getHours(), originalDate.getMinutes(), originalDate.getSeconds());
+            return displayDate.toISOString();
         }
+        return event?.startDate;
     };
+
+    const displayDate = getDisplayDate();
 
     const getEventTypeLabel = (type: EventType): string => {
         const labels: Record<EventType, string> = {
@@ -110,7 +108,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
         return type === CalendarType.LUNAR ? 'Âm lịch' : 'Dương lịch';
     };
 
-    const formatDateTime = (dateTime: string) => {
+    const formatDisplayDateTime = (dateTime: string) => {
         return new Date(dateTime).toLocaleString('vi-VN', {
             year: 'numeric',
             month: 'long',
@@ -156,16 +154,80 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
         return `${y}-${m}-${d}T${hh}:${mm}`;
     };
 
+    const getLunarDate = (solarDate: string): string => {
+        try {
+            const date = new Date(solarDate);
+
+            if (isNaN(date.getTime())) {
+                console.error('Invalid Date input:', solarDate);
+                return 'Ngày không hợp lệ';
+            }
+
+            const lsr = lunisolar(date);
+
+            if (!lsr || !lsr.lunar) {
+                return 'Lỗi thư viện';
+            }
+
+            const lunarData = lsr.lunar;
+
+            const isLeap = lunarData.isLeapMonth || false;
+            const lunarDay = lunarData.day;
+            const lunarMonth = lunarData.month;
+
+            const dayStr = getVietnameseLunarDay(lunarDay);
+            const monthStr = getVietnameseLunarMonth(lunarMonth, isLeap);
+            const yearStr = getVietnameseStemBranch(lsr.format('cY'));
+
+            return `${dayStr} tháng ${monthStr} năm ${yearStr}`;
+        } catch (error) {
+            console.error('Lunar conversion error:', error);
+            return 'Không thể chuyển đổi';
+        }
+    };
+
+    const getDisplayLunarDate = () => {
+        if (!displayDate) return 'Không thể chuyển đổi';
+        return getLunarDate(displayDate);
+    };
+
+    const getDisplayEndDate = () => {
+        if (selectedDate && event?.endDate) {
+            const originalStart = new Date(event.startDate);
+            const originalEnd = new Date(event.endDate);
+            const displayStart = new Date(selectedDate);
+
+            if (event.isFullDay) {
+                const daysDiff = Math.round((originalEnd.getTime() - originalStart.getTime()) / (1000 * 60 * 60 * 24));
+                const displayEnd = new Date(displayStart);
+                displayEnd.setDate(displayStart.getDate() + daysDiff);
+                return displayEnd.toISOString();
+            } else {
+                const duration = originalEnd.getTime() - originalStart.getTime();
+                const displayEnd = new Date(displayStart.getTime() + duration);
+                return displayEnd.toISOString();
+            }
+        }
+        return event?.endDate;
+    };
+
+    const displayEndDate = getDisplayEndDate();
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div
-                className="absolute inset-0 bg-gradient-to-br from-[#000000]/70 via-[#1b2233]/80 to-[#2e3a57]/90 backdrop-blur-md"
+                className="absolute inset-0"
+                style={{
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)'
+                }}
                 onClick={() => !loading && onClose()}
             />
             {/* Modal Content */}
-            <div className="relative z-[100002] w-full max-w-3xl max-h-[90vh] rounded-3xl bg-gradient-to-br from-[#1b2233] to-[#2e3a57] border-2 border-[#D1B066]/40 shadow-[0_0_50px_rgba(209,176,102,0.3)] flex flex-col overflow-hidden">
+            <div className="relative z-[100002] w-full max-w-2xl max-h-[80vh] rounded-2xl bg-gradient-to-br from-[#1b2233] to-[#2e3a57] border-2 border-[#D1B066]/40 shadow-[0_0_50px_rgba(209,176,102,0.3)] flex flex-col overflow-hidden">
                 {/* Decorative corner accents */}
                 <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-[#D1B066]/20 to-transparent rounded-br-[100px] pointer-events-none" />
                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-[#D1B066]/20 to-transparent rounded-tl-[100px] pointer-events-none" />
@@ -176,15 +238,6 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                         {isEditing ? 'Chỉnh sửa sự kiện' : 'Chi tiết sự kiện'}
                     </h3>
                     <div className="flex items-center gap-2">
-                        {!isEditing && (
-                            <button
-                                onClick={handleShare}
-                                className="p-2 rounded-lg hover:bg-[#D1B066]/10 transition text-[#D1B066]"
-                                title="Chia sẻ"
-                            >
-                                <Share2 className="w-5 h-5" />
-                            </button>
-                        )}
                         <button
                             onClick={() => !loading && onClose()}
                             className="p-2 rounded-lg hover:bg-[#D1B066]/10 transition"
@@ -209,11 +262,11 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                             <p className="text-red-400 font-semibold text-lg">Lỗi: {error || 'Không tìm thấy sự kiện'}</p>
                         </div>
                     ) : (
-                        <div className="space-y-8">
+                        <div className="space-y-5">
                             {/* Title */}
                             {isEditing ? (
                                 <div className="flex gap-4">
-                                    <Edit2 className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                    <Edit2 className="w-5 h-5 text-[#EEDC9A] mt-1" />
                                     <div>
                                         <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Tiêu đề</div>
                                         <input
@@ -237,7 +290,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                             <div className="space-y-6">
                                 {/* Date & Time */}
                                 <div className="flex gap-4">
-                                    <Calendar className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                    <Calendar className="w-5 h-5 text-[#EEDC9A] mt-1" />
                                     <div>
                                         <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Ngày & Giờ</div>
                                         {isEditing ? (
@@ -259,8 +312,12 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                             </div>
                                         ) : (
                                             <>
-                                                <p className="font-semibold text-white text-lg">{formatDateTime(event.startDate)}</p>
-                                                {event.endDate && <p className="text-sm text-white/70 mt-1">đến {formatDateTime(event.endDate)}</p>}
+                                                <p className="font-semibold text-white text-lg">
+                                                    {displayDate ? formatDisplayDateTime(displayDate) : 'Đang tải...'}
+                                                </p>
+                                                {displayEndDate && (
+                                                    <p className="text-sm text-white/70 mt-1">đến {formatDisplayDateTime(displayEndDate)}</p>
+                                                )}
                                                 <div className="flex flex-wrap gap-2 mt-3">
                                                     <span className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#EEDC9A] to-[#D1B066] text-[#1b2233] shadow-lg">
                                                         {getCalendarTypeLabel(event.calendarType)}
@@ -271,6 +328,19 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                                         </span>
                                                     )}
                                                 </div>
+
+                                                {event.calendarType === CalendarType.LUNAR && (
+                                                    <div className="flex gap-4 mt-2">
+                                                        <div>
+                                                            <div className="font-bold text-sm text-[#EEDC9A] uppercase tracking-wider mb-1">
+                                                                Ngày Âm Lịch
+                                                            </div>
+                                                            <p className="font-semibold text-white text-sm">
+                                                                {getDisplayLunarDate()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
@@ -278,7 +348,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
 
                                 {/* Event Type */}
                                 <div className="flex gap-4">
-                                    <Bell className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                    <Bell className="w-5 h-5 text-[#EEDC9A] mt-1" />
                                     <div>
                                         <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Loại sự kiện</div>
                                         {isEditing ? (
@@ -306,7 +376,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                 {/* Location */}
                                 {(event.location || isEditing) && (
                                     <div className="flex gap-4">
-                                        <MapPin className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                        <MapPin className="w-5 h-5 text-[#EEDC9A] mt-1" />
                                         <div>
                                             <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Địa điểm</div>
                                             {isEditing ? (
@@ -327,7 +397,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                 {/* Description */}
                                 {(event.description || isEditing) && (
                                     <div className="flex gap-4">
-                                        <FileText className="w-6 h-6 text-[#EEDC9A] mt-1" />
+                                        <FileText className="w-5 h-5 text-[#EEDC9A] mt-1" />
                                         <div>
                                             <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Mô tả</div>
                                             {isEditing ? (
@@ -359,13 +429,13 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                         setIsEditing(false);
                                         setEditedEvent(event!);
                                     }}
-                                    className="px-6 h-12 rounded-xl border-2 border-[#D1B066]/50 text-[#EEDC9A] font-semibold hover:bg-[#D1B066]/10 hover:border-[#D1B066] transition-all duration-300 hover:scale-105"
+                                    className="px-6 h-10 rounded-xl border-2 border-[#D1B066]/50 text-[#EEDC9A] font-semibold hover:bg-[#D1B066]/10 hover:border-[#D1B066] transition-all duration-300 hover:scale-105"
                                 >
                                     Hủy
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    className="relative flex items-center gap-2 px-8 h-12 rounded-xl font-bold text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-[0_0_20px_rgba(209,176,102,0.5)] hover:shadow-[0_0_30px_rgba(209,176,102,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
+                                    className="relative flex items-center gap-2 px-8 h-10 rounded-xl font-bold text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-[0_0_20px_rgba(209,176,102,0.5)] hover:shadow-[0_0_30px_rgba(209,176,102,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
                                 >
                                     <Save className="w-5 h-5" />
                                     Lưu
@@ -375,7 +445,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                             <>
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="relative flex items-center gap-2 px-8 h-12 rounded-xl font-bold text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-[0_0_20px_rgba(209,176,102,0.5)] hover:shadow-[0_0_30px_rgba(209,176,102,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
+                                    className="relative flex items-center gap-2 px-6 h-10 rounded-lg font-bold text-[#1b2233] bg-gradient-to-r from-[#EEDC9A] to-[#B69563] shadow-[0_0_20px_rgba(209,176,102,0.5)] hover:shadow-[0_0_30px_rgba(209,176,102,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
                                 >
                                     <Edit2 className="w-5 h-5" />
                                     Chỉnh sửa
@@ -383,7 +453,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                 </button>
                                 <button
                                     onClick={() => setShowDeleteModal(true)}
-                                    className="relative flex items-center gap-2 px-8 h-12 rounded-xl font-bold text-white bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_20px_rgba(239,68,68,0.5)] hover:shadow-[0_0_30px_rgba(239,68,68,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
+                                    className="relative flex items-center gap-2 px-6 h-10 rounded-lg font-bold text-white bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_20px_rgba(239,68,68,0.5)] hover:shadow-[0_0_30px_rgba(239,68,68,0.7)] hover:scale-105 transition-all duration-300 overflow-hidden"
                                 >
                                     <Trash2 className="w-5 h-5 inline mr-1" />
                                     Xóa
@@ -398,8 +468,8 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
             {/* Delete Confirm Modal */}
             {showDeleteModal && (
                 <div className="absolute inset-0 z-[100003] flex items-center justify-center bg-black/50">
-                    <div className="relative bg-gradient-to-br from-[#2e3a57] to-[#1b2233] rounded-2xl p-8 max-w-md w-full mx-4 shadow-[0_0_50px_rgba(239,68,68,0.4)] border-2 border-red-500/50 animate-scale-in">
-                        <div className="text-center mt-6 mb-6">
+                    <div className="relative bg-gradient-to-br from-[#2e3a57] to-[#1b2233] rounded-2xl p-6 max-w-md w-full mx-4 shadow-[0_0_50px_rgba(239,68,68,0.4)] border-2 border-red-500/50 animate-scale-in">
+                        <div className="text-center mt-2 mb-6">
                             <h3 className="text-2xl font-bold bg-gradient-to-r from-red-400 to-red-500 bg-clip-text text-transparent mb-3">
                                 Xác nhận xóa sự kiện?
                             </h3>

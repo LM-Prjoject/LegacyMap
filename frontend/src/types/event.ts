@@ -66,6 +66,15 @@ export interface ReminderConfig {
     methods: string[];
 }
 
+export interface EventDetailModalProps {
+    eventId: string;
+    isOpen: boolean;
+    onClose: () => void;
+    onDelete?: () => void;
+    onUpdate?: (updatedEvent?: Event) => void;
+    selectedDate?: Date | null;
+}
+
 export enum EventType {
     DEATH_ANNIVERSARY = 'death_anniversary',
     WEDDING_ANNIVERSARY = 'wedding_anniversary',

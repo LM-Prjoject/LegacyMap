@@ -74,6 +74,12 @@ public class FamilyTree {
             sharePermission = "view";
         }
     }
+    @OneToMany(mappedBy = "familyTree", fetch = FetchType.LAZY)
+    private java.util.Set<Person> persons = new java.util.HashSet<>();
+
+    // Danh sách quan hệ trong cây
+    @OneToMany(mappedBy = "familyTree", fetch = FetchType.LAZY)
+    private java.util.Set<Relationship> relationships = new java.util.HashSet<>();
 
     // ✅ Thêm method helper để tạo share URL
     public String generateShareUrl(String baseUrl) {

@@ -466,9 +466,10 @@ public class GeminiSuggestClient {
                         }
                     }
                 }
-                // Surname rule (no adoption context available → enforce)
+                // Surname rule: allow different surnames but reduce confidence instead of rejecting outright
                 if (allow && !isEmpty(s1) && !isEmpty(s2) && !s1.equalsIgnoreCase(s2)) {
-                    allow = false;
+                    conf = Math.max(0.0, Math.min(1.0, conf * 0.5));
+                    reasons.add("reduced confidence: different surnames for parent/child");
                 }
                 // Gender is not restrictive for parent/child
                 // Existing parent constraints
@@ -515,7 +516,11 @@ public class GeminiSuggestClient {
                 }
             } else if ("spouse".equals(type)) {
                 // Existing spouse constraint
-                if (p1HasSpouse || p2HasSpouse) allow = false;
+                if (p1HasSpouse || p2HasSpouse) {
+                    // Do not reject outright; reduce confidence to allow multi-spouse scenarios
+                    conf = Math.max(0.0, Math.min(1.0, conf * 0.6));
+                    reasons.add("reduced confidence: one or both already has spouse");
+                }
                 if (allow) {
                     boolean differentSurname = !isEmpty(s1) && !isEmpty(s2) && !s1.equalsIgnoreCase(s2);
                     boolean oppositeGender = isOppositeGender(g1, g2);
@@ -523,7 +528,9 @@ public class GeminiSuggestClient {
                     boolean bothAdults = agesKnown && age1 >= 18 && age2 >= 18;
                     boolean ageGapOk = agesKnown && Math.abs(diff) <= 30;
                     if (!(differentSurname && oppositeGender && bothAdults && ageGapOk)) {
-                        allow = false;
+                        // Instead of rejecting, reduce confidence due to weak heuristics
+                        conf = Math.max(0.0, Math.min(1.0, conf * 0.7));
+                        reasons.add("reduced confidence: spouse heuristics not strongly met");
                     }
                 }
             }
@@ -541,20 +548,47 @@ public class GeminiSuggestClient {
             out.removeIf(r -> "sibling".equals(r.getType()));
         }
 
-        // Fallback: if nothing left, consider spouse when different surnames and both are single with plausible age gap
+        // Heuristic fallback: if we still have NO parent/child suggestion, but age gap supports it (18..80)
+        // and there is no existing parent link between the pair, synthesize a low-confidence P/C suggestion.
+        boolean hasAnyParentChild = out.stream().anyMatch(r -> "parent".equals(r.getType()) || "child".equals(r.getType()));
+        if (!hasAnyParentChild && diff != null && diff >= 18 && diff <= 80 && !pairHasParentLink) {
+            double base = 0.5; // base confidence for inferred parent/child
+            // Penalize if surnames differ
+            if (!isEmpty(s1) && !isEmpty(s2) && !s1.equalsIgnoreCase(s2)) base *= 0.5;
+
+            // Decide direction based on who is older if we know ages; otherwise add both directions allowed by existing-parent constraints
+            if (age1 >= 0 && age2 >= 0) {
+                if (age1 > age2) {
+                    // p1 older → parent of p2
+                    if (!p2HasParent) out.add(new RelationshipSuggestion("parent", base, List.of("inferred by age gap (fallback)")));
+                } else if (age2 > age1) {
+                    // p2 older → parent of p1 → from p1's perspective, type=child
+                    if (!p1HasParent) out.add(new RelationshipSuggestion("child", base, List.of("inferred by age gap (fallback)")));
+                }
+            } else {
+                // Unknown ages: add both directions with lower confidence if allowed
+                double both = Math.max(0.0, Math.min(1.0, base * 0.8));
+                if (!p2HasParent) out.add(new RelationshipSuggestion("parent", both, List.of("inferred (fallback, unknown ages)")));
+                if (!p1HasParent) out.add(new RelationshipSuggestion("child", both, List.of("inferred (fallback, unknown ages)")));
+            }
+
+            // Keep list sorted after adding fallbacks
+            out.sort(Comparator.comparing(RelationshipSuggestion::getConfidence).reversed());
+        }
+
+        // Fallback: if nothing left, consider spouse
         if (out.isEmpty()) {
             boolean differentSurname = !isEmpty(s1) && !isEmpty(s2) && !s1.equalsIgnoreCase(s2);
-            boolean bothSingle = !p1HasSpouse && !p2HasSpouse;
             boolean agesKnown = (age1 >= 0 && age2 >= 0) && (diff != null);
             boolean bothAdults = agesKnown && age1 >= 18 && age2 >= 18;
             boolean ageGapOk = agesKnown && Math.abs(diff) <= 30;
             boolean oppositeGender = isOppositeGender(g1, g2);
-            if (differentSurname && bothSingle && bothAdults && ageGapOk && oppositeGender) {
-                out.add(new RelationshipSuggestion(
-                        "spouse",
-                        0.6,
-                        java.util.List.of("fallback spouse: opposite genders, different surnames, both adults, age gap ≤ 30")
-                ));
+            if (differentSurname && bothAdults && ageGapOk && oppositeGender) {
+                double base = (!p1HasSpouse && !p2HasSpouse) ? 0.6 : 0.4; // allow multi-spouse with lower confidence
+                java.util.List<String> rsn = new java.util.ArrayList<>();
+                rsn.add("fallback spouse: opposite genders, different surnames, both adults, age gap ≤ 30");
+                if (p1HasSpouse || p2HasSpouse) rsn.add("reduced confidence: one or both already has spouse (multi-spouse)");
+                out.add(new RelationshipSuggestion("spouse", base, rsn));
             }
         }
 

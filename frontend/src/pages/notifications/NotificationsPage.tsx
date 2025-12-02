@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter, AlertCircle, X} from 'lucide-react';
-import { notificationApi } from "@/api/notificationApi";
-import { sseService } from "@/api/sseService";
-import type { NotificationResponse } from '@/types/notification';
-import {useCurrentUser} from "@/hooks/useCurrentUser";
+import { notificationApi } from "@/api/notificationApi.ts";
+import { sseService } from "@/api/sseService.ts";
+import type { NotificationResponse } from '@/types/notification.ts';
+import {useCurrentUser} from "@/hooks/useCurrentUser.ts";
 import Navbar from "@/components/layout/Navbar.tsx";
-import { personLinkApi } from "@/api/personLink";
+import { personLinkApi } from "@/api/personLink.ts";
 import api from "@/api/trees";
+import { adminApi } from "@/api/ts_admin";
+import NotificationDetailModal from "@/pages/notifications/NotificationDetailModal";
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -113,6 +115,21 @@ const Toast = ({ isOpen, message, type, onClose }: ToastProps) => {
     );
 };
 
+const isUnbanRequestNotification = (
+    n: NotificationResponse | null | undefined
+): boolean => {
+    if (!n) return false;
+    const title = (n.title || '').toLowerCase();
+    const msg = (n.message || '').toLowerCase();
+
+    return (
+        title.includes('yêu cầu mở khóa tài khoản') ||
+        title.includes('yêu cầu mở khóa') ||
+        msg.includes('yêu cầu mở khóa tài khoản') ||
+        msg.includes('yêu cầu mở khóa')
+    );
+};
+
 const NotificationsPage = () => {
     const { userId, loading: userLoading } = useCurrentUser();
     const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
@@ -125,10 +142,19 @@ const NotificationsPage = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [newNotificationIds, setNewNotificationIds] = useState<Set<string>>(new Set());
     const [inviteActionById, setInviteActionById] = useState<Record<string, 'accepted' | 'rejected'>>({});
+    const [actionLoading, setActionLoading] = useState(false);
 
     // Pending person link claims for current user (used to resolve target from notification text)
     const [claims, setClaims] = useState<Array<{ personId: string; personFullName: string; familyTreeId: string; linkType: string; invitedAt?: string }>>([]);
     const [claimsLoaded, setClaimsLoaded] = useState(false);
+
+    const [detailModal, setDetailModal] = useState<{
+        isOpen: boolean;
+        notification: NotificationResponse | null;
+    }>({
+        isOpen: false,
+        notification: null
+    });
 
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; }>({
         isOpen: false,
@@ -161,21 +187,16 @@ const NotificationsPage = () => {
                     return;
                 }
                 await personLinkApi.acceptClaim(target.personId, userId);
-                // Mark this notification as read on server to persist state across reloads
                 try { await notificationApi.markAsRead(n.id); } catch {}
                 showToast('Đã xác nhận liên kết', 'success');
-                // Mark notification as read
                 setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x));
                 setInviteActionById(prev => ({ ...prev, [n.id]: 'accepted' }));
                 try { localStorage.setItem(`notif_action_${n.id}`, 'accepted'); } catch {}
                 const newCount = Math.max(0, unreadCount - (n.isRead ? 0 : 1));
                 setUnreadCount(newCount);
                 window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
-                // Broadcast for other screens
                 window.dispatchEvent(new CustomEvent('person-verified', { detail: { personId: target.personId } }));
-                // Refresh list to reflect server state
                 loadNotifications(0, false);
-                // Refresh claims so canActOnInvite recalculates and hides buttons
                 loadClaims();
             } catch (e) {
                 showToast('Xác nhận thất bại', 'error');
@@ -197,10 +218,8 @@ const NotificationsPage = () => {
                     return;
                 }
                 await personLinkApi.rejectClaim(target.personId, userId);
-                // Mark this notification as read on server to persist state across reloads
                 try { await notificationApi.markAsRead(n.id); } catch {}
                 showToast('Đã từ chối liên kết', 'success');
-                // Mark notification as read
                 setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x));
                 setInviteActionById(prev => ({ ...prev, [n.id]: 'rejected' }));
                 try { localStorage.setItem(`notif_action_${n.id}`, 'rejected'); } catch {}
@@ -208,7 +227,6 @@ const NotificationsPage = () => {
                 setUnreadCount(newCount);
                 window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
                 loadNotifications(0, false);
-                // Refresh claims so canActOnInvite recalculates and hides buttons
                 loadClaims();
             } catch (e) {
                 showToast('Từ chối thất bại', 'error');
@@ -316,7 +334,6 @@ const NotificationsPage = () => {
 
             const nextList = append ? [...notifications, ...data.content] : data.content;
             setNotifications(nextList);
-            // Hydrate saved invite actions from localStorage for visible notifications
             try {
                 const map: Record<string, 'accepted' | 'rejected'> = {};
                 nextList.forEach(n => {
@@ -333,14 +350,13 @@ const NotificationsPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [userId]);
+    }, [userId, notifications]);
 
     const loadClaims = useCallback(async () => {
         if (!userId) return;
         try {
             setClaimsLoaded(false);
             const res = await personLinkApi.getMyClaims(userId);
-            // BE wraps with ApiResponse, so prefer res.result if present
             const items = res?.result ?? res?.content ?? res ?? [];
             setClaims(items.map((c: any) => ({
                 personId: c.personId,
@@ -350,7 +366,6 @@ const NotificationsPage = () => {
                 invitedAt: c.invitedAt
             })));
         } catch (e: any) {
-            // best-effort, keep silent or show minimal error
             console.warn('Failed to load claims', e);
         } finally { setClaimsLoaded(true); }
     }, [userId]);
@@ -366,7 +381,6 @@ const NotificationsPage = () => {
                     if (prev.some(n => n.id === notif.id)) return prev;
                     return [notif, ...prev];
                 });
-                // Hydrate saved action for this notification if exists
                 try {
                     const val = localStorage.getItem(`notif_action_${notif.id}`);
                     if (val === 'accepted' || val === 'rejected') {
@@ -388,13 +402,11 @@ const NotificationsPage = () => {
                     setUnreadCount(prev => prev + 1);
                 }
 
-                // If an accepted-result arrives, broadcast and refresh claims so invite actions disappear
                 try {
                     if (isAcceptedResult(notif)) {
                         const target = resolveInviteTarget(notif);
                         if (target?.personId) {
                             window.dispatchEvent(new CustomEvent('person-verified', { detail: { personId: target.personId } }));
-                            // Refresh claims because the current user is no longer pending
                             loadClaims();
                         }
                     }
@@ -409,7 +421,7 @@ const NotificationsPage = () => {
                 sseService.disconnect(eventSource);
             }
         };
-    }, [userId, userLoading]);
+    }, [userId, userLoading, loadClaims]);
 
     useEffect(() => {
         if (userId && !userLoading) {
@@ -513,7 +525,6 @@ const NotificationsPage = () => {
         if (byRelated) {
             return { personId: String(byRelated), personFullName: re?.name };
         }
-        // Fallback: match by name inside message using loaded claims
         const msg = n.message || '';
         const found = claims.find(c => !!c.personFullName && msg.includes(c.personFullName));
         return found ? { personId: found.personId, personFullName: found.personFullName } : null;
@@ -603,10 +614,8 @@ const NotificationsPage = () => {
         if (filter === 'unread' && n.isRead) return false;
         if (filter === 'read' && !n.isRead) return false;
         if (selectedType !== 'all' && n.type !== selectedType) return false;
-        // Hide result notifications for person-link actions; keep only the invite
         const t = (n.title || '').toLowerCase();
         const m = (n.message || '').toLowerCase();
-        // Only hide these on the invited side (who sees actions). The inviter still needs to see results.
         if (canActOnInvite(n) && (
             t.includes('đã chấp nhận') || t.includes('đã từ chối') || t.includes('đã xác nhận') ||
             m.includes('đã chấp nhận') || m.includes('đã từ chối') || m.includes('đã xác nhận') ||
@@ -616,6 +625,58 @@ const NotificationsPage = () => {
         }
         return true;
     });
+
+    const handleApproveFromDetail = async (n: NotificationResponse) => {
+        if (actionLoading) return;
+        setActionLoading(true);
+
+        const requestId = n.relatedEntity?.id;
+        if (!requestId) {
+            showToast("Không tìm thấy ID yêu cầu mở khóa!","error");
+            setActionLoading(false);
+            return;
+        }
+
+        try {
+            await adminApi.approveUnbanRequest(requestId);
+            await markAsRead(n.id);
+
+            showToast("Đã chấp nhận yêu cầu mở khóa tài khoản.", "success");
+
+            setDetailModal({ isOpen: false, notification: null });
+            loadNotifications(0, false);
+        } catch (e) {
+            showToast("Xử lý thất bại", "error");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleRejectFromDetail = async (n: NotificationResponse) => {
+        if (actionLoading) return;
+        setActionLoading(true);
+
+        const requestId = n.relatedEntity?.id;
+        if (!requestId) {
+            showToast("Không tìm thấy ID yêu cầu mở khóa!", "error");
+            setActionLoading(false);
+            return;
+        }
+
+        try {
+            await adminApi.denyUnbanRequest(requestId);
+            await markAsRead(n.id);
+
+            showToast("Đã từ chối yêu cầu mở khóa tài khoản.", "success");
+
+            setDetailModal({ isOpen: false, notification: null });
+            loadNotifications(0, false);
+        } catch (e) {
+            showToast("Từ chối thất bại", "error");
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen pt-8 pb-12 px-4" style={{ backgroundColor: '#2a3548' }}>
@@ -727,6 +788,7 @@ const NotificationsPage = () => {
                                     n.isRead ? 'bg-white/5' : `bg-gradient-to-r ${getTypeColor(n.type)}`
                                 } ${newNotificationIds.has(n.id) ? 'animate-pulse ring-2 ring-yellow-400' : ''}`}
                                 style={{ borderColor: n.isRead ? 'rgba(255, 216, 155, 0.1)' : undefined }}
+                                onClick={() => setDetailModal({ isOpen: true, notification: n })}
                             >
                                 <div className="p-4 flex items-start gap-4">
                                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -849,6 +911,16 @@ const NotificationsPage = () => {
                 message={toast.message}
                 type={toast.type}
                 onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
+            />
+
+            <NotificationDetailModal
+                isOpen={detailModal.isOpen}
+                notification={detailModal.notification}
+                onClose={() => setDetailModal({ isOpen: false, notification: null })}
+                onApprove={handleApproveFromDetail}
+                onReject={handleRejectFromDetail}
+                showModerationActions={isUnbanRequestNotification(detailModal.notification)}
+                actionLoading={actionLoading}
             />
 
             <style>{`

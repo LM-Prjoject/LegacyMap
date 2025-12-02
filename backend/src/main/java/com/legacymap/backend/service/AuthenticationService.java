@@ -9,10 +9,10 @@ import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 import com.legacymap.backend.repository.UserProfileRepository;
 import com.legacymap.backend.repository.UserRepository;
+import com.legacymap.backend.enums.LoginStatus;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -23,10 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.*;
-import lombok.extern.slf4j.Slf4j;  // ✅ THÊM IMPORT NÀY
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -35,8 +34,8 @@ public class AuthenticationService {
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
-    private final UserSessionService userSessionService;  // ✅ THÊM DÒNG NÀY
-    private final JwtUtil jwtUtil;  // ✅ THÊM DÒNG NÀY
+    private final UserSessionService userSessionService;
+    private final JwtUtil jwtUtil;
     private final SecretKey key;
     private final long accessTtlMillis;
 
@@ -44,16 +43,16 @@ public class AuthenticationService {
             UserRepository userRepository,
             UserProfileRepository userProfileRepository,
             PasswordEncoder passwordEncoder,
-            UserSessionService userSessionService,  // ✅ THÊM THAM SỐ NÀY
-            JwtUtil jwtUtil,  // ✅ THÊM THAM SỐ NÀY
+            UserSessionService userSessionService,
+            JwtUtil jwtUtil,
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.access-ttl-ms:604800000}") long accessTtlMillis
     ) {
         this.userRepository = userRepository;
         this.userProfileRepository = userProfileRepository;
         this.passwordEncoder = passwordEncoder;
-        this.userSessionService = userSessionService;  // ✅ THÊM DÒNG NÀY
-        this.jwtUtil = jwtUtil;  // ✅ THÊM DÒNG NÀY
+        this.userSessionService = userSessionService;
+        this.jwtUtil = jwtUtil;
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.accessTtlMillis = accessTtlMillis;
     }
@@ -79,10 +78,28 @@ public class AuthenticationService {
                 throw new AppException(ErrorCode.INVALID_CREDENTIALS);
             }
 
+            if (Boolean.TRUE.equals(user.getIsBanned())) {
+                throw new AppException(ErrorCode.USER_BANNED);
+            }
+            OffsetDateTime now = OffsetDateTime.now();
+            OffsetDateTime lockUntil = user.getLockUntil();
+            if (lockUntil != null) {
+                if (now.isBefore(lockUntil)) {
+                    throw new AppException(ErrorCode.ACCOUNT_DISABLED);
+                } else {
+                    user.setLockUntil(null);
+                    userRepository.save(user);
+                }
+            }
+
             boolean passwordMatches = passwordEncoder.matches(password, user.getPasswordHash());
             if (!passwordMatches) {
-                boolean lockedNow = increaseFailedAttempts(user);
-                if (lockedNow) {
+                LoginStatus status = increaseFailedAttempts(user);
+
+                if (status == LoginStatus.BANNED) {
+                    throw new AppException(ErrorCode.USER_BANNED);
+                }
+                if (status == LoginStatus.TEMP_LOCK) {
                     throw new AppException(ErrorCode.ACCOUNT_DISABLED);
                 }
                 throw new AppException(ErrorCode.INVALID_CREDENTIALS);
@@ -104,12 +121,10 @@ public class AuthenticationService {
 
             String token = generateAccessToken(user);
 
-            // ✅ Tạo session trong database
             try {
                 userSessionService.createSession(user.getId(), token, request);
-                log.info("✅ Session created for user: {}", user.getEmail());
             } catch (Exception e) {
-                log.error("❌ Failed to create session: {}", e.getMessage());
+                log.error(e.getMessage());
             }
 
             Map<String, Object> userJson = new HashMap<>();
@@ -151,27 +166,41 @@ public class AuthenticationService {
 
     public String generateAccessToken(User user) {
         Integer pwdv = user.getPasswordVersion() != null ? user.getPasswordVersion() : 0;
-        return jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRoleName(), pwdv); // ✅ Thêm pwdv
+        return jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRoleName(), pwdv);
     }
 
     public Jws<Claims> parse(String jwt) {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(jwt);
     }
 
-    public boolean increaseFailedAttempts(User user) {
-        int newAttempts = (user.getFailedAttempts() == null ? 0 : user.getFailedAttempts()) + 1;
+    private LoginStatus increaseFailedAttempts(User user) {
+        int current = user.getFailedAttempts() == null ? 0 : user.getFailedAttempts();
+        int newAttempts = current + 1;
         user.setFailedAttempts(newAttempts);
 
-        boolean lockedNow = newAttempts >= 3;
-        if (lockedNow) {
+        if (newAttempts >= 5) {
+            user.setIsBanned(true);
             user.setIsActive(false);
+            user.setLockUntil(null);
+            user.setBannedAt(OffsetDateTime.now());
+            userRepository.save(user);
+            return LoginStatus.BANNED;
         }
+
+        if (newAttempts >= 3) {
+            long minutes = newAttempts - 2L;
+            user.setLockUntil(OffsetDateTime.now().plusMinutes(minutes));
+            userRepository.save(user);
+            return LoginStatus.TEMP_LOCK;
+        }
+
         userRepository.save(user);
-        return lockedNow;
+        return LoginStatus.NONE;
     }
 
     public void resetFailedAttempts(User user) {
         user.setFailedAttempts(0);
+        user.setLockUntil(null);
         userRepository.save(user);
     }
 
@@ -199,6 +228,7 @@ public class AuthenticationService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setFailedAttempts(0);
+        user.setLockUntil(null);
         user.setIsActive(true);
         user.setPasswordChangedAt(OffsetDateTime.now());
         user.setPasswordVersion((user.getPasswordVersion() == null ? 0 : user.getPasswordVersion()) + 1);
