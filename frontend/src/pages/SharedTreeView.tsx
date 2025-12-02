@@ -19,8 +19,6 @@ export default function SharedTreeView() {
     const [relationships, setRelationships] = useState<Relationship[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [accessLevel, setAccessLevel] = useState<'view' | 'edit' | 'admin' | null>(null);
-    // ✅ THÊM: State debug info
-    const [debugInfo, setDebugInfo] = useState<any>(null);
 
     // ✅ THÊM: State quản lý modal auth
     const [showAuthModal, setShowAuthModal] = useState<'signin' | 'signup' | 'reset' | null>(null);
@@ -65,9 +63,6 @@ export default function SharedTreeView() {
             console.log('Access Info:', accessInfo);
             console.log('🔍 canEdit:', accessInfo.canEdit);  // ✅ THÊM: Debug log
             console.log('🔍 userId:', userId);                // ✅ THÊM: Debug log
-
-            // ✅ THÊM: Lưu debug info
-            setDebugInfo(accessInfo);
 
             // ✅ BƯỚC 2: Nếu user đã đăng nhập → LƯU TREE VÀO DASHBOARD (dù view hay edit)
             if (userId) {
@@ -316,18 +311,6 @@ export default function SharedTreeView() {
                                 <span>Cây gia phả này được chia sẻ với bạn (chỉ xem)</span>
                             )}
                         </p>
-
-                        {/* ✅ THÊM: Debug info (tạm thời) */}
-                        {process.env.NODE_ENV === 'development' && (
-                            <pre className="text-xs text-slate-400 bg-black/20 p-2 rounded max-w-full overflow-auto">
-                                {JSON.stringify({
-                                    isLoggedIn,
-                                    accessLevel,
-                                    treeId: tree?.id,
-                                    debugInfo
-                                }, null, 2)}
-                            </pre>
-                        )}
 
                         {/* ✅ SỬA: Nút yêu cầu quyền edit - CHỈ HIỆN KHI: đã login + KHÔNG có quyền edit */}
                         {isLoggedIn && accessLevel !== 'edit' && tree?.id && (

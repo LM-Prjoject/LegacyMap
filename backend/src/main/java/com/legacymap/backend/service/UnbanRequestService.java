@@ -63,6 +63,7 @@ public class UnbanRequestService {
 
         auditLogService.log(
                 user.getId(),
+                null, // treeId - không có tree cho unban request
                 "USER",
                 user.getId(),
                 "UNBAN_REQUEST",

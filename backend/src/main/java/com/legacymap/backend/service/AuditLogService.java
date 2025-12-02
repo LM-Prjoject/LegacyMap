@@ -298,20 +298,19 @@ public class AuditLogService {
     @Transactional
     public void log(
             UUID userId,
+            UUID treeId,
             String entityType,
             UUID entityId,
             String action,
             Map<String, Object> oldData,
             Map<String, Object> newData
     ) {
-        User userRef = null;
-        if (userId != null) {
-            userRef = new User();
-            userRef.setId(userId);
-        }
+        User user = userId != null ? userRepository.findById(userId).orElse(null) : null;
+        FamilyTree tree = treeId != null ? treeRepository.findById(treeId).orElse(null) : null;
 
         AuditLog log = AuditLog.builder()
-                .user(userRef)
+                .user(user)
+                .tree(tree)
                 .entityType(entityType)
                 .entityId(entityId)
                 .action(action)
