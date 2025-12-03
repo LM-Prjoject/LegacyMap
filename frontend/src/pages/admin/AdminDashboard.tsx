@@ -193,8 +193,8 @@ const AdminDashboard: React.FC = () => {
                 <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-[#f4e9c8]">Người Dùng Gần Đây</h3>
-                        <Link to="/admin/users" className="text-[#d1b98a] hover:text-[#f4e9c8] text-sm transition-colors">
-                            Xem tất cả →
+                        <Link to="/admin/users" className="text-[#d1b98a] hover:text-[#f4e9c8] text-sm transition-colors flex">
+                            Xem tất cả <ArrowRight size="18"/>
                         </Link>
                     </div>
                     <div className="space-y-3">
@@ -242,8 +242,8 @@ const AdminDashboard: React.FC = () => {
                 <div className="bg-[#1b2233]/90 border border-[#d1b98a]/20 rounded-2xl p-6 shadow-lg shadow-black/30">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-[#f4e9c8]">Cây Gia Phả Mới</h3>
-                        <Link to="/admin/trees" className="text-[#d1b98a] hover:text-[#f4e9c8] text-sm transition-colors">
-                            Xem tất cả <ArrowRight/>
+                        <Link to="/admin/trees" className="text-[#d1b98a] hover:text-[#f4e9c8] text-sm transition-colors flex">
+                            Xem tất cả <ArrowRight size="18"/>
                         </Link>
                     </div>
                     <div className="space-y-3">

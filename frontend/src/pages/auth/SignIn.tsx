@@ -50,8 +50,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
     const [lockCountdown, setLockCountdown] = useState<number | null>(null);
     const [showLockModal, setShowLockModal] = useState(false);
     const [showUnbanModal, setShowUnbanModal] = useState(false);
-    // Không cần kiểm tra pendingShareToken nữa → loại bỏ hoàn toàn
-    // const isFromSharedTree = !!localStorage.getItem('pendingShareToken');
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -60,7 +58,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         if (errorParam) {
             let errorMessage = '';
 
-            switch(errorParam) {
+            switch (errorParam) {
                 case 'banned':
                     errorMessage = 'Tài khoản của bạn đã bị khóa.';
                     setLoginStatus({
@@ -119,7 +117,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                 if (prev <= 1) {
                     setShowLockModal(false);
                     setLoginStatus((old) =>
-                        old ? { ...old, isLocked: false, lockSecondsLeft: 0 } : old
+                        old ? {...old, isLocked: false, lockSecondsLeft: 0} : old
                     );
                     return 0;
                 }
@@ -143,7 +141,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             const response = await authApi.verifyEmail(token);
 
             if (response.success && response.result) {
-                const { user, token: authToken } = response.result;
+                const {user, token: authToken} = response.result;
                 if (!authToken) throw new Error('Đã xảy ra lỗi. Vui lòng thử lại sau.');
 
                 setUserName(user?.profile?.fullName ?? user?.email ?? 'người dùng');
@@ -157,7 +155,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                         if (prev <= 1) {
                             clearInterval(countdownInterval);
 
-                            // ƯU TIÊN: Check redirectAfterLogin
                             const redirectUrl = localStorage.getItem('redirectAfterLogin');
 
                             if (redirectUrl) {
@@ -181,7 +178,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         }
     };
 
-    const { register, handleSubmit, formState: { errors }, watch } =
+    const {register, handleSubmit, formState: {errors}, watch} =
         useForm<SignInFormData>({
             resolver: zodResolver(signInSchema),
         });
@@ -200,7 +197,7 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
             });
 
             if (response.result?.token) {
-                const { token, user } = response.result;
+                const {token, user} = response.result;
 
                 localStorage.setItem('authToken', token);
                 localStorage.setItem('user', JSON.stringify(user));
@@ -251,12 +248,10 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
 
                     if (s.isBanned) {
                         errorMessage = 'Tài khoản của bạn đã bị khóa';
-                    }
-                    else if (s.isLocked && s.lockSecondsLeft > 0) {
+                    } else if (s.isLocked && s.lockSecondsLeft > 0) {
                         setLockCountdown(s.lockSecondsLeft);
                         setShowLockModal(true);
-                    }
-                    else if (s.failedAttempts >= 1) {
+                    } else if (s.failedAttempts >= 1) {
                         errorMessage = `Tài khoản hoặc mật khẩu không đúng.`;
                     }
                 }
@@ -277,235 +272,252 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
         window.location.assign(`${getBackendBase()}/oauth2/authorization/google`);
     };
 
-    return (
-        <div className="fixed inset-0 z-50 overflow-y-auto scrollbar-hidden" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(8px)'}}>
-            <div className="min-h-screen flex items-center justify-center px-4 py-24 relative">
-                <DragonsBackground
-                    size={380}
-                    showGrid
-                    left={{ enabled: true, flipX: true, delayMs: 0 }}
-                    right={{ enabled: true, flipX: false, delayMs: 200 }}
-                />
+        return (
+            <div className="fixed inset-0 z-50 overflow-y-auto scrollbar-hidden"
+                 style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(8px)'}}>
+                <div className="min-h-screen flex items-center justify-center px-4 py-24 relative">
+                    <DragonsBackground
+                        size={380}
+                        showGrid
+                        left={{enabled: true, flipX: true, delayMs: 0}}
+                        right={{enabled: true, flipX: false, delayMs: 200}}
+                    />
 
-                <div className="relative w-full max-w-md">
-                    <div className="relative rounded-3xl shadow-2xl p-8" style={{
-                        background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
-                        border: '3px solid rgba(255, 216, 155, 0.6)',
-                        boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3), inset 0 0 100px rgba(255, 255, 255, 0.5)'
-                    }}>
-                        <div className="flex justify-between items-center mb-6">
-                            <h1 className="text-3xl font-black tracking-tight" style={{
-                                color: '#2a3548',
-                                textShadow: '0 3px 15px rgba(42, 53, 72, 0.3)'
-                            }}>
-                                {verificationSuccess ? 'XÁC MINH THÀNH CÔNG!' : 'ĐĂNG NHẬP'}
-                            </h1>
-                            <button
-                                onClick={onClose}
-                                className="p-2 rounded-xl transition-all hover:scale-110"
-                                style={{
-                                    background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
-                                    border: '2px solid rgba(255, 216, 155, 0.5)'
-                                }}
-                            >
-                                <X className="h-5 w-5" style={{color: 'rgb(255, 216, 155)'}} />
-                            </button>
-                        </div>
-
-                        {verificationSuccess ? (
-                            <div className="text-center py-6">
-                                <div className="mb-6">
-                                    <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4" style={{
-                                        background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.3) 0%, rgba(255, 230, 190, 0.2) 100%)',
-                                        border: '3px solid rgba(255, 216, 155, 0.6)'
-                                    }}>
-                                        <CheckCircle className="h-10 w-10" style={{color: '#2a3548'}} />
-                                    </div>
-                                    <p className="text-lg font-bold mb-2" style={{color: '#2a3548'}}>Email của bạn đã được xác minh thành công!</p>
-                                    {autoLoginSuccess && (
-                                        <>
-                                            <p className="text-sm mb-4" style={{color: '#2a3548'}}>
-                                                Đăng nhập tự động thành công. Chào mừng{' '}
-                                                <span className="font-black" style={{color: '#2a3548'}}>{userName}</span>!
-                                            </p>
-                                            <p className="text-sm" style={{color: '#2a3548'}}>
-                                                Chuyển đến trang chủ trong{' '}
-                                                <span className="font-black" style={{color: '#2a3548'}}>{countdown}</span> giây...
-                                            </p>
-                                        </>
-                                    )}
-                                </div>
+                    <div className="relative w-full max-w-md">
+                        {!showUnbanModal && (
+                        <div className="relative rounded-3xl shadow-2xl p-8" style={{
+                            background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
+                            border: '3px solid rgba(255, 216, 155, 0.6)',
+                            boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3), inset 0 0 100px rgba(255, 255, 255, 0.5)'
+                        }}>
+                            <div className="flex justify-between items-center mb-6">
+                                <h1 className="text-3xl font-black tracking-tight" style={{
+                                    color: '#2a3548',
+                                    textShadow: '0 3px 15px rgba(42, 53, 72, 0.3)'
+                                }}>
+                                    {verificationSuccess ? 'XÁC MINH THÀNH CÔNG!' : 'ĐĂNG NHẬP'}
+                                </h1>
                                 <button
-                                    onClick={() => {
-                                        const redirectUrl = localStorage.getItem('redirectAfterLogin');
-                                        if (redirectUrl) {
-                                            localStorage.removeItem('redirectAfterLogin');
-                                            window.location.href = redirectUrl;
-                                        } else {
-                                            navigate('/');
-                                        }
-                                    }}
-                                    className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl"
+                                    onClick={onClose}
+                                    className="p-2 rounded-xl transition-all hover:scale-110"
                                     style={{
                                         background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
-                                        color: 'rgb(255, 216, 155)',
                                         border: '2px solid rgba(255, 216, 155, 0.5)'
                                     }}
                                 >
-                                    VÀO TRANG CHỦ NGAY
+                                    <X className="h-5 w-5" style={{color: 'rgb(255, 216, 155)'}}/>
                                 </button>
                             </div>
-                        ) : (
-                            <>
-                                {error && (
-                                    <div className="mb-4 p-3 rounded-xl flex items-center gap-2 text-sm" style={{
-                                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%)',
-                                        border: '1px solid rgba(239, 68, 68, 0.3)'
-                                    }}>
-                                        <AlertCircle className="w-4 h-4 flex-shrink-0" style={{color: '#dc2626'}} />
-                                        <span className="font-medium" style={{color: '#dc2626'}}>{error}</span>
-                                    </div>
-                                )}
 
-                                {loginStatus && (
-                                    <div className="mb-4 text-xs font-medium" style={{ color: '#2a3548' }}>
-                                        {loginStatus.isBanned && loginStatus.canRequestUnban && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setShowUnbanModal(true);
-                                                }}
-                                                className="text-xs font-semibold no-underline underline-offset-2"
-                                                style={{ color: "#b45309" }}
-                                            >
-                                                Gửi yêu cầu mở khóa tài khoản
-                                            </button>
+                            {verificationSuccess ? (
+                                <div className="text-center py-6">
+                                    <div className="mb-6">
+                                        <div
+                                            className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4"
+                                            style={{
+                                                background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.3) 0%, rgba(255, 230, 190, 0.2) 100%)',
+                                                border: '3px solid rgba(255, 216, 155, 0.6)'
+                                            }}>
+                                            <CheckCircle className="h-10 w-10" style={{color: '#2a3548'}}/>
+                                        </div>
+                                        <p className="text-lg font-bold mb-2" style={{color: '#2a3548'}}>Email của bạn
+                                            đã được xác minh thành công!</p>
+                                        {autoLoginSuccess && (
+                                            <>
+                                                <p className="text-sm mb-4" style={{color: '#2a3548'}}>
+                                                    Đăng nhập tự động thành công. Chào mừng{' '}
+                                                    <span className="font-black"
+                                                          style={{color: '#2a3548'}}>{userName}</span>!
+                                                </p>
+                                                <p className="text-sm" style={{color: '#2a3548'}}>
+                                                    Chuyển đến trang chủ trong{' '}
+                                                    <span className="font-black"
+                                                          style={{color: '#2a3548'}}>{countdown}</span> giây...
+                                                </p>
+                                            </>
                                         )}
                                     </div>
-                                )}
-
-                                <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-                                    {/* ... input fields giữ nguyên ... */}
-                                    <div>
-                                        <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>TÀI KHOẢN</label>
-                                        <div className="relative">
-                                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Mail className="h-5 w-5" style={{color: '#2a3548'}} />
-                                            </span>
-                                            <input
-                                                {...register('identifier')}
-                                                placeholder="email@domain.com hoặc username"
-                                                autoComplete="username"
-                                                className="w-full rounded-xl border-2 px-10 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] focus:border-transparent font-medium"
-                                                style={{
-                                                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-                                                    borderColor: 'rgba(42, 53, 72, 0.3)',
-                                                    color: '#2a3548'
-                                                }}
-                                            />
-                                        </div>
-                                        {errors.identifier && <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{errors.identifier.message}</p>}
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-semibold mb-2" style={{color: '#2a3548'}}>MẬT KHẨU</label>
-                                        <div className="relative">
-                                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Lock className="h-5 w-5" style={{color: '#2a3548'}} />
-                                            </span>
-                                            <input
-                                                type={showPwd ? 'text' : 'password'}
-                                                placeholder="••••••••"
-                                                className="w-full rounded-xl border-2 px-10 py-3 pr-10 outline-none focus:ring-2 focus:ring-[#2a3548] focus:border-transparent font-medium"
-                                                style={{
-                                                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-                                                    borderColor: 'rgba(42, 53, 72, 0.3)',
-                                                    color: '#2a3548'
-                                                }}
-                                                {...register('password')}
-                                                onFocus={handlePasswordFocus}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPwd((v) => !v)}
-                                                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                                                style={{color: '#2a3548'}}
-                                            >
-                                                {showPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                            </button>
-                                        </div>
-                                        {errors.password && <p className="text-red-600 text-sm mt-2 font-medium" style={{color: '#2a3548'}}>{errors.password.message}</p>}
-                                    </div>
-
-                                    <div className="flex justify-end">
-                                        <button
-                                            type="button"
-                                            onClick={onShowPasswordReset}
-                                            className="text-sm font-semibold hover:underline"
-                                            style={{color: '#2a3548'}}
-                                        >
-                                            Quên mật khẩu?
-                                        </button>
-                                    </div>
-
                                     <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                                        onClick={() => {
+                                            const redirectUrl = localStorage.getItem('redirectAfterLogin');
+                                            if (redirectUrl) {
+                                                localStorage.removeItem('redirectAfterLogin');
+                                                window.location.href = redirectUrl;
+                                            } else {
+                                                navigate('/');
+                                            }
+                                        }}
+                                        className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl"
                                         style={{
                                             background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
                                             color: 'rgb(255, 216, 155)',
                                             border: '2px solid rgba(255, 216, 155, 0.5)'
                                         }}
                                     >
-                                        {loading ? 'ĐANG ĐĂNG NHẬP...' : 'ĐĂNG NHẬP'}
+                                        VÀO TRANG CHỦ NGAY
                                     </button>
-                                </form>
-
-                                <div className="flex items-center gap-4 my-6">
-                                    <div className="flex-1 border-t" style={{borderColor: 'rgba(42, 53, 72, 0.3)'}} />
-                                    <span className="text-m font-semibold" style={{color: '#2a3548'}}>Hoặc</span>
-                                    <div className="flex-1 border-t" style={{borderColor: 'rgba(42, 53, 72, 0.3)'}} />
                                 </div>
+                            ) : (
+                                <>
+                                    {error && (
+                                        <div className="mb-4 p-3 rounded-xl flex items-center gap-2 text-sm" style={{
+                                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%)',
+                                            border: '1px solid rgba(239, 68, 68, 0.3)'
+                                        }}>
+                                            <AlertCircle className="w-4 h-4 flex-shrink-0" style={{color: '#dc2626'}}/>
+                                            <span className="font-medium" style={{color: '#dc2626'}}>{error}</span>
+                                        </div>
+                                    )}
 
-                                <button
-                                    onClick={handleGoogleLogin}
-                                    className="w-full flex items-center justify-center gap-3 rounded-xl border-2 py-3 font-semibold transition-all hover:scale-[1.02] shadow-lg"
-                                    style={{
-                                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-                                        borderColor: 'rgba(42, 53, 72, 0.3)',
-                                        color: '#2a3548'
-                                    }}
-                                >
-                                    <FcGoogle size={20} />
-                                    <span>Đăng nhập bằng Google</span>
-                                </button>
+                                    {loginStatus && (
+                                        <div className="mb-4 text-xs font-medium" style={{color: '#2a3548'}}>
+                                            {loginStatus.isBanned && loginStatus.canRequestUnban && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowUnbanModal(true);
+                                                    }}
+                                                    className="text-xs font-semibold no-underline underline-offset-2"
+                                                    style={{color: "#b45309"}}
+                                                >
+                                                    Gửi yêu cầu mở khóa tài khoản
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
 
-                                <p className="mt-6 text-sm text-center font-semibold" style={{color: '#2a3548'}}>
-                                    Chưa có tài khoản?{' '}
+                                    <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+                                        {/* ... input fields giữ nguyên ... */}
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2"
+                                                   style={{color: '#2a3548'}}>TÀI KHOẢN</label>
+                                            <div className="relative">
+                                            <span
+                                                className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <Mail className="h-5 w-5" style={{color: '#2a3548'}}/>
+                                            </span>
+                                                <input
+                                                    {...register('identifier')}
+                                                    placeholder="email@domain.com hoặc username"
+                                                    autoComplete="username"
+                                                    className="w-full rounded-xl border-2 px-10 py-3 outline-none focus:ring-2 focus:ring-[#2a3548] focus:border-transparent font-medium"
+                                                    style={{
+                                                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                                        borderColor: 'rgba(42, 53, 72, 0.3)',
+                                                        color: '#2a3548'
+                                                    }}
+                                                />
+                                            </div>
+                                            {errors.identifier && <p className="text-red-600 text-sm mt-2 font-medium"
+                                                                     style={{color: '#2a3548'}}>{errors.identifier.message}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2"
+                                                   style={{color: '#2a3548'}}>MẬT KHẨU</label>
+                                            <div className="relative">
+                                            <span
+                                                className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <Lock className="h-5 w-5" style={{color: '#2a3548'}}/>
+                                            </span>
+                                                <input
+                                                    type={showPwd ? 'text' : 'password'}
+                                                    placeholder="••••••••"
+                                                    className="w-full rounded-xl border-2 px-10 py-3 pr-10 outline-none focus:ring-2 focus:ring-[#2a3548] focus:border-transparent font-medium"
+                                                    style={{
+                                                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                                        borderColor: 'rgba(42, 53, 72, 0.3)',
+                                                        color: '#2a3548'
+                                                    }}
+                                                    {...register('password')}
+                                                    onFocus={handlePasswordFocus}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPwd((v) => !v)}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                                    style={{color: '#2a3548'}}
+                                                >
+                                                    {showPwd ? <EyeOff className="h-5 w-5"/> :
+                                                        <Eye className="h-5 w-5"/>}
+                                                </button>
+                                            </div>
+                                            {errors.password && <p className="text-red-600 text-sm mt-2 font-medium"
+                                                                   style={{color: '#2a3548'}}>{errors.password.message}</p>}
+                                        </div>
+
+                                        <div className="flex justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={onShowPasswordReset}
+                                                className="text-sm font-semibold hover:underline"
+                                                style={{color: '#2a3548'}}
+                                            >
+                                                Quên mật khẩu?
+                                            </button>
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="w-full rounded-xl py-3 font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 100%)',
+                                                color: 'rgb(255, 216, 155)',
+                                                border: '2px solid rgba(255, 216, 155, 0.5)'
+                                            }}
+                                        >
+                                            {loading ? 'ĐANG ĐĂNG NHẬP...' : 'ĐĂNG NHẬP'}
+                                        </button>
+                                    </form>
+
+                                    <div className="flex items-center gap-4 my-6">
+                                        <div className="flex-1 border-t"
+                                             style={{borderColor: 'rgba(42, 53, 72, 0.3)'}}/>
+                                        <span className="text-m font-semibold" style={{color: '#2a3548'}}>Hoặc</span>
+                                        <div className="flex-1 border-t"
+                                             style={{borderColor: 'rgba(42, 53, 72, 0.3)'}}/>
+                                    </div>
+
                                     <button
-                                        onClick={onShowSignUp}
-                                        className="hover:underline font-black"
-                                        style={{color: '#2a3548'}}
+                                        onClick={handleGoogleLogin}
+                                        className="w-full flex items-center justify-center gap-3 rounded-xl border-2 py-3 font-semibold transition-all hover:scale-[1.02] shadow-lg"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                                            borderColor: 'rgba(42, 53, 72, 0.3)',
+                                            color: '#2a3548'
+                                        }}
                                     >
-                                        ĐĂNG KÝ NGAY
+                                        <FcGoogle size={20}/>
+                                        <span>Đăng nhập bằng Google</span>
                                     </button>
-                                </p>
-                            </>
+
+                                    <p className="mt-6 text-sm text-center font-semibold" style={{color: '#2a3548'}}>
+                                        Chưa có tài khoản?{' '}
+                                        <button
+                                            onClick={onShowSignUp}
+                                            className="hover:underline font-black"
+                                            style={{color: '#2a3548'}}
+                                        >
+                                            ĐĂNG KÝ NGAY
+                                        </button>
+                                    </p>
+                                </>
+                            )}
+                            <LockCountdownModal
+                                open={showLockModal && !!lockCountdown && lockCountdown > 0}
+                                secondsLeft={lockCountdown ?? 0}
+                                onClose={() => setShowLockModal(false)}
+                            />
+                        </div>
                         )}
-                        <LockCountdownModal
-                            open={showLockModal && !!lockCountdown && lockCountdown > 0}
-                            secondsLeft={lockCountdown ?? 0}
-                            onClose={() => setShowLockModal(false)}
-                        />
-                        <UnbanRequestModal
-                            open={showUnbanModal}
-                            onClose={() => setShowUnbanModal(false)}
-                            identifier={identifierValue}
-                        />
                     </div>
                 </div>
+                <UnbanRequestModal
+                    open={showUnbanModal}
+                    onClose={() => setShowUnbanModal(false)}
+                    identifier={identifierValue}
+                />
             </div>
-        </div>
-    );
-}
+        );
+    }

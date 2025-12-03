@@ -13,7 +13,7 @@ import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
 import MemberListModal from "@/components/familyTree/MemberListModal";
-import { ArrowLeft, LucideUserPlus, Share2, Download, History } from "lucide-react";
+import { ArrowLeft, LucideUserPlus, Share2, Download, History, Edit} from "lucide-react";
 import * as htmlToImage from "html-to-image";
 import { personLinkApi } from "@/api/personLink";
 
@@ -910,37 +910,34 @@ export default function TreeDetails() {
                         </button>
 
                         <div className="flex items-center gap-2">
-                            {/* ✅ Chỉ hiện History và Download cho MỌI USER */}
                             <button
                                 onClick={() => setShowHistory(true)}
-                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1.5 shadow-sm hover:shadow transition-all"
                                 title="Lịch sử"
                             >
                                 <History className="w-5 h-5" />
                             </button>
                             <button
                                 onClick={handleExport}
-                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1.5 shadow-sm hover:shadow transition-all"
                                 title="Tải xuống"
                                 disabled={loading}
                             >
                                 <Download size={20} />
                             </button>
 
-                            {/* ✅ CHỈ HIỆN cho OWNER hoặc EDITOR (readOnly === false) */}
                             {!readOnly && (
                                 <>
                                     <button
                                         onClick={() => setShareModalOpen(true)}
-                                        className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-1.5 shadow-sm hover:shadow transition-all"
+                                        className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1.5 shadow-sm hover:shadow transition-all"
                                         title="Chia sẻ cây gia phả"
                                     >
                                         <Share2 size={20} />
-                                        <span className="hidden sm:inline">Chia sẻ</span>
                                     </button>
                                     <button
                                         onClick={handleAddClick}
-                                        className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 shadow-sm hover:shadow transition-all"
+                                        className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1.5 shadow-sm hover:shadow transition-all"
                                         title="Thêm thành viên"
                                     >
                                         <LucideUserPlus className="w-5 h-5" />
@@ -948,7 +945,6 @@ export default function TreeDetails() {
                                 </>
                             )}
 
-                            {/* ✅ NÚT YÊU CẦU QUYỀN EDIT - CHỈ HIỆN cho VIEWER */}
                             {readOnly && (
                                 <button
                                     onClick={async () => {
@@ -963,7 +959,7 @@ export default function TreeDetails() {
                                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 shadow-sm hover:shadow transition-all text-white"
                                     title="Yêu cầu quyền chỉnh sửa"
                                 >
-                                    📝 Yêu cầu quyền edit
+                                    <Edit size="20"/> Yêu cầu quyền edit
                                 </button>
                             )}
                         </div>

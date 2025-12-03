@@ -17,13 +17,11 @@ type ModalType = 'signin' | 'signup' | 'password-reset' | null;
 export default function HomePage() {
     const [activeModal, setActiveModal] = useState<ModalType>(null);
     const [resetToken, setResetToken] = useState<string | null>(null);
-    const [searchParams, setSearchParams] = useSearchParams(); // ✅ THÊM HOOK
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    // ✅ Tự động mở SignIn modal nếu có query param showSignIn=true
     useEffect(() => {
         if (searchParams.get('showSignIn') === 'true') {
             setActiveModal('signin');
-            // Xóa query param sau khi đã xử lý
             searchParams.delete('showSignIn');
             setSearchParams(searchParams, { replace: true });
         }

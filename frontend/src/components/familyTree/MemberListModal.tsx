@@ -108,17 +108,17 @@ export default function MemberListModal({ open, onClose, persons, relationships 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(5px)'}}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] max-w-[95vw] max-h-[90vh] rounded-2xl bg-white shadow-xl flex flex-col">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] max-w-[95vw] max-h-[90vh] rounded-2xl bg-gradient-to-br from-[#1e2a3a]/95 via-[#0f1419]/90 to-[#1e2a3a]/95">
         <div className="p-4 border-b flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+          <h3 className="text-lg font-semibold text-[#ffd89b]">{title}</h3>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Sắp xếp:</label>
+            <label className="text-sm text-gray-400">Sắp xếp:</label>
             <select
               value={sortKey}
               onChange={(e)=> setSortKey(e.target.value as any)}
-              className="rounded-lg border px-1 py-1 text-sm text-black bg-white"
+              className="rounded-lg border px-1 py-1 text-sm text-gray-400 bg-white/5"
             >
               <option value="name">Tên</option>
               <option value="age">Tuổi (năm sinh)</option>
@@ -126,19 +126,19 @@ export default function MemberListModal({ open, onClose, persons, relationships 
             </select>
             <button
               onClick={()=> setSortAsc(v=>!v)}
-              className="px-2 py-1 rounded-lg border text-sm text-black hover:bg-gray-100"
+              className="px-2.5 py-1 rounded-lg border text-sm text-gray-400 hover:bg-gray-100"
               title={sortAsc?"Tăng dần":"Giảm dần"}
             >
               {sortAsc ? (
-                  <ArrowUp size="24" className="w-4 h-4" />
+                  <ArrowUp size="20" />
               ) : (
-                  <ArrowDown size="24" className="w-4 h-4" />
+                  <ArrowDown size="20"/>
               )}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-2 py-0.5 rounded-lg text-slate-800 border hover:bg-gray-100"
+              className="px-2 py-0.5 rounded-lg text-gray-400 border hover:bg-gray-100"
               title="Đóng"
               aria-label="Đóng"
             >
@@ -149,7 +149,7 @@ export default function MemberListModal({ open, onClose, persons, relationships 
         <div className="p-3 border-b">
           <input
             placeholder="Tìm theo tên..."
-            className="w-full rounded-lg border px-3 py-2 bg-white text-black placeholder-gray-400 caret-black"
+            className="w-full rounded-lg border px-3 py-2 bg-white/5 text-black placeholder-gray-400 caret-black"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -168,8 +168,8 @@ export default function MemberListModal({ open, onClose, persons, relationships 
                     onError={(e:any)=>{ e.currentTarget.src = "https://placehold.co/48x48?text=\u{1F464}"; }}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">{p.fullName}</div>
-                    <div className="text-xs text-gray-600 truncate">
+                    <div className="font-medium text-[#ffd89b] truncate">{p.fullName}</div>
+                    <div className="text-xs text-white truncate">
                       {p.gender ? (String(p.gender).toLowerCase()==="male"?"Nam":String(p.gender).toLowerCase()==="female"?"Nữ":p.gender) : "—"}
                       {p.birthDate ? ` • Sinh: ${p.birthDate}` : ""}
                       {p.deathDate ? ` • Mất: ${p.deathDate}` : ""}
