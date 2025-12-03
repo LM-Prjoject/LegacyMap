@@ -121,7 +121,22 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     window.dispatchEvent(event);
   }, [totalUnread]);
 
+  useEffect(() => {
+    const handleFocus = () => {
+      if (currentRoom && isWidgetOpen) {
+        const roomMessages = messagesByRoom[currentRoom.id];
+        const latestMessage = roomMessages?.[roomMessages.length - 1];
+        if (latestMessage) {
+          markAsRead(currentRoom.id, latestMessage.id).catch(err => {
+            console.error('Error marking messages as read:', err);
+          });
+        }
+      }
+    };
 
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [currentRoom?.id, isWidgetOpen]);
 
   const updateMessage = useCallback(async (roomId: string, messageId: string, payload: { messageText: string }) => {
     if (!roomId || !messageId) {
@@ -219,26 +234,59 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
   const markAsRead = useCallback(
       async (roomId: string, lastMessageId: string) => {
-        if (!authToken || !lastMessageId) return;
-        if (lastReadRef.current[roomId] === lastMessageId) return;
+        if (!authToken) return;
 
-        setUnreadByRoom((prev) => {
-          if (prev[roomId] === 0) return prev;
-          return {
-            ...prev,
-            [roomId]: 0,
-          };
+        setUnreadByRoom(prev => {
+          const newUnread = { ...prev };
+          if (newUnread[roomId] > 0) {
+            newUnread[roomId] = 0;
+
+            const total = Object.values(newUnread).reduce((sum, val) => sum + (val || 0), 0);
+            window.dispatchEvent(new CustomEvent('chatUnreadChanged', { detail: total }));
+          }
+          return newUnread;
         });
 
-        lastReadRef.current[roomId] = lastMessageId;
-        try {
-          await chatApi.markMessagesRead(roomId, { lastMessageId });
-        } catch (err) {
-          console.error('Failed to mark messages read', err);
+        if (lastMessageId) {
+          lastReadRef.current[roomId] = lastMessageId;
+        }
+
+        if (lastMessageId) {
+          try {
+            await chatApi.markMessagesRead(roomId, { lastMessageId });
+          } catch (err) {
+            console.error('Failed to mark messages as read', err);
+          }
         }
       },
       [authToken],
   );
+
+  const markRoomAsRead = useCallback(async (roomId: string) => {
+    if (!authToken) return;
+
+    setUnreadByRoom(prev => {
+      const newUnread = { ...prev };
+      if (newUnread[roomId] > 0) {
+        newUnread[roomId] = 0;
+
+        const total = Object.values(newUnread).reduce((sum, val) => sum + (val || 0), 0);
+        window.dispatchEvent(new CustomEvent('chatUnreadChanged', { detail: total }));
+      }
+      return newUnread;
+    });
+
+    const messages = messagesByRoom[roomId];
+    if (messages && messages.length > 0) {
+      const latest = messages[messages.length - 1];
+      try {
+        await chatApi.markMessagesRead(roomId, { lastMessageId: latest.id });
+        lastReadRef.current[roomId] = latest.id;
+      } catch (err) {
+        console.error('Failed to mark room as read', err);
+      }
+    }
+  }, [authToken, messagesByRoom]);
 
   const loadOlderMessages = useCallback(
       async (roomId: string, reset = false) => {
@@ -330,11 +378,12 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         if (!clientRef.current || !isConnected || subscriptionsRef.current[roomId]) {
           return;
         }
+
         const subscription = clientRef.current.subscribe(`/topic/chat/${roomId}`, (frame: IMessage) => {
           try {
             const payload = JSON.parse(frame.body) as ChatMessage;
-            if (payload.messageType === 'system' && payload.messageText?.includes('deleted')) {
 
+            if (payload.messageType === 'system' && payload.messageText?.includes('deleted')) {
               setRooms(prev => prev.filter(r => r.id !== roomId));
               setMessagesByRoom(prev => {
                 const { [roomId]: _, ...rest } = prev;
@@ -348,45 +397,55 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
             }
 
             bumpRoomToTop(roomId, payload.createdAt);
+
             setMessagesByRoom((prev) => {
               const existing = prev[roomId] ?? [];
               const alreadyExists = existing.some((msg) => msg.id === payload.id);
+
               if (alreadyExists) {
                 return {
                   ...prev,
                   [roomId]: existing.map((msg) => (msg.id === payload.id ? payload : msg)),
                 };
               }
+
               return {
                 ...prev,
                 [roomId]: [...existing, payload].sort(
-                    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+                    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                 ),
               };
             });
-            if (payload.messageType !== 'system' && payload.senderId != currentUserId && (roomId !== selectedRoomRef.current || !isWidgetOpen)) {
-              setUnreadByRoom((prev) => ({
-                ...prev,
-                [roomId]: (prev[roomId] || 0) + 1,
-              }));
 
-              if (payload.senderId !== currentUserId) {
+            if (payload.messageType !== 'system' && payload.senderId !== currentUserId) {
+              const isCurrentRoom = roomId === selectedRoomRef.current && isWidgetOpen;
+
+              if (!isCurrentRoom) {
                 const room = rooms.find(r => r.id === roomId);
                 const myMember = room?.members.find(m => m.userId === currentUserId);
                 if (room && !myMember?.muted) {
                   audioNotification.play().catch(() => {});
                 }
-              }
-            } else if (payload.messageType === 'system' && roomId === selectedRoomRef.current) {
 
+                setUnreadByRoom(prev => {
+                  const newCount = (prev[roomId] || 0) + 1;
+                  const newState = { ...prev, [roomId]: newCount };
+
+                  const total = Object.values(newState).reduce((sum, val) => sum + (val || 0), 0);
+                  window.dispatchEvent(new CustomEvent('chatUnreadChanged', { detail: total }));
+
+                  return newState;
+                });
+              }
             }
           } catch (err) {
-            console.error('Failed to parse chat message', err);
+            console.error('Error processing WebSocket message:', err);
           }
         });
+
         subscriptionsRef.current[roomId] = subscription;
       },
-      [bumpRoomToTop, isConnected, isWidgetOpen, markAsRead],
+      [bumpRoomToTop, isConnected, currentUserId, isWidgetOpen, rooms],
   );
 
   const connectWebsocket = useCallback(() => {
@@ -601,21 +660,15 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   const selectRoom = useCallback(
       async (roomId: string) => {
         setSelectedRoomId(roomId);
-        await ensureMessagesLoaded(roomId);
 
-        subscribeRoom(roomId);
-
-        const roomMessages = messagesByRoom[roomId];
-        const latest =
-            roomMessages && roomMessages.length > 0
-                ? roomMessages[roomMessages.length - 1]
-                : null;
-
-        if (latest) {
-          markAsRead(roomId, latest.id);
+        if (unreadByRoom[roomId] > 0) {
+          await markRoomAsRead(roomId);
         }
+
+        await ensureMessagesLoaded(roomId);
+        subscribeRoom(roomId);
       },
-      [ensureMessagesLoaded, markAsRead, messagesByRoom, subscribeRoom],
+      [ensureMessagesLoaded, markRoomAsRead, subscribeRoom, unreadByRoom],
   );
 
   const sendMessage = useCallback(
@@ -944,6 +997,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         canDeleteMessage,
         deleteConversationLocally,
         setRooms,
+        markRoomAsRead,
       }),
       [
         rooms,
@@ -981,6 +1035,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         canDeleteMessage,
         deleteConversationLocally,
         setRooms,
+        markRoomAsRead,
       ],
   );
 
