@@ -272,24 +272,26 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                                                 <button
                                                     type="button"
                                                     onClick={() => setAccessLevel("view")}
-                                                    className={`flex-1 px-4 py-3 rounded-lg border transition-all duration-300 text-sm font-medium ${
+                                                    className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
                                                         accessLevel === "view"
                                                             ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
                                                             : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
                                                     }`}
                                                 >
-                                                    👀 Chỉ xem
+                                                    <Eye className="w-4 h-4" />
+                                                    Chỉ xem
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => setAccessLevel("edit")}
-                                                    className={`flex-1 px-4 py-3 rounded-lg border transition-all duration-300 text-sm font-medium ${
+                                                    className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
                                                         accessLevel === "edit"
                                                             ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
                                                             : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
                                                     }`}
                                                 >
-                                                    ✏️ Có thể chỉnh sửa
+                                                    <Edit3 className="w-4 h-4" />
+                                                    Có thể chỉnh sửa
                                                 </button>
                                             </div>
                                             <p className="text-xs text-gray-500 mt-2">
@@ -360,16 +362,6 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                             </section>
                         </>
                     )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 border-t border-[#ffd89b]/20 bg-gradient-to-r from-[#ffd89b]/5 to-transparent">
-                    <button
-                        onClick={onClose}
-                        className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 border border-[#ffd89b]/30 hover:border-[#ffd89b]/50 text-gray-300 hover:text-white rounded-lg transition-all duration-300 font-medium hover:shadow-[0_8px_25px_rgba(255,216,155,0.15)]"
-                    >
-                        Đóng
-                    </button>
                 </div>
 
                 {/* Decorative bottom border glow */}
