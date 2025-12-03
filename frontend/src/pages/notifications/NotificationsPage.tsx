@@ -9,6 +9,7 @@ import { personLinkApi } from "@/api/personLink.ts";
 import api from "@/api/trees";
 import { adminApi } from "@/api/ts_admin";
 import NotificationDetailModal from "@/pages/notifications/NotificationDetailModal";
+import {showToast} from "@/lib/toast.ts";
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -80,41 +81,6 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }: ConfirmMo
     );
 };
 
-interface ToastProps {
-    isOpen: boolean;
-    message: string;
-    type: 'error' | 'success';
-    onClose: () => void;
-}
-
-const Toast = ({ isOpen, message, type, onClose }: ToastProps) => {
-    useEffect(() => {
-        if (isOpen) {
-            const timer = setTimeout(onClose, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [isOpen, onClose]);
-
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed top-24 right-4 z-50 animate-slide-in">
-            <div className="rounded-xl shadow-2xl p-4 flex items-center gap-3 min-w-[300px]" style={{
-                background: type === 'error'
-                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.95) 100%)'
-                    : 'linear-gradient(135deg, rgba(34, 197, 94, 0.95) 0%, rgba(22, 163, 74, 0.95) 100%)',
-                border: type === 'error' ? '2px solid rgba(239, 68, 68, 0.5)' : '2px solid rgba(34, 197, 94, 0.5)'
-            }}>
-                <AlertCircle className="w-5 h-5 text-white flex-shrink-0" />
-                <p className="text-white font-medium flex-1">{message}</p>
-                <button onClick={onClose} className="p-1 hover:bg-white/20 rounded transition-all">
-                    <X className="w-4 h-4 text-white" />
-                </button>
-            </div>
-        </div>
-    );
-};
-
 const isUnbanRequestNotification = (
     n: NotificationResponse | null | undefined
 ): boolean => {
@@ -163,16 +129,6 @@ const NotificationsPage = () => {
         onConfirm: () => {}
     });
 
-    const [toast, setToast] = useState<{ isOpen: boolean; message: string; type: 'error' | 'success'; }>({
-        isOpen: false,
-        message: '',
-        type: 'success'
-    });
-
-    const showToast = (message: string, type: 'error' | 'success') => {
-        setToast({ isOpen: true, message, type });
-    };
-
     const showConfirm = (title: string, message: string, onConfirm: () => void) => {
         setConfirmModal({ isOpen: true, title, message, onConfirm });
     };
@@ -183,12 +139,12 @@ const NotificationsPage = () => {
             try {
                 const target = resolveInviteTarget(n);
                 if (!target || !userId) {
-                    showToast('Không xác định được hồ sơ để xác nhận', 'error');
+                    showToast.error("Không xác định được hồ sơ để xác nhận");
                     return;
                 }
                 await personLinkApi.acceptClaim(target.personId, userId);
                 try { await notificationApi.markAsRead(n.id); } catch {}
-                showToast('Đã xác nhận liên kết', 'success');
+                showToast.success("Đã xác nhận liên kết");
                 setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x));
                 setInviteActionById(prev => ({ ...prev, [n.id]: 'accepted' }));
                 try { localStorage.setItem(`notif_action_${n.id}`, 'accepted'); } catch {}
@@ -199,7 +155,7 @@ const NotificationsPage = () => {
                 loadNotifications(0, false);
                 loadClaims();
             } catch (e) {
-                showToast('Xác nhận thất bại', 'error');
+                showToast.error("Xác nhận thất bại");
             }
         };
         showConfirm(
@@ -214,12 +170,12 @@ const NotificationsPage = () => {
             try {
                 const target = resolveInviteTarget(n);
                 if (!target || !userId) {
-                    showToast('Không xác định được hồ sơ để từ chối', 'error');
+                    showToast.error("Không xác định được hồ sơ để từ chối");
                     return;
                 }
                 await personLinkApi.rejectClaim(target.personId, userId);
                 try { await notificationApi.markAsRead(n.id); } catch {}
-                showToast('Đã từ chối liên kết', 'success');
+                showToast.success("Đã từ chối liên kết");
                 setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, isRead: true } : x));
                 setInviteActionById(prev => ({ ...prev, [n.id]: 'rejected' }));
                 try { localStorage.setItem(`notif_action_${n.id}`, 'rejected'); } catch {}
@@ -229,7 +185,7 @@ const NotificationsPage = () => {
                 loadNotifications(0, false);
                 loadClaims();
             } catch (e) {
-                showToast('Từ chối thất bại', 'error');
+                showToast.error("Từ chối thất bại");
             }
         };
         showConfirm(
@@ -247,7 +203,7 @@ const NotificationsPage = () => {
                 const requesterId = relatedEntity?.requesterId;
 
                 if (!treeId || !requesterId || !userId) {
-                    showToast('Thiếu thông tin yêu cầu', 'error');
+                    showToast.error('Thiếu thông tin yêu cầu');
                     return;
                 }
 
@@ -263,10 +219,10 @@ const NotificationsPage = () => {
                 setUnreadCount(newCount);
                 window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
 
-                showToast('Đã chấp nhận yêu cầu quyền chỉnh sửa', 'success');
+                showToast.success("Đã chấp nhận yêu cầu quyền chỉnh sửa");
                 loadNotifications(0, false);
             } catch (e: any) {
-                showToast(e?.message || 'Chấp nhận yêu cầu thất bại', 'error');
+                showToast.error(e?.message || "Chấp nhận yêu cầu thất bại");
             }
         };
 
@@ -285,7 +241,7 @@ const NotificationsPage = () => {
                 const requesterId = relatedEntity?.requesterId;
 
                 if (!treeId || !requesterId || !userId) {
-                    showToast('Thiếu thông tin yêu cầu', 'error');
+                    showToast.error("Thiếu thông tin yêu cầu");
                     return;
                 }
 
@@ -301,10 +257,10 @@ const NotificationsPage = () => {
                 setUnreadCount(newCount);
                 window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
 
-                showToast('Đã từ chối yêu cầu', 'success');
+                showToast.success("Đã từ chối yêu cầu");
                 loadNotifications(0, false);
             } catch (e: any) {
-                showToast(e?.message || 'Từ chối yêu cầu thất bại', 'error');
+                showToast.error(e?.message || "Từ chối yêu cầu thất bại");
             }
         };
 
@@ -555,7 +511,7 @@ const NotificationsPage = () => {
 
             window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
         } catch (err) {
-            showToast('Không thể đánh dấu đã đọc', 'error');
+            showToast.error("Không thể đánh dấu đã đọc");
         }
     };
 
@@ -567,7 +523,7 @@ const NotificationsPage = () => {
 
             window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: 0 }));
         } catch (err) {
-            showToast('Không thể đánh dấu tất cả', 'error');
+            showToast.error("Không thể đánh dấu tất cả");
         }
     };
 
@@ -588,7 +544,7 @@ const NotificationsPage = () => {
                         window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
                     }
                 } catch (err) {
-                    showToast('Không thể xóa thông báo', 'error');
+                    showToast.error("Không thể xóa thông báo");
                 }
             }
         );
@@ -632,7 +588,7 @@ const NotificationsPage = () => {
 
         const requestId = n.relatedEntity?.id;
         if (!requestId) {
-            showToast("Không tìm thấy ID yêu cầu mở khóa!","error");
+            showToast.error("Không tìm thấy yêu cầu mở khóa!");
             setActionLoading(false);
             return;
         }
@@ -641,12 +597,12 @@ const NotificationsPage = () => {
             await adminApi.approveUnbanRequest(requestId);
             await markAsRead(n.id);
 
-            showToast("Đã chấp nhận yêu cầu mở khóa tài khoản.", "success");
+            showToast.success("Đã chấp nhận yêu cầu mở khóa tài khoản.");
 
             setDetailModal({ isOpen: false, notification: null });
             loadNotifications(0, false);
         } catch (e) {
-            showToast("Xử lý thất bại", "error");
+            showToast.error("Xử lý thất bại");
         } finally {
             setActionLoading(false);
         }
@@ -658,7 +614,7 @@ const NotificationsPage = () => {
 
         const requestId = n.relatedEntity?.id;
         if (!requestId) {
-            showToast("Không tìm thấy ID yêu cầu mở khóa!", "error");
+            showToast.error("Không tìm thấy yêu cầu mở khóa!");
             setActionLoading(false);
             return;
         }
@@ -667,12 +623,12 @@ const NotificationsPage = () => {
             await adminApi.denyUnbanRequest(requestId);
             await markAsRead(n.id);
 
-            showToast("Đã từ chối yêu cầu mở khóa tài khoản.", "success");
+            showToast.success("Đã từ chối yêu cầu mở khóa tài khoản.");
 
             setDetailModal({ isOpen: false, notification: null });
             loadNotifications(0, false);
         } catch (e) {
-            showToast("Từ chối thất bại", "error");
+            showToast.error("Từ chối thất bại");
         } finally {
             setActionLoading(false);
         }
@@ -904,13 +860,6 @@ const NotificationsPage = () => {
                 message={confirmModal.message}
                 onConfirm={confirmModal.onConfirm}
                 onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-            />
-
-            <Toast
-                isOpen={toast.isOpen}
-                message={toast.message}
-                type={toast.type}
-                onClose={() => setToast(prev => ({ ...prev, isOpen: false }))}
             />
 
             <NotificationDetailModal
