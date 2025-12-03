@@ -5,7 +5,6 @@ import { showToast } from '@/lib/toast';
 import TreeGraph from '@/components/familyTree/TreeGraph';
 import { Loader, Lock, Globe, ArrowLeft, Users, Heart, Eye, Edit3 } from 'lucide-react';
 
-// ✅ THÊM: Import các component auth
 import SignIn from '@/pages/auth/SignIn';
 import SignUp from '@/pages/auth/SignUp';
 import PasswordReset from '@/pages/auth/password-reset';
@@ -20,10 +19,8 @@ export default function SharedTreeView() {
     const [error, setError] = useState<string | null>(null);
     const [accessLevel, setAccessLevel] = useState<'view' | 'edit' | 'admin' | null>(null);
 
-    // ✅ THÊM: State quản lý modal auth
     const [showAuthModal, setShowAuthModal] = useState<'signin' | 'signup' | 'reset' | null>(null);
 
-    // Check xem có editMode từ URL không
     const [editMode, setEditMode] = useState(false);
     const isLoggedIn = !!localStorage.getItem('authToken');
 
@@ -38,7 +35,6 @@ export default function SharedTreeView() {
             return;
         }
 
-        // Kiểm tra editMode từ URL
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('editMode') === 'true') {
             setEditMode(true);
@@ -56,26 +52,16 @@ export default function SharedTreeView() {
         try {
             const userStr = localStorage.getItem('user');
             const userId = userStr ? JSON.parse(userStr).id : null;
-
-            // BƯỚC 1: Lấy thông tin access
             const accessInfo = await api.getSharedTreeAccessInfo(shareToken, userId);
-
-            console.log('Access Info:', accessInfo);
-            console.log('🔍 canEdit:', accessInfo.canEdit);  // ✅ THÊM: Debug log
-            console.log('🔍 userId:', userId);                // ✅ THÊM: Debug log
-
-            // ✅ BƯỚC 2: Nếu user đã đăng nhập → LƯU TREE VÀO DASHBOARD (dù view hay edit)
             if (userId) {
                 try {
                     await api.saveSharedTreeToDashboard(userId, accessInfo.treeId);
-                    console.log('✅ Tree đã được lưu vào dashboard');
+                    console.log('Tree đã được lưu vào dashboard');
                 } catch (e: any) {
-                    console.warn('⚠️ Lỗi khi lưu tree:', e.message);
-                    // Bỏ qua lỗi nếu tree đã có trong dashboard
+                    console.warn('Lỗi khi lưu tree:', e.message);
                 }
             }
 
-            // ✅ BƯỚC 3: Nếu có quyền EDIT → Chuyển sang trang chỉnh sửa
             if (userId && accessInfo.canEdit) {
                 console.log('User có quyền edit → chuyển đến TreeDetails');
                 showToast.success('Cây gia phả đã sẵn sàng để chỉnh sửa');
@@ -85,23 +71,17 @@ export default function SharedTreeView() {
                 }, 500);
                 return;
             }
-
-            // ✅ BƯỚC 4: Nếu chỉ có quyền VIEW → Hiển thị trang xem + nút yêu cầu edit
             const treeData = await api.getSharedTree(shareToken, userId);
             setTree(treeData);
 
-            // ✅ SỬA: Logic set accessLevel an toàn hơn
             const level = accessInfo?.canEdit ? 'edit' : 'view';
             setAccessLevel(level);
-            console.log('🔍 Access Level:', level); // ✅ THÊM: Debug log
+            console.log('🔍 Access Level:', level);
 
-            // Load thành viên và quan hệ
             const [membersData, relationshipsData] = await Promise.all([
                 api.getSharedTreeMembers(shareToken, userId),
                 api.getSharedTreeRelationships(shareToken, userId),
             ]);
-
-            // Chuẩn hóa quan hệ
             const normalizedRelationships = relationshipsData.map(rel => {
                 if (String(rel.type).toUpperCase() === 'CHILD') {
                     return {
@@ -116,8 +96,6 @@ export default function SharedTreeView() {
 
             setMembers(membersData);
             setRelationships(normalizedRelationships);
-
-            // ✅ Hiển thị toast cho biết đã lưu
             if (userId) {
                 showToast.success('Cây gia phả đã được lưu vào dashboard của bạn');
             }
@@ -131,14 +109,11 @@ export default function SharedTreeView() {
         }
     };
 
-    // ✅ SỬA: Thay vì navigate, hiển thị modal
     const handleLoginRedirect = () => {
         if (!shareToken) return;
         localStorage.setItem('redirectAfterLogin', `/trees/shared/${shareToken}`);
         setShowAuthModal('signin');
     };
-
-    // ✅ THÊM: Handler yêu cầu quyền edit
     const handleRequestEditAccess = async () => {
         if (!tree?.id || !user?.id) {
             showToast.error('Không thể gửi yêu cầu');
@@ -193,9 +168,7 @@ export default function SharedTreeView() {
     const coupleRelationships = relationships.filter(rel => String(rel.type).toUpperCase() === 'SPOUSE').length;
 
     return (
-        // ✅ SỬA: Thêm DragonsBackground
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative">
-            {/* Header */}
             <header className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50 relative">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between">
@@ -274,7 +247,6 @@ export default function SharedTreeView() {
                 </div>
             </div>
 
-            {/* Main Content */}
             <main className="p-4 sm:p-6 lg:p-8 relative">
                 <div className="max-w-7xl mx-auto">
                     {members.length === 0 ? (
@@ -295,13 +267,11 @@ export default function SharedTreeView() {
                 </div>
             </main>
 
-            {/* Footer */}
             <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 py-6 mt-12 relative">
                 <div className="max-w-7xl mx-auto px-4 text-center text-slate-400 text-sm">
                     <p>Được chia sẻ từ <span className="text-white font-semibold">LegacyMap</span></p>
 
                     <div className="mt-4 flex flex-col items-center gap-3">
-                        {/* ✅ Trạng thái quyền */}
                         <p className="text-base">
                             {accessLevel === 'edit' ? (
                                 <span className="text-green-400">✓ Bạn có quyền chỉnh sửa cây gia phả này</span>
@@ -311,8 +281,6 @@ export default function SharedTreeView() {
                                 <span>Cây gia phả này được chia sẻ với bạn (chỉ xem)</span>
                             )}
                         </p>
-
-                        {/* ✅ SỬA: Nút yêu cầu quyền edit - CHỈ HIỆN KHI: đã login + KHÔNG có quyền edit */}
                         {isLoggedIn && accessLevel !== 'edit' && tree?.id && (
                             <button
                                 onClick={handleRequestEditAccess}
@@ -321,8 +289,6 @@ export default function SharedTreeView() {
                                 📝 Yêu cầu quyền chỉnh sửa
                             </button>
                         )}
-
-                        {/* ✅ Nút đăng nhập - CHỈ HIỆN KHI chưa login */}
                         {!isLoggedIn && (
                             <button
                                 onClick={handleLoginRedirect}
@@ -332,17 +298,15 @@ export default function SharedTreeView() {
                             </button>
                         )}
 
-                        {/* ✅ Thông báo nếu đã lưu */}
                         {isLoggedIn && (
                             <p className="text-green-400 text-xs">
-                                ✓ Cây này đã được lưu vào dashboard của bạn
+                               Cây này đã được lưu vào dashboard của bạn
                             </p>
                         )}
                     </div>
                 </div>
             </footer>
 
-            {/* ✅ THÊM: Auth Modals */}
             {showAuthModal === 'signin' && (
                 <SignIn
                     onClose={() => setShowAuthModal(null)}

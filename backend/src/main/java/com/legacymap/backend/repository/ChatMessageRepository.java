@@ -15,23 +15,23 @@ import java.util.UUID;
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> {
 
     Page<ChatMessage> findByRoom_IdOrderByCreatedAtDesc(UUID roomId, Pageable pageable);
-    
+
     @Query("SELECT m FROM ChatMessage m " +
-           "JOIN FETCH m.sender " +
-           "JOIN FETCH m.room " +
-           "LEFT JOIN FETCH m.replyTo " +
-           "WHERE m.id = :messageId AND m.room.id = :roomId")
-    Optional<ChatMessage> findByIdAndRoomIdWithRelations(@Param("messageId") UUID messageId, 
-                                                       @Param("roomId") UUID roomId);
-    
+            "JOIN FETCH m.sender " +
+            "JOIN FETCH m.room " +
+            "LEFT JOIN FETCH m.replyTo " +
+            "WHERE m.id = :messageId AND m.room.id = :roomId")
+    Optional<ChatMessage> findByIdAndRoomIdWithRelations(@Param("messageId") UUID messageId,
+                                                         @Param("roomId") UUID roomId);
+
     @Modifying
     @Query("UPDATE ChatMessage m SET m.messageText = :messageText, m.updatedAt = :now, m.edited = true " +
-           "WHERE m.id = :messageId AND m.sender.id = :senderId AND m.room.id = :roomId")
-    int updateMessageText(@Param("messageId") UUID messageId, 
-                         @Param("roomId") UUID roomId, 
-                         @Param("senderId") UUID senderId,
-                         @Param("messageText") String messageText,
-                         @Param("now") OffsetDateTime now);
+            "WHERE m.id = :messageId AND m.sender.id = :senderId AND m.room.id = :roomId")
+    int updateMessageText(@Param("messageId") UUID messageId,
+                          @Param("roomId") UUID roomId,
+                          @Param("senderId") UUID senderId,
+                          @Param("messageText") String messageText,
+                          @Param("now") OffsetDateTime now);
 
     @Modifying
     @Query("UPDATE ChatMessage m " + "SET m.deleted = true, " + "    m.deletedAt = :now, " + "    m.deletedBy.id = :userId " +

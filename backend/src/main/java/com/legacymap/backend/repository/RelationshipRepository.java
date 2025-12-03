@@ -15,10 +15,10 @@ public interface RelationshipRepository extends JpaRepository<Relationship, UUID
     List<Relationship> findAllByFamilyTree_Id(UUID treeId);
     List<Relationship> findByFamilyTreeId(UUID treeId);
     List<Relationship> findByPerson1IdOrPerson2Id(UUID person1Id, UUID person2Id);
-    
+
     @org.springframework.data.jpa.repository.Query("SELECT r.person2.id FROM Relationship r WHERE r.person1.id = :personId AND r.relationshipType = 'parent'")
     List<UUID> findChildIdsByPersonId(@org.springframework.data.repository.query.Param("personId") UUID personId);
-    
+
     @org.springframework.data.jpa.repository.Query("SELECT r.person1.id FROM Relationship r WHERE r.person2.id = :personId AND r.relationshipType = 'parent'")
     List<UUID> findParentIdsByPersonId(@org.springframework.data.repository.query.Param("personId") UUID personId);
 }

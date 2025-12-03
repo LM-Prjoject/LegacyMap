@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Person, Relationship } from "@/api/trees";
+import {ArrowDown, ArrowUp, X} from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -40,7 +41,6 @@ export default function MemberListModal({ open, onClose, persons, relationships 
     return isNaN(t.getTime()) ? null : t.getUTCFullYear();
   };
 
-  // Compute generation level for each person based on relationships (PARENT links)
   const generationMap = useMemo(() => {
     const parentOf: Record<string, string[]> = {};
     const indeg: Record<string, number> = {};
@@ -71,7 +71,7 @@ export default function MemberListModal({ open, onClose, persons, relationships 
         if (indeg[v] === 0) q.push(v);
       }
     }
-    return depth; // may be empty for cycles or empty relationships; consumers handle missing as 1
+    return depth;
   }, [persons, relationships]);
 
   const list = useMemo(() => {
@@ -88,7 +88,6 @@ export default function MemberListModal({ open, onClose, persons, relationships 
         return (a.fullName || "").localeCompare(b.fullName || "", "vi");
       }
       if (sortKey === "age") {
-        // Older first when ascending=false; we sort by birth year ascending (older = smaller year)
         const ya = year(a.birthDate);
         const yb = year(b.birthDate);
         if (ya == null && yb == null) return (a.fullName || "").localeCompare(b.fullName || "", "vi");
@@ -96,7 +95,6 @@ export default function MemberListModal({ open, onClose, persons, relationships 
         if (yb == null) return -1;
         return ya - yb;
       }
-      // generation: lower level first (root=1, then 2...)
       const ga = generationMap[a.id] ?? 1;
       const gb = generationMap[b.id] ?? 1;
       if (ga !== gb) return ga - gb;
@@ -112,7 +110,7 @@ export default function MemberListModal({ open, onClose, persons, relationships 
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[95vw] max-h-[90vh] rounded-2xl bg-white shadow-xl flex flex-col">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] max-w-[95vw] max-h-[90vh] rounded-2xl bg-white shadow-xl flex flex-col">
         <div className="p-4 border-b flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
           <div className="flex items-center gap-2">
@@ -120,7 +118,7 @@ export default function MemberListModal({ open, onClose, persons, relationships 
             <select
               value={sortKey}
               onChange={(e)=> setSortKey(e.target.value as any)}
-              className="rounded-lg border px-2 py-1 text-sm text-black bg-white"
+              className="rounded-lg border px-1 py-1 text-sm text-black bg-white"
             >
               <option value="name">Tên</option>
               <option value="age">Tuổi (năm sinh)</option>
@@ -130,15 +128,21 @@ export default function MemberListModal({ open, onClose, persons, relationships 
               onClick={()=> setSortAsc(v=>!v)}
               className="px-2 py-1 rounded-lg border text-sm text-black hover:bg-gray-100"
               title={sortAsc?"Tăng dần":"Giảm dần"}
-            >{sortAsc?"↑":"↓"}</button>
+            >
+              {sortAsc ? (
+                  <ArrowUp size="24" className="w-4 h-4" />
+              ) : (
+                  <ArrowDown size="24" className="w-4 h-4" />
+              )}
+            </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 shadow-sm"
+              className="px-2 py-0.5 rounded-lg text-slate-800 border hover:bg-gray-100"
               title="Đóng"
               aria-label="Đóng"
             >
-              Đóng
+              <X size="24"/>
             </button>
           </div>
         </div>
