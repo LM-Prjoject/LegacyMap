@@ -49,6 +49,6 @@ public class Notification {
     private OffsetDateTime createdAt;
 
     public enum NotificationType {
-        system, update, invite, alert, event_reminder
+        system, update, invite, alert, event_reminder, access_request, access_granted, edit_request
     }
 }

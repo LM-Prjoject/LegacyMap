@@ -6,6 +6,7 @@ import type { NotificationResponse } from '@/types/notification.ts';
 import {useCurrentUser} from "@/hooks/useCurrentUser.ts";
 import Navbar from "@/components/layout/Navbar.tsx";
 import { personLinkApi } from "@/api/personLink.ts";
+import api from "@/api/trees";
 import { adminApi } from "@/api/ts_admin";
 import NotificationDetailModal from "@/pages/notifications/NotificationDetailModal";
 
@@ -238,6 +239,82 @@ const NotificationsPage = () => {
         );
     };
 
+    const handleApproveEditRequest = async (notification: NotificationResponse) => {
+        const run = async () => {
+            try {
+                const relatedEntity = (notification as any).relatedEntity;
+                const treeId = relatedEntity?.treeId;
+                const requesterId = relatedEntity?.requesterId;
+
+                if (!treeId || !requesterId || !userId) {
+                    showToast('Thiếu thông tin yêu cầu', 'error');
+                    return;
+                }
+
+                await api.approveEditRequest(userId, treeId, requesterId);
+
+                // Đánh dấu đã đọc
+                await notificationApi.markAsRead(notification.id);
+                setNotifications(prev => prev.map(n =>
+                    n.id === notification.id ? { ...n, isRead: true } : n
+                ));
+
+                const newCount = Math.max(0, unreadCount - (notification.isRead ? 0 : 1));
+                setUnreadCount(newCount);
+                window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
+
+                showToast('Đã chấp nhận yêu cầu quyền chỉnh sửa', 'success');
+                loadNotifications(0, false);
+            } catch (e: any) {
+                showToast(e?.message || 'Chấp nhận yêu cầu thất bại', 'error');
+            }
+        };
+
+        showConfirm(
+            'Chấp nhận yêu cầu',
+            'Bạn có chắc chắn muốn cấp quyền chỉnh sửa cho người này?',
+            run
+        );
+    };
+
+    const handleRejectEditRequest = async (notification: NotificationResponse) => {
+        const run = async () => {
+            try {
+                const relatedEntity = (notification as any).relatedEntity;
+                const treeId = relatedEntity?.treeId;
+                const requesterId = relatedEntity?.requesterId;
+
+                if (!treeId || !requesterId || !userId) {
+                    showToast('Thiếu thông tin yêu cầu', 'error');
+                    return;
+                }
+
+                await api.rejectEditRequest(userId, treeId, requesterId);
+
+                // Đánh dấu đã đọc
+                await notificationApi.markAsRead(notification.id);
+                setNotifications(prev => prev.map(n =>
+                    n.id === notification.id ? { ...n, isRead: true } : n
+                ));
+
+                const newCount = Math.max(0, unreadCount - (notification.isRead ? 0 : 1));
+                setUnreadCount(newCount);
+                window.dispatchEvent(new CustomEvent('unreadCountChanged', { detail: newCount }));
+
+                showToast('Đã từ chối yêu cầu', 'success');
+                loadNotifications(0, false);
+            } catch (e: any) {
+                showToast(e?.message || 'Từ chối yêu cầu thất bại', 'error');
+            }
+        };
+
+        showConfirm(
+            'Từ chối yêu cầu',
+            'Bạn có chắc chắn muốn từ chối yêu cầu này?',
+            run
+        );
+    };
+
     // Add body class management
     useEffect(() => {
         document.body.classList.add('page-notifications');
@@ -250,7 +327,9 @@ const NotificationsPage = () => {
         if (!userId) return;
 
         try {
-            setLoading(pageNum === 0);
+            if (pageNum === 0) {
+                setLoading(true);
+            }
             setError(null);
 
             const data = await notificationApi.getNotifications(pageNum, 15);
@@ -350,10 +429,11 @@ const NotificationsPage = () => {
         if (userId && !userLoading) {
             loadNotifications(0, false);
             loadClaims();
+        } else if (userId === null && !userLoading) {
+            setLoading(false);
         }
-    }, [userId, userLoading, loadNotifications, loadClaims]);
+    }, [userId, userLoading]);
 
-    // Nếu đang load user hoặc notifications lần đầu
     if (userLoading || (loading && notifications.length === 0)) {
         return (
             <>
@@ -368,7 +448,6 @@ const NotificationsPage = () => {
         );
     }
 
-    // Nếu không có user
     if (!userId) {
         return (
             <>
@@ -387,13 +466,15 @@ const NotificationsPage = () => {
         );
     }
 
-    // Icons & Colors
     const getIcon = (type: string) => {
         switch (type) {
             case 'event_reminder': return <Calendar className="w-5 h-5" />;
             case 'invite': return <Users className="w-5 h-5" />;
             case 'update': return <TreePine className="w-5 h-5" />;
             case 'alert': return <Gift className="w-5 h-5" />;
+            case 'access_request': return <Users className="w-5 h-5" />;
+            case 'edit_request': return <Users className="w-5 h-5" />;
+            case 'access_granted': return <Check className="w-5 h-5" />;
             default: return <Bell className="w-5 h-5" />;
         }
     };
@@ -404,6 +485,9 @@ const NotificationsPage = () => {
             case 'invite': return 'from-green-500/20 to-green-600/20 border-green-500/30';
             case 'update': return 'from-amber-500/20 to-amber-600/20 border-amber-500/30';
             case 'alert': return 'from-pink-500/20 to-pink-600/20 border-pink-500/30';
+            case 'access_request': return 'from-purple-500/20 to-purple-600/20 border-purple-500/30';
+            case 'edit_request': return 'from-orange-500/20 to-orange-600/20 border-orange-500/30';
+            case 'access_granted': return 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30';
             default: return 'from-gray-500/20 to-gray-600/20 border-gray-500/30';
         }
     };
@@ -461,7 +545,6 @@ const NotificationsPage = () => {
         return claims.some(c => c.personId === target.personId);
     };
 
-    // Actions
     const markAsRead = async (id: string) => {
         try {
             await notificationApi.markAsRead(id);
@@ -661,6 +744,9 @@ const NotificationsPage = () => {
                                 <option value="invite">Mời tham gia</option>
                                 <option value="update">Cập nhật</option>
                                 <option value="alert">Cảnh báo</option>
+                                <option value="access_request">Yêu cầu quyền</option>
+                                <option value="edit_request">Yêu cầu chỉnh sửa</option>
+                                <option value="access_granted">Cấp quyền</option>
                                 <option value="system">Hệ thống</option>
                             </select>
                         </div>
@@ -739,6 +825,23 @@ const NotificationsPage = () => {
                                                     className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700"
                                                     onClick={(e) => { e.stopPropagation(); rejectInvite(n); }}
                                                 >Từ chối</button>
+                                            </div>
+                                        )}
+                                        {/* Nút approve/reject cho access_request và edit_request */}
+                                        {(n.type === 'access_request' || n.type === 'edit_request') && !n.isRead && (
+                                            <div className="mt-3 flex gap-2">
+                                                <button
+                                                    className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+                                                    onClick={(e) => { e.stopPropagation(); handleApproveEditRequest(n); }}
+                                                >
+                                                    Chấp nhận
+                                                </button>
+                                                <button
+                                                    className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700"
+                                                    onClick={(e) => { e.stopPropagation(); handleRejectEditRequest(n); }}
+                                                >
+                                                    Từ chối
+                                                </button>
                                             </div>
                                         )}
                                         {isPersonInvite(n) && inviteActionById[n.id] && (

@@ -78,8 +78,6 @@ public class FamilyTreeController {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    // ==================== TREE MANAGEMENT ENDPOINTS ====================
-
     @PostMapping
     public ResponseEntity<ApiResponse<FamilyTreeResponse>> createTree(
             @RequestParam("userId") String userId,
@@ -97,6 +95,34 @@ public class FamilyTreeController {
                 .map(FamilyTreeResponse::fromEntity)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/viewable")
+    public ResponseEntity<ApiResponse<List<FamilyTreeResponse>>> listViewableTrees(
+            @RequestParam("userId") String userId) {
+
+        List<FamilyTree> trees = familyTreeService.listViewableTrees(parseUserId(userId));
+
+        List<FamilyTreeResponse> responses = trees.stream()
+                .map(FamilyTreeResponse::fromEntity)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/{treeId}/owner")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getTreeOwner(
+            @PathVariable("treeId") UUID treeId) {
+
+        UUID ownerId = familyTreeService.getOwnerId(treeId);
+
+        if (ownerId == null) {
+            throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(
+                Map.of("ownerId", ownerId.toString())
+        ));
     }
 
     @PutMapping("/{treeId}")
@@ -117,8 +143,6 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-    // ==================== MEMBER MANAGEMENT ENDPOINTS ====================
-
     @PostMapping("/{treeId}/members")
     public ResponseEntity<ApiResponse<PersonResponse>> addMember(
             @PathVariable("treeId") UUID treeId,
@@ -133,7 +157,27 @@ public class FamilyTreeController {
     public ResponseEntity<ApiResponse<List<PersonResponse>>> listMembers(
             @PathVariable("treeId") UUID treeId,
             @RequestParam("userId") String userId) {
-        List<Person> people = familyTreeService.listMembers(treeId, parseUserId(userId));
+
+        UUID uid = parseUserId(userId);
+
+        // ✅ THÊM: Kiểm tra quyền TRƯỚC KHI lấy members
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        // Kiểm tra xem có phải owner không
+        boolean isOwner = tree.getCreatedBy().getId().equals(uid);
+
+        // Kiểm tra quyền edit từ TreeAccess
+        boolean hasAccess = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(uid, treeId)
+                .isPresent();
+
+        if (!isOwner && !hasAccess) {
+            throw new AppException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        // ✅ Nếu đến đây = có quyền edit
+        List<Person> people = familyTreeService.listMembers(treeId, uid);
         List<PersonResponse> responses = people.stream()
                 .map(this::toPersonResponse)
                 .collect(Collectors.toList());
@@ -194,13 +238,27 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-    // ==================== RELATIONSHIP MANAGEMENT ENDPOINTS ====================
-
     @GetMapping("/{treeId}/relationships")
     public ResponseEntity<ApiResponse<List<RelationshipDTO>>> listRelationships(
             @PathVariable("treeId") UUID treeId,
             @RequestParam("userId") String userId) {
-        List<RelationshipDTO> rels = relationshipService.listByTree(treeId, parseUserId(userId));
+
+        UUID uid = parseUserId(userId);
+
+        // ✅ THÊM: Kiểm tra quyền
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        boolean isOwner = tree.getCreatedBy().getId().equals(uid);
+        boolean hasAccess = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(uid, treeId)
+                .isPresent();
+
+        if (!isOwner && !hasAccess) {
+            throw new AppException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        List<RelationshipDTO> rels = relationshipService.listByTree(treeId, uid);
         return ResponseEntity.ok(ApiResponse.success(rels));
     }
 
@@ -222,7 +280,23 @@ public class FamilyTreeController {
             @PathVariable("treeId") UUID treeId,
             @PathVariable("personId") UUID personId,
             @RequestParam("userId") String userId) {
-        List<RelationshipDTO> rels = relationshipService.listByPerson(treeId, parseUserId(userId), personId);
+
+        UUID uid = parseUserId(userId);
+
+        // ✅ THÊM: Kiểm tra quyền
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        boolean isOwner = tree.getCreatedBy().getId().equals(uid);
+        boolean hasAccess = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(uid, treeId)
+                .isPresent();
+
+        if (!isOwner && !hasAccess) {
+            throw new AppException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        List<RelationshipDTO> rels = relationshipService.listByPerson(treeId, uid, personId);
         return ResponseEntity.ok(ApiResponse.success(rels));
     }
 
@@ -285,8 +359,6 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-    // ==================== SHARE ENDPOINTS ====================
-
     @PostMapping("/{treeId}/share/public")
     public ResponseEntity<ApiResponse<TreeShareResponse>> generatePublicLink(
             @PathVariable("treeId") UUID treeId,
@@ -347,6 +419,45 @@ public class FamilyTreeController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    // ==================== EDIT ACCESS REQUEST ENDPOINTS ====================
+
+    @PostMapping("/{treeId}/request-edit-access")
+    public ResponseEntity<ApiResponse<Void>> requestEditAccess(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("userId") String userId) {
+
+        familyTreeService.requestEditAccess(treeId, parseUserId(userId));
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/{treeId}/approve-edit-request")
+    public ResponseEntity<ApiResponse<Void>> approveEditRequest(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("ownerId") String ownerId,
+            @RequestParam("requesterId") String requesterId) {
+
+        familyTreeService.approveEditRequest(
+                treeId,
+                parseUserId(ownerId),
+                parseUserId(requesterId)
+        );
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/{treeId}/reject-edit-request")
+    public ResponseEntity<ApiResponse<Void>> rejectEditRequest(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("ownerId") String ownerId,
+            @RequestParam("requesterId") String requesterId) {
+
+        familyTreeService.rejectEditRequest(
+                treeId,
+                parseUserId(ownerId),
+                parseUserId(requesterId)
+        );
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
     @PostMapping("/{treeId}/save")
     public ResponseEntity<ApiResponse<String>> saveSharedTree(
             @PathVariable("treeId") UUID treeId,
@@ -388,7 +499,26 @@ public class FamilyTreeController {
 
         return ResponseEntity.ok(ApiResponse.success("Tree saved to dashboard successfully"));
     }
+    @GetMapping("/{treeId}/save")
+    public ResponseEntity<ApiResponse<Map<String, String>>> checkIfTreeSaved(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("userId") String userId) {
 
+        UUID parsedUserId = parseUserId(userId);
+
+        Optional<TreeAccess> existing = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(parsedUserId, treeId);
+
+        if (existing.isPresent()) {
+            return ResponseEntity.ok(ApiResponse.success(
+                    Map.of("saved", "true", "accessLevel", existing.get().getAccessLevel())
+            ));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(
+                Map.of("saved", "false")
+        ));
+    }
     @GetMapping("/{treeId}/access")
     public ResponseEntity<ApiResponse<Map<String, String>>> checkAccess(
             @PathVariable("treeId") UUID treeId,
@@ -419,10 +549,6 @@ public class FamilyTreeController {
         ));
     }
 
-    /**
-     * API mới: Lấy thông tin access từ shareToken
-     * - Dùng để frontend biết: có public không? có quyền edit không? owner là ai? v.v.
-     */
     @GetMapping("/shared/{shareToken}/access-info")
     public ResponseEntity<ApiResponse<SharedTreeAccessInfoResponse>> getSharedTreeAccessInfo(
             @PathVariable("shareToken") UUID shareToken,
@@ -435,8 +561,6 @@ public class FamilyTreeController {
 
         return ResponseEntity.ok(ApiResponse.success(info));
     }
-
-    // ==================== PUBLIC SHARE ENDPOINTS ====================
 
     @Transactional(readOnly = true)
     @GetMapping("/shared/{shareToken}")
@@ -470,7 +594,6 @@ public class FamilyTreeController {
 
         List<Person> members = familyTreeService.listMembers(tree.getId(), tree.getCreatedBy().getId());
 
-        // ✅ Convert Entity sang DTO
         List<PersonResponse> response = members.stream()
                 .map(this::toPersonResponse)
                 .collect(Collectors.toList());
@@ -537,8 +660,6 @@ public class FamilyTreeController {
 
         return ResponseEntity.ok(ApiResponse.success(rels));
     }
-
-    // ==================== HELPER METHODS ====================
 
     private PersonResponse toPersonResponse(Person person) {
         return PersonResponse.builder()

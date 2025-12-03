@@ -18,6 +18,7 @@ import { EventProvider } from '@/contexts/EventContext'
 import TreeDetails from '@/pages/dashboard/TreeDetails/TreeDetails.tsx'
 import NotificationsPage from "@/pages/notifications/NotificationsPage.tsx"
 import SharedTreeView from '@/pages/SharedTreeView'
+import ShareTreeViewById from '@/pages/ShareTreeViewById'
 
 // 🧱 Layout để giữ Navbar & gradient cố định
 import AppLayout from '@/components/layout/AppLayout'
@@ -102,9 +103,18 @@ export const router = createBrowserRouter([
         ],
     },
 
+    // ✅ SHARED TREE ROUTES (Không có Navbar)
     {
         path: '/trees/shared/:shareToken',
         element: <SharedTreeView />,
+    },
+    {
+        path: '/share-tree-view/:treeId',
+        element: (
+            <ProtectedRoute>
+                <ShareTreeViewById />
+            </ProtectedRoute>
+        ),
     },
 
     {

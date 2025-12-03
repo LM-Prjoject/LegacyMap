@@ -1,5 +1,4 @@
-export type NotificationType = 'system' | 'update' | 'invite' | 'alert' | 'event_reminder';
-
+export type NotificationType = 'system' | 'update' | 'invite' | 'alert' | 'event_reminder' | 'access_request' | 'access_granted' | 'edit_request';
 export interface NotificationResponse {
     id: string;
     userId: string;

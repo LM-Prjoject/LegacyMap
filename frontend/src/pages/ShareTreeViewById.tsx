@@ -3,85 +3,70 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api, { type FamilyTree, type Person, type Relationship } from '@/api/trees';
 import { showToast } from '@/lib/toast';
 import TreeGraph from '@/components/familyTree/TreeGraph';
-import { Loader, Lock, Globe, ArrowLeft, Users, Heart, Eye, Edit3 } from 'lucide-react';
+import { Loader, Lock, ArrowLeft, Users, Heart, Eye, Edit3 } from 'lucide-react';
 
-import SignIn from '@/pages/auth/SignIn';
-import SignUp from '@/pages/auth/SignUp';
-import PasswordReset from '@/pages/auth/password-reset';
-
-export default function SharedTreeView() {
-    const { shareToken } = useParams<{ shareToken: string }>();
+/**
+ * Trang xem cây gia phả theo treeId (dành cho user có quyền VIEW)
+ * Khác với SharedTreeView (dùng shareToken), trang này dùng treeId trực tiếp
+ */
+export default function ShareTreeViewById() {
+    const { treeId } = useParams<{ treeId: string }>();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [tree, setTree] = useState<FamilyTree | null>(null);
     const [members, setMembers] = useState<Person[]>([]);
     const [relationships, setRelationships] = useState<Relationship[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [accessLevel, setAccessLevel] = useState<'view' | 'edit' | 'admin' | null>(null);
 
-    const [showAuthModal, setShowAuthModal] = useState<'signin' | 'signup' | 'reset' | null>(null);
-
-    const [editMode, setEditMode] = useState(false);
-    const isLoggedIn = !!localStorage.getItem('authToken');
-
-    // ✅ THÊM: Lấy user từ localStorage
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
+    const userId = user?.id;
 
     useEffect(() => {
-        if (!shareToken) {
-            setError('Link chia sẻ không hợp lệ');
+        if (!treeId || !userId) {
+            setError('Thiếu thông tin truy cập');
             setLoading(false);
             return;
         }
 
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('editMode') === 'true') {
-            setEditMode(true);
-        }
+        loadTree();
+    }, [treeId, userId]);
 
-        loadSharedTree();
-    }, [shareToken]);
-
-    const loadSharedTree = async () => {
-        if (!shareToken) return;
+    const loadTree = async () => {
+        if (!treeId || !userId) return;
 
         setLoading(true);
         setError(null);
 
         try {
-            const userStr = localStorage.getItem('user');
-            const userId = userStr ? JSON.parse(userStr).id : null;
-            const accessInfo = await api.getSharedTreeAccessInfo(shareToken, userId);
-            if (userId) {
-                try {
-                    await api.saveSharedTreeToDashboard(userId, accessInfo.treeId);
-                    console.log('Tree đã được lưu vào dashboard');
-                } catch (e: any) {
-                    console.warn('Lỗi khi lưu tree:', e.message);
-                }
-            }
+            // Kiểm tra quyền truy cập
+            const { accessLevel } = await api.checkTreeAccess(treeId, userId);
 
-            if (userId && accessInfo.canEdit) {
-                console.log('User có quyền edit → chuyển đến TreeDetails');
-                showToast.success('Cây gia phả đã sẵn sàng để chỉnh sửa');
-
-                setTimeout(() => {
-                    navigate(`/trees/${accessInfo.treeId}`);
-                }, 500);
+            // Nếu có quyền edit/admin → chuyển sang TreeDetails
+            if (accessLevel === 'edit' || accessLevel === 'admin') {
+                navigate(`/trees/${treeId}`);
                 return;
             }
-            const treeData = await api.getSharedTree(shareToken, userId);
-            setTree(treeData);
 
-            const level = accessInfo?.canEdit ? 'edit' : 'view';
-            setAccessLevel(level);
-            console.log('🔍 Access Level:', level);
-
-            const [membersData, relationshipsData] = await Promise.all([
-                api.getSharedTreeMembers(shareToken, userId),
-                api.getSharedTreeRelationships(shareToken, userId),
+            // Load tree data với quyền viewer
+            const [treeData, membersData, relationshipsData] = await Promise.all([
+                // ✅ SỬA: Dùng listTrees() - trả về cả cây owned và cây được share
+                api.listTrees(userId).then(trees => 
+                    trees.find(t => t.id === treeId) || null
+                ),
+                // Dùng API thông thường, backend sẽ tự check quyền
+                api.listMembers(userId, treeId),
+                api.listRelationships(userId, treeId),
             ]);
+
+            if (!treeData) {
+                throw new Error('Không tìm thấy cây gia phả');
+            }
+
+            setTree(treeData);
+            setMembers(membersData);
+
+            // Chuẩn hóa quan hệ
             const normalizedRelationships = relationshipsData.map(rel => {
                 if (String(rel.type).toUpperCase() === 'CHILD') {
                     return {
@@ -94,11 +79,7 @@ export default function SharedTreeView() {
                 return rel;
             });
 
-            setMembers(membersData);
             setRelationships(normalizedRelationships);
-            if (userId) {
-                showToast.success('Cây gia phả đã được lưu vào dashboard của bạn');
-            }
 
         } catch (e: any) {
             const errorMsg = e?.message || 'Không thể tải cây gia phả';
@@ -109,19 +90,14 @@ export default function SharedTreeView() {
         }
     };
 
-    const handleLoginRedirect = () => {
-        if (!shareToken) return;
-        localStorage.setItem('redirectAfterLogin', `/trees/shared/${shareToken}`);
-        setShowAuthModal('signin');
-    };
     const handleRequestEditAccess = async () => {
-        if (!tree?.id || !user?.id) {
+        if (!tree?.id || !userId) {
             showToast.error('Không thể gửi yêu cầu');
             return;
         }
 
         try {
-            await api.requestEditAccess(user.id, tree.id);
+            await api.requestEditAccess(userId, tree.id);
             showToast.success('Đã gửi yêu cầu quyền chỉnh sửa đến chủ sở hữu');
         } catch (e: any) {
             showToast.error(e?.message || 'Gửi yêu cầu thất bại');
@@ -152,11 +128,11 @@ export default function SharedTreeView() {
                             {error || 'Cây gia phả không tồn tại hoặc bạn không có quyền truy cập.'}
                         </p>
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate('/dashboard')}
                             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 mx-auto"
                         >
                             <ArrowLeft className="w-4 h-4" />
-                            Về trang chủ
+                            Về dashboard
                         </button>
                     </div>
                 </div>
@@ -169,15 +145,16 @@ export default function SharedTreeView() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative">
+            {/* Header */}
             <header className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50 relative">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between">
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate('/dashboard')}
                             className="flex items-center gap-2 text-slate-300 hover:text-white transition-colors"
                         >
                             <ArrowLeft className="w-5 h-5" />
-                            <span className="hidden sm:inline">Quay lại</span>
+                            <span className="hidden sm:inline">Về dashboard</span>
                         </button>
 
                         <div className="text-center flex-1">
@@ -185,36 +162,13 @@ export default function SharedTreeView() {
                             {tree.description && (
                                 <p className="text-sm text-slate-300 mt-1">{tree.description}</p>
                             )}
-
-                            {editMode && (
-                                <div className="mt-2 px-3 py-1 bg-orange-500/20 text-orange-300 rounded-full text-sm inline-flex items-center gap-1">
-                                    <Edit3 className="w-3 h-3" />
-                                    <span>Chế độ chỉnh sửa</span>
-                                </div>
-                            )}
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {tree.isPublic ? (
-                                <div className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-300 rounded-full text-sm">
-                                    <Globe className="w-4 h-4" />
-                                    <span>Công khai</span>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-300 rounded-full text-sm">
-                                    <Lock className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Riêng tư</span>
-                                </div>
-                            )}
-
-                            {accessLevel && (
-                                <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm ${
-                                    accessLevel === 'edit' ? 'bg-orange-500/20 text-orange-300' : 'bg-gray-500/20 text-gray-300'
-                                }`}>
-                                    {accessLevel === 'edit' ? <Edit3 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    <span>{accessLevel === 'edit' ? 'Có thể sửa' : 'Chỉ xem'}</span>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-500/20 text-gray-300 rounded-full text-sm">
+                                <Eye className="w-4 h-4" />
+                                <span>Chỉ xem</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -247,6 +201,7 @@ export default function SharedTreeView() {
                 </div>
             </div>
 
+            {/* Main Content */}
             <main className="p-4 sm:p-6 lg:p-8 relative">
                 <div className="max-w-7xl mx-auto">
                     {members.length === 0 ? (
@@ -267,67 +222,22 @@ export default function SharedTreeView() {
                 </div>
             </main>
 
+            {/* Footer */}
             <footer className="bg-white/5 backdrop-blur-lg border-t border-white/10 py-6 mt-12 relative">
                 <div className="max-w-7xl mx-auto px-4 text-center text-slate-400 text-sm">
-                    <p>Được chia sẻ từ <span className="text-white font-semibold">LegacyMap</span></p>
+                    <p className="text-base mb-4">
+                        <span className="text-slate-300">Bạn đang xem cây gia phả này với quyền chỉ xem</span>
+                    </p>
 
-                    <div className="mt-4 flex flex-col items-center gap-3">
-                        <p className="text-base">
-                            {accessLevel === 'edit' ? (
-                                <span className="text-green-400">✓ Bạn có quyền chỉnh sửa cây gia phả này</span>
-                            ) : tree.isPublic ? (
-                                <span>Đây là cây gia phả công khai (chỉ xem)</span>
-                            ) : (
-                                <span>Cây gia phả này được chia sẻ với bạn (chỉ xem)</span>
-                            )}
-                        </p>
-                        {isLoggedIn && accessLevel !== 'edit' && tree?.id && (
-                            <button
-                                onClick={handleRequestEditAccess}
-                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg"
-                            >
-                                📝 Yêu cầu quyền chỉnh sửa
-                            </button>
-                        )}
-                        {!isLoggedIn && (
-                            <button
-                                onClick={handleLoginRedirect}
-                                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium shadow-lg"
-                            >
-                                🔐 Đăng nhập để lưu vào dashboard
-                            </button>
-                        )}
-
-                        {isLoggedIn && (
-                            <p className="text-green-400 text-xs">
-                               Cây này đã được lưu vào dashboard của bạn
-                            </p>
-                        )}
-                    </div>
+                    <button
+                        onClick={handleRequestEditAccess}
+                        className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg inline-flex items-center gap-2"
+                    >
+                        <Edit3 className="w-4 h-4" />
+                        Yêu cầu quyền chỉnh sửa
+                    </button>
                 </div>
             </footer>
-
-            {showAuthModal === 'signin' && (
-                <SignIn
-                    onClose={() => setShowAuthModal(null)}
-                    onShowPasswordReset={() => setShowAuthModal('reset')}
-                    onShowSignUp={() => setShowAuthModal('signup')}
-                />
-            )}
-
-            {showAuthModal === 'signup' && (
-                <SignUp
-                    onClose={() => setShowAuthModal(null)}
-                    onShowSignIn={() => setShowAuthModal('signin')}
-                />
-            )}
-
-            {showAuthModal === 'reset' && (
-                <PasswordReset
-                    onClose={() => setShowAuthModal(null)}
-                    onShowSignIn={() => setShowAuthModal('signin')}
-                />
-            )}
         </div>
     );
 }

@@ -850,22 +850,37 @@ async function checkTreeAccess(
 
   return pickData(json);
 }
-
 async function saveSharedTreeToDashboard(
     userId: string,
     treeId: string
 ): Promise<void> {
-  const res = await fetch(
-      `${API_BASE}/trees/${encodeURIComponent(treeId)}/save?userId=${encodeURIComponent(userId)}`,
-      {
-        method: "POST",
-        headers: authHeaders(),
-      }
-  );
+  try {
+    const res = await fetch(
+        `${API_BASE}/trees/${encodeURIComponent(treeId)}/save?userId=${encodeURIComponent(userId)}`,
+        {
+          method: "POST",
+          headers: authHeaders(),
+        }
+    );
 
-  if (!res.ok) {
-    const j = await safeJson<ApiResponse<unknown>>(res);
-    throw new Error(j?.message || "Lưu cây thất bại");
+    if (!res.ok) {
+      const j = await safeJson<ApiResponse<unknown>>(res);
+
+      // Bỏ qua lỗi nếu tree đã được save
+      if (j?.message?.includes('already')) {
+        console.log('Tree already saved');
+        return;
+      }
+
+      throw new Error(j?.message || "Lưu cây thất bại");
+    }
+  } catch (error: any) {
+    // Bỏ qua lỗi 405 (Method Not Allowed)
+    if (error?.message?.includes('405')) {
+      console.warn('Save endpoint not available, skipping');
+      return;
+    }
+    throw error;
   }
 }
 
@@ -935,7 +950,66 @@ async function getSharedTreeAccessInfo(
   return pickData(json);
 }
 
-// Simulate and confirm delete member
+// ==================== EDIT ACCESS REQUEST API ====================
+
+async function requestEditAccess(
+    userId: string,
+    treeId: string
+): Promise<void> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/request-edit-access?userId=${encodeURIComponent(userId)}`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+      }
+  );
+
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<unknown>>(res);
+    throw new Error(j?.message || "Gửi yêu cầu thất bại");
+  }
+}
+
+async function approveEditRequest(
+    ownerId: string,
+    treeId: string,
+    requesterId: string
+): Promise<void> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/approve-edit-request?ownerId=${encodeURIComponent(ownerId)}&requesterId=${encodeURIComponent(requesterId)}`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+      }
+  );
+
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<unknown>>(res);
+    throw new Error(j?.message || "Chấp nhận yêu cầu thất bại");
+  }
+}
+
+async function rejectEditRequest(
+    ownerId: string,
+    treeId: string,
+    requesterId: string
+): Promise<void> {
+  const res = await fetch(
+      `${API_BASE}/trees/${encodeURIComponent(treeId)}/reject-edit-request?ownerId=${encodeURIComponent(ownerId)}&requesterId=${encodeURIComponent(requesterId)}`,
+      {
+        method: "POST",
+        headers: authHeaders(),
+      }
+  );
+
+  if (!res.ok) {
+    const j = await safeJson<ApiResponse<unknown>>(res);
+    throw new Error(j?.message || "Từ chối yêu cầu thất bại");
+  }
+}
+
+// ==================== SIMULATE DELETE API ====================
+
 export interface SimulateDeleteResult {
   count: number;
   orphanMemberIds: string[];
@@ -1029,6 +1103,9 @@ const api = {
   pruneDisconnected,
   getSharedTreeAccessInfo,
   exportTreePdfWithImage,
+  requestEditAccess,
+  approveEditRequest,
+  rejectEditRequest,
   simulateDeleteMember,
   confirmDeleteMember,
 };
