@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api, { type FamilyTree, type Person, type Relationship } from '@/api/trees';
 import { showToast } from '@/lib/toast';
@@ -27,8 +27,12 @@ export default function SharedTreeView() {
     // ✅ THÊM: Lấy user từ localStorage
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
+    
+    // ✅ Sử dụng useRef thay vì useState để tránh re-render và đảm bảo giá trị đồng bộ
+    const hasShownSaveToastRef = useRef(false);
 
     useEffect(() => {
+        console.log('🔄 useEffect triggered, shareToken:', shareToken);
         if (!shareToken) {
             setError('Link chia sẻ không hợp lệ');
             setLoading(false);
@@ -40,6 +44,9 @@ export default function SharedTreeView() {
             setEditMode(true);
         }
 
+        // ✅ Reset flag khi shareToken thay đổi
+        console.log('🔄 Resetting hasShownSaveToast');
+        hasShownSaveToastRef.current = false;
         loadSharedTree();
     }, [shareToken]);
 
@@ -96,8 +103,13 @@ export default function SharedTreeView() {
 
             setMembers(membersData);
             setRelationships(normalizedRelationships);
-            if (userId) {
+            
+            // ✅ Chỉ hiển thị toast 1 lần khi lưu thành công
+            console.log('🔍 Toast check:', { userId, hasShownSaveToast: hasShownSaveToastRef.current });
+            if (userId && !hasShownSaveToastRef.current) {
+                console.log('✅ Showing save toast');
                 showToast.success('Cây gia phả đã được lưu vào dashboard của bạn');
+                hasShownSaveToastRef.current = true;
             }
 
         } catch (e: any) {

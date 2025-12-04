@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, Check, CheckCheck, Trash2, Calendar, Users, TreePine, Gift, Filter, AlertCircle, X} from 'lucide-react';
 import { notificationApi } from "@/api/notificationApi.ts";
 import { sseService } from "@/api/sseService.ts";
@@ -20,43 +21,42 @@ interface ConfirmModalProps {
 }
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }: ConfirmModalProps) => {
+    console.log('🎯 ConfirmModal render:', { isOpen, title });
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{background: 'rgba(42, 53, 72, 0.5)', backdropFilter: 'blur(8px)'}}>
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#0f1419]/95 via-[#1e2a3a]/95 to-[#0f1419]/95 backdrop-blur-sm overflow-hidden" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+            {/* Ambient glow effects */}
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#ffd89b]/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#d4af7a]/10 rounded-full blur-[120px] pointer-events-none" />
+            
             <div className="relative w-full max-w-md mx-4">
-                <div className="rounded-3xl shadow-2xl p-6" style={{
-                    background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 50%, rgba(255, 245, 220, 0.95) 100%)',
-                    border: '3px solid rgba(255, 216, 155, 0.6)',
-                    boxShadow: '0 20px 60px rgba(42, 53, 72, 0.3)'
-                }}>
+                <div className="relative bg-gradient-to-br from-[#1e2a3a]/95 via-[#0f1419]/90 to-[#1e2a3a]/95 backdrop-blur-2xl rounded-2xl shadow-[0_0_60px_rgba(255,216,155,0.15),0_20px_80px_rgba(0,0,0,0.6)] border-2 border-[#ffd89b]/20 overflow-hidden p-6">
+                    {/* Decorative top border glow */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffd89b] to-transparent opacity-60" />
+                    
                     <div className="flex items-start gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{
-                            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%)',
-                            border: '2px solid rgba(239, 68, 68, 0.3)'
-                        }}>
-                            <AlertCircle className="w-5 h-5" style={{color: '#dc2626'}} />
+                        <div className="relative p-2.5 bg-gradient-to-br from-[#ffd89b]/20 to-[#d4af7a]/20 rounded-xl border border-[#ffd89b]/30 shadow-[0_0_20px_rgba(255,216,155,0.2)] flex-shrink-0">
+                            <AlertCircle className="w-5 h-5 text-[#ffd89b]" />
+                            <div className="absolute inset-0 bg-[#ffd89b]/10 rounded-xl blur-sm" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="text-xl font-black mb-2" style={{color: '#2a3548'}}>{title}</h3>
-                            <p className="text-sm" style={{color: '#2a3548'}}>{message}</p>
+                            <h3 className="text-xl font-bold text-[#ffd89b] mb-2" style={{
+                                textShadow: '0 0 15px rgba(255,216,155,0.3), 0 2px 4px rgba(0,0,0,0.5)'
+                            }}>{title}</h3>
+                            <p className="text-sm text-gray-300">{message}</p>
                         </div>
                         <button
                             onClick={onCancel}
-                            className="p-1 rounded-lg transition-all hover:bg-black/5"
+                            className="p-1 rounded-lg transition-colors hover:bg-white/10"
                         >
-                            <X className="w-5 h-5" style={{color: '#2a3548'}} />
+                            <X className="w-5 h-5 text-[#ffd89b]" />
                         </button>
                     </div>
                     <div className="flex gap-3 mt-6">
                         <button
                             onClick={onCancel}
-                            className="flex-1 rounded-xl py-2.5 font-semibold transition-all border-2"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
-                                borderColor: 'rgba(42, 53, 72, 0.3)',
-                                color: '#2a3548'
-                            }}
+                            className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 border border-[#ffd89b]/30 rounded-lg transition-all duration-300 text-sm font-medium"
                         >
                             Hủy
                         </button>
@@ -65,19 +65,19 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }: ConfirmMo
                                 onConfirm();
                                 onCancel();
                             }}
-                            className="flex-1 rounded-xl py-2.5 font-semibold transition-all shadow-lg hover:brightness-110"
-                            style={{
-                                background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
-                                color: 'white',
-                                border: '2px solid rgba(220, 38, 38, 0.5)'
-                            }}
+                            className="relative overflow-hidden flex-1 px-4 py-2.5 bg-gradient-to-r from-[#d4af7a] via-[#ffd89b] to-[#d4af7a] bg-[length:200%_100%] hover:bg-[position:100%] text-[#0f1419] rounded-lg transition-all duration-500 font-semibold shadow-[0_8px_30px_rgba(255,216,155,0.3)] hover:shadow-[0_12px_40px_rgba(255,216,155,0.5)] hover:scale-105 group border border-[#ffd89b]/30 text-sm"
                         >
                             Xác nhận
+                            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12" />
                         </button>
                     </div>
+                    
+                    {/* Decorative bottom border glow */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#ffd89b] to-transparent opacity-60" />
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -130,6 +130,7 @@ const NotificationsPage = () => {
     });
 
     const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+        console.log('🔔 showConfirm called:', { title, message });
         setConfirmModal({ isOpen: true, title, message, onConfirm });
     };
 
@@ -774,26 +775,32 @@ const NotificationsPage = () => {
                                         {claimsLoaded && canActOnInvite(n) && !n.isRead && (
                                             <div className="mt-3 flex gap-2">
                                                 <button
-                                                    className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+                                                    className="relative overflow-hidden flex-1 px-4 py-2.5 bg-gradient-to-r from-[#d4af7a] via-[#ffd89b] to-[#d4af7a] bg-[length:200%_100%] hover:bg-[position:100%] text-[#0f1419] rounded-lg transition-all duration-500 font-semibold shadow-[0_8px_30px_rgba(255,216,155,0.3)] hover:shadow-[0_12px_40px_rgba(255,216,155,0.5)] hover:scale-105 group border border-[#ffd89b]/30 text-sm"
                                                     onClick={(e) => { e.stopPropagation(); acceptInvite(n); }}
-                                                >Chấp nhận</button>
+                                                >
+                                                    Chấp nhận
+                                                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12" />
+                                                </button>
                                                 <button
-                                                    className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700"
+                                                    className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 border border-[#ffd89b]/30 rounded-lg transition-all duration-300 text-sm font-medium hover:border-red-500/50 hover:text-red-300"
                                                     onClick={(e) => { e.stopPropagation(); rejectInvite(n); }}
-                                                >Từ chối</button>
+                                                >
+                                                    Từ chối
+                                                </button>
                                             </div>
                                         )}
                                         {/* Nút approve/reject cho access_request và edit_request */}
                                         {(n.type === 'access_request' || n.type === 'edit_request') && !n.isRead && (
                                             <div className="mt-3 flex gap-2">
                                                 <button
-                                                    className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+                                                    className="relative overflow-hidden flex-1 px-4 py-2.5 bg-gradient-to-r from-[#d4af7a] via-[#ffd89b] to-[#d4af7a] bg-[length:200%_100%] hover:bg-[position:100%] text-[#0f1419] rounded-lg transition-all duration-500 font-semibold shadow-[0_8px_30px_rgba(255,216,155,0.3)] hover:shadow-[0_12px_40px_rgba(255,216,155,0.5)] hover:scale-105 group border border-[#ffd89b]/30 text-sm"
                                                     onClick={(e) => { e.stopPropagation(); handleApproveEditRequest(n); }}
                                                 >
                                                     Chấp nhận
+                                                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12" />
                                                 </button>
                                                 <button
-                                                    className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700"
+                                                    className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 border border-[#ffd89b]/30 rounded-lg transition-all duration-300 text-sm font-medium hover:border-red-500/50 hover:text-red-300"
                                                     onClick={(e) => { e.stopPropagation(); handleRejectEditRequest(n); }}
                                                 >
                                                     Từ chối

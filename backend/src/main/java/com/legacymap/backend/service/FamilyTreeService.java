@@ -650,7 +650,27 @@ public class FamilyTreeService {
 
     @Transactional
     public TreeShareResponse generatePublicShareLink(UUID treeId, UUID userId, String permission) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        // Kiểm tra quyền của người tạo link
+        boolean isOwner = tree.getCreatedBy().getId().equals(userId);
+        
+        if (!isOwner) {
+            // Người không phải owner chỉ có thể tạo link VIEW
+            Optional<TreeAccess> access = treeAccessRepository
+                    .findByUserIdAndFamilyTreeId(userId, treeId);
+            
+            if (access.isEmpty() || !"edit".equals(access.get().getAccessLevel())) {
+                throw new AppException(ErrorCode.PERMISSION_DENIED);
+            }
+            
+            // Người có quyền EDIT chỉ được tạo link VIEW
+            if ("edit".equals(permission)) {
+                log.info("Non-owner cannot create edit link. Using view permission.");
+                permission = "view";
+            }
+        }
 
         if (!permission.equals("view") && !permission.equals("edit")) {
             throw new AppException(ErrorCode.VALIDATION_FAILED);
@@ -675,17 +695,40 @@ public class FamilyTreeService {
     }
 
     @Transactional
-    public TreeAccess shareWithUser(UUID treeId, UUID ownerId, String targetEmail, String accessLevel) {
-        log.info("START: shareWithUser - treeId: {}, ownerId: {}, targetEmail: {}, accessLevel: {}",
-                treeId, ownerId, targetEmail, accessLevel);
+    public TreeAccess shareWithUser(UUID treeId, UUID sharerId, String targetEmail, String accessLevel) {
+        log.info("START: shareWithUser - treeId: {}, sharerId: {}, targetEmail: {}, accessLevel: {}",
+                treeId, sharerId, targetEmail, accessLevel);
 
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, ownerId);
-        User owner = loadUserOrThrow(ownerId);
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+        
+        User sharer = loadUserOrThrow(sharerId);
         User targetUser = userRepository.findByEmail(targetEmail)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (targetUser.getId().equals(ownerId)) {
+        if (targetUser.getId().equals(sharerId)) {
             throw new AppException(ErrorCode.CANNOT_SHARE_TO_SELF);
+        }
+
+        // Kiểm tra quyền của người share
+        boolean isOwner = tree.getCreatedBy().getId().equals(sharerId);
+        
+        // Nếu không phải owner, chỉ cho phép share với quyền VIEW
+        String finalAccessLevel = accessLevel;
+        if (!isOwner) {
+            // Kiểm tra xem người share có quyền edit không
+            Optional<TreeAccess> sharerAccess = treeAccessRepository
+                    .findByUserIdAndFamilyTreeId(sharerId, treeId);
+            
+            if (sharerAccess.isEmpty() || !"edit".equals(sharerAccess.get().getAccessLevel())) {
+                throw new AppException(ErrorCode.PERMISSION_DENIED);
+            }
+            
+            // Người có quyền EDIT chỉ được share với quyền VIEW
+            if ("edit".equals(accessLevel)) {
+                log.info("Non-owner cannot grant edit access. Downgrading to view.");
+                finalAccessLevel = "view";
+            }
         }
 
         Optional<TreeAccess> existing = treeAccessRepository.findByUserIdAndFamilyTreeId(
@@ -694,15 +737,19 @@ public class FamilyTreeService {
         TreeAccess access;
         if (existing.isPresent()) {
             access = existing.get();
-            access.setAccessLevel(accessLevel);
+            // Chỉ owner mới có thể nâng cấp quyền lên edit
+            if ("edit".equals(finalAccessLevel) && !isOwner) {
+                finalAccessLevel = "view";
+            }
+            access.setAccessLevel(finalAccessLevel);
             access = treeAccessRepository.save(access);
             log.info("UPDATED: Existing TreeAccess updated for user: {}", targetEmail);
         } else {
             access = TreeAccess.builder()
                     .userId(targetUser.getId())
                     .familyTreeId(tree.getId())
-                    .accessLevel(accessLevel)
-                    .grantedBy(owner)
+                    .accessLevel(finalAccessLevel)
+                    .grantedBy(sharer)
                     .build();
             access = treeAccessRepository.save(access);
             log.info("CREATED: New TreeAccess created for user: {}", targetEmail);
@@ -714,8 +761,8 @@ public class FamilyTreeService {
                     targetEmail,
                     targetUser.getUsername(),
                     tree.getName(),
-                    owner.getUsername(),
-                    accessLevel,
+                    sharer.getUsername(),
+                    finalAccessLevel,
                     shareUrl
             );
             log.info("SUCCESS: Sent share notification email to {}", targetEmail);
@@ -723,13 +770,26 @@ public class FamilyTreeService {
             log.error("FAILED: Error sending email to {}: {}", targetEmail, e.getMessage(), e);
         }
 
-        log.info("COMPLETED: shareWithUser finished for user: {}", targetEmail);
+        log.info("COMPLETED: shareWithUser finished for user: {} with access level: {}", 
+                targetEmail, finalAccessLevel);
         return access;
     }
 
     @Transactional(readOnly = true)
     public List<TreeAccess> getSharedUsers(UUID treeId, UUID userId) {
-        FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+        
+        // Kiểm tra quyền: owner hoặc editor đều có thể xem danh sách
+        boolean isOwner = tree.getCreatedBy().getId().equals(userId);
+        if (!isOwner) {
+            Optional<TreeAccess> access = treeAccessRepository
+                    .findByUserIdAndFamilyTreeId(userId, treeId);
+            if (access.isEmpty() || !"edit".equals(access.get().getAccessLevel())) {
+                throw new AppException(ErrorCode.PERMISSION_DENIED);
+            }
+        }
+        
         return treeAccessRepository.findAllByFamilyTreeIdWithUsers(tree.getId());
     }
 

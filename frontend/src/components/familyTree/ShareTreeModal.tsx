@@ -24,12 +24,35 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
 
     // Thêm state cho permission
     const [publicPermission, setPublicPermission] = useState<"view" | "edit">("view");
+    
+    // ✅ Kiểm tra xem user hiện tại có phải owner không
+    const [isOwner, setIsOwner] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             loadShareData();
+            checkOwnership();
         }
     }, [isOpen, treeId, userId]);
+
+    const checkOwnership = async () => {
+        try {
+            const ownerId = await api.getTreeOwner(treeId);
+            const userIsOwner = ownerId === userId;
+            setIsOwner(userIsOwner);
+            
+            // ✅ Nếu không phải owner, force về "view"
+            if (!userIsOwner) {
+                setPublicPermission("view");
+                setAccessLevel("view");
+            }
+        } catch (e: any) {
+            console.error("Không kiểm tra được ownership:", e);
+            setIsOwner(false);
+            setPublicPermission("view");
+            setAccessLevel("view");
+        }
+    };
 
     const loadShareData = async () => {
         setLoading(true);
@@ -171,31 +194,39 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                                     <div className="flex gap-2">
                                         <button
                                             type="button"
-                                            onClick={() => handlePublicPermissionChange("view")}
+                                            onClick={() => isOwner && handlePublicPermissionChange("view")}
+                                            disabled={!isOwner}
                                             className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
                                                 publicPermission === "view"
                                                     ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
-                                                    : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
+                                                    : isOwner 
+                                                    ? "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
+                                                    : "bg-white/5 text-gray-500 border-[#ffd89b]/20 cursor-not-allowed opacity-60"
                                             }`}
                                         >
                                             <Eye className="w-4 h-4" />
                                             Chỉ xem
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handlePublicPermissionChange("edit")}
-                                            className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
-                                                publicPermission === "edit"
-                                                    ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
-                                                    : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
-                                            }`}
-                                        >
-                                            <Edit3 className="w-4 h-4" />
-                                            Có thể chỉnh sửa
-                                        </button>
+                                        {/* ✅ CHỈ hiển thị nút "Có thể chỉnh sửa" nếu user là owner */}
+                                        {isOwner && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePublicPermissionChange("edit")}
+                                                className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
+                                                    publicPermission === "edit"
+                                                        ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
+                                                        : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
+                                                }`}
+                                            >
+                                                <Edit3 className="w-4 h-4" />
+                                                Có thể chỉnh sửa
+                                            </button>
+                                        )}
                                     </div>
                                     <p className="text-xs text-gray-500 mt-2">
-                                        {publicPermission === "view"
+                                        {!isOwner 
+                                            ? "⚠️ Chỉ chủ sở hữu mới có thể chia sẻ với quyền chỉnh sửa"
+                                            : publicPermission === "view"
                                             ? "Người nhận chỉ có thể xem, không thể chỉnh sửa"
                                             : "Người nhận cần đăng nhập để chỉnh sửa cây gia phả"}
                                     </p>
@@ -233,7 +264,8 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                                             Người được chia sẻ ({sharedUsers.length})
                                         </h3>
                                     </div>
-                                    {!showShareForm && (
+                                    {/* ✅ CHỈ hiển thị nút chia sẻ nếu user là owner */}
+                                    {!showShareForm && isOwner && (
                                         <button
                                             onClick={() => setShowShareForm(true)}
                                             className="px-3 py-1.5 text-sm bg-[#ffd89b]/10 hover:bg-[#ffd89b]/20 text-[#ffd89b] rounded-lg transition-all duration-300 border border-[#ffd89b]/30 hover:border-[#ffd89b]/50 hover:shadow-[0_4px_20px_rgba(255,216,155,0.2)]"
@@ -281,21 +313,26 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                                                     <Eye className="w-4 h-4" />
                                                     Chỉ xem
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAccessLevel("edit")}
-                                                    className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
-                                                        accessLevel === "edit"
-                                                            ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
-                                                            : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
-                                                    }`}
-                                                >
-                                                    <Edit3 className="w-4 h-4" />
-                                                    Có thể chỉnh sửa
-                                                </button>
+                                                {/* ✅ CHỈ hiển thị nút "Có thể chỉnh sửa" nếu user là owner */}
+                                                {isOwner && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAccessLevel("edit")}
+                                                        className={`flex-1 px-4 py-2.5 rounded-lg border transition-all duration-300 text-sm font-medium flex items-center justify-center gap-2 ${
+                                                            accessLevel === "edit"
+                                                                ? "bg-gradient-to-r from-[#d4af7a] to-[#ffd89b] text-[#0f1419] border-[#ffd89b] shadow-[0_8px_25px_rgba(255,216,155,0.3)]"
+                                                                : "bg-white/5 text-gray-300 border-[#ffd89b]/30 hover:bg-white/10 hover:border-[#ffd89b]/50"
+                                                        }`}
+                                                    >
+                                                        <Edit3 className="w-4 h-4" />
+                                                        Có thể chỉnh sửa
+                                                    </button>
+                                                )}
                                             </div>
                                             <p className="text-xs text-gray-500 mt-2">
-                                                {accessLevel === "view"
+                                                {!isOwner 
+                                                    ? "⚠️ Chỉ chủ sở hữu mới có thể chia sẻ với quyền chỉnh sửa"
+                                                    : accessLevel === "view"
                                                     ? "Người nhận chỉ có thể xem, không thể chỉnh sửa"
                                                     : "Người nhận cần đăng nhập để chỉnh sửa cây gia phả"}
                                             </p>
@@ -347,13 +384,16 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                                                     }`}>
                                                         {user.accessLevel === "edit" ? "Chỉnh sửa" : "Chỉ xem"}
                                                     </span>
-                                                    <button
-                                                        onClick={() => handleRevokeAccess(user.userId, user.userEmail)}
-                                                        className="p-1.5 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded transition-all duration-300 border border-transparent hover:border-red-500/30"
-                                                        title="Thu hồi quyền"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    {/* ✅ CHỈ hiển thị nút xóa nếu user là owner */}
+                                                    {isOwner && (
+                                                        <button
+                                                            onClick={() => handleRevokeAccess(user.userId, user.userEmail)}
+                                                            className="p-1.5 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded transition-all duration-300 border border-transparent hover:border-red-500/30"
+                                                            title="Thu hồi quyền"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))
