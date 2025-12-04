@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, X, Send } from 'lucide-react';
+import { Bot, X, Send, Mic, Square } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy')
+  .replace(/\/+$/, '');
 
-// Hàm cn đơn giản (không cần @/lib/utils nữa)
 const cn = (...inputs: (string | undefined | null | false)[]) =>
   inputs.filter(Boolean).join(' ');
 
@@ -56,30 +57,29 @@ export default function LegacyChatWidget() {
     positionRef.current = position;
   }, [position]);
 
-const dragRef = useRef({
-  isDragging: false,
-  offsetX: 0,
-  offsetY: 0,
-  hasMoved: false,
-});
-
-useEffect(() => {
-  const offsetTop = 72; // để tránh đè lên navbar
-  const x = window.innerWidth - BUTTON_SIZE - EDGE_PADDING;
-  const y = offsetTop;
-
-  setPosition({
-    x: Math.max(EDGE_PADDING, x),
-    y: Math.max(EDGE_PADDING, y)
+  const dragRef = useRef({
+    isDragging: false,
+    offsetX: 0,
+    offsetY: 0,
+    hasMoved: false,
   });
-}, []);
 
+  useEffect(() => {
+    const offsetTop = 72; // để tránh đè lên navbar
+    const x = window.innerWidth - BUTTON_SIZE - EDGE_PADDING;
+    const y = offsetTop;
+
+    setPosition({
+      x: Math.max(EDGE_PADDING, x),
+      y: Math.max(EDGE_PADDING, y)
+    });
+  }, []);
 
   const handleDragStart = (e: React.MouseEvent<HTMLButtonElement>) => {
     dragRef.current.isDragging = true;
     dragRef.current.offsetX = e.clientX - positionRef.current.x;
     dragRef.current.offsetY = e.clientY - positionRef.current.y;
-      dragRef.current.hasMoved = false; 
+    dragRef.current.hasMoved = false;
   };
 
   const handleDragMove = useCallback(
@@ -88,9 +88,8 @@ useEffect(() => {
 
       const x = e.clientX - dragRef.current.offsetX;
       const y = e.clientY - dragRef.current.offsetY;
-    dragRef.current.hasMoved = true;
-      // Nếu đang mở -> giới hạn theo kích thước panel
-      // Nếu đang đóng -> chỉ theo kích thước nút
+      dragRef.current.hasMoved = true;
+
       const currentWidth = isOpen ? CHAT_WIDTH : BUTTON_SIZE;
       const currentHeight = isOpen ? CHAT_HEIGHT : BUTTON_SIZE;
 
@@ -109,7 +108,6 @@ useEffect(() => {
     dragRef.current.isDragging = false;
   }, []);
 
-  // Lắng nghe mousemove / mouseup toàn màn hình
   useEffect(() => {
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
@@ -119,7 +117,6 @@ useEffect(() => {
     };
   }, [handleDragMove, handleDragEnd]);
 
-  // Khi bấm mở, tự căn lại để panel KHÔNG tràn khỏi màn hình
   const toggleOpen = () => {
     setIsOpen(prev => {
       const next = !prev;
@@ -144,13 +141,12 @@ useEffect(() => {
   };
 
   const handleButtonClick = () => {
-  if (dragRef.current.hasMoved) {
-    // vừa kéo xong → bỏ qua click này
-    dragRef.current.hasMoved = false;
-    return;
-  }
-  toggleOpen();
-};
+    if (dragRef.current.hasMoved) {
+      dragRef.current.hasMoved = false;
+      return;
+    }
+    toggleOpen();
+  };
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -166,12 +162,160 @@ useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Hàm core để gửi tin nhắn lên server (dùng chung cho input & gợi ý)
+  // ================== 🎤 STATE & LOGIC CHO VOICE ==================
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      console.log("AUDIO BLOB:", audioBlob);
+
+      const formData = new FormData();
+      // Đổi tên file thành .wav để OpenAI nhận tốt hơn
+      formData.append('file', audioBlob, 'voice.wav');
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'vi'); // nhận diện tiếng Việt cực chuẩn
+
+      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Whisper failed');
+
+      const data = await response.json();
+      const transcript = data.text?.trim();
+
+      console.log("TRANSCRIPT:", transcript);
+
+      if (transcript) {
+        setInput(transcript);
+        sendToBot(transcript);
+      } else {
+        throw new Error('Empty transcript');
+      }
+    } catch (err) {
+      console.error('Lỗi STT:', err);
+      setMessages(prev => [...prev, {
+        text: 'Em không nghe rõ lắm, anh/chị nói to hơn chút giúp em nha',
+        sender: 'bot'
+      }]);
+    }
+  };
+
+
+  const uploadAudioToBackend = async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'voice.webm'); // tên field phải là "audio"
+
+      const token = getAuthToken();
+      const textChatUrl = `${API_BASE}/support/chat`;
+
+      const res = await fetch(`${API_BASE}/voice/chat${sessionId ? `?sessionId=${sessionId}` : ''}`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Voice chat failed');
+
+      const data = await res.json();
+
+      // Hiển thị tin nhắn người dùng (text đã được STT)
+      setMessages(prev => [...prev, { text: data.userText, sender: 'user' }]);
+
+      // Hiển thị phản hồi của bot
+      setMessages(prev => [...prev, { text: data.botText, sender: 'bot' }]);
+
+      // PHÁT ÂM THANH BOT NÓI (siêu quan trọng!)
+      if (data.audio && data.audio.startsWith('data:audio')) {
+        const audio = new Audio(data.audio);
+        audio.play().catch(e => console.log('Không phát được âm thanh:', e));
+      }
+
+    } catch (err) {
+      console.error('Lỗi voice chat:', err);
+      setMessages(prev => [...prev, {
+        text: 'Hic, em đang mệt xíu, anh/chị nói lại giúp em nha',
+        sender: 'bot'
+      }]);
+    }
+  };
+  const startRecording = async () => {
+    try {
+      console.log("▶️ startRecording");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      setIsRecording(true);
+
+      mediaRecorder.ondataavailable = (event) => {
+        console.log("📥 ondataavailable, size =", event.data.size);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        console.log("⏹ onstop, chunks:", audioChunksRef.current.length);
+        setIsRecording(false);
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        console.log("🎧 audioBlob size:", audioBlob.size);
+
+        // GỬI LÊN BACKEND
+        uploadAudioToBackend(audioBlob);
+
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+
+      mediaRecorder.start();
+    } catch (err) {
+      console.error('Không truy cập được micro:', err);
+      setMessages(prev => [
+        ...prev,
+        {
+          text: 'Em không mở được micro trên trình duyệt rồi ạ. Anh/chị kiểm tra lại quyền truy cập micro giúp em nha 🙏',
+          sender: 'bot',
+        },
+      ]);
+    }
+  };
+
+  const stopRecording = () => {
+    console.log("⏹ stopRecording clicked");
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const toggleRecording = () => {
+    console.log("🎚 toggleRecording, isRecording =", isRecording);
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // ================================================================
+
+
+  // Hàm core để gửi tin nhắn lên server (dùng chung cho input & gợi ý & voice)
   const sendToBot = (userMessage: string) => {
     const trimmed = userMessage.trim();
     if (!trimmed || isTyping) return;
 
-    // Đóng event cũ nếu có
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
@@ -181,15 +325,15 @@ useEffect(() => {
     setIsTyping(true);
 
     const token = getAuthToken();
-    const baseUrl = `${import.meta.env.VITE_API_BASE_URL}/support/chat`;
+    const textChatUrl = `${API_BASE}/support/chat`;
 
     const params = new URLSearchParams({
       sessionId,
       message: trimmed,
-      authToken: token || '' // DÒNG NÀY LÀ CHÌA KHÓA VÀNG!
+      authToken: token || ''
     });
 
-    const es = new EventSource(`${baseUrl}?${params}`);
+    const es = new EventSource(`${textChatUrl}?${params}`);
     eventSourceRef.current = es;
 
     let botResponse = '';
@@ -203,7 +347,6 @@ useEffect(() => {
 
       botResponse += event.data;
 
-      // Chỉ update tin nhắn bot cuối cùng
       setMessages(prev => {
         const newMessages = [...prev];
         if (
@@ -238,7 +381,7 @@ useEffect(() => {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    if (isTyping) return; // đang trả lời thì ignore click
+    if (isTyping) return;
     sendToBot(suggestion);
   };
 
@@ -379,12 +522,31 @@ useEffect(() => {
           onSubmit={sendMessage}
           className="p-4 border-t border-[#C9A961]/20 bg-[#1E293B]/30"
         >
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Nút micro */}
+            <button
+              type="button"
+              onClick={toggleRecording}
+              disabled={isTyping}
+              className={cn(
+                'rounded-xl p-3 border transition-all flex items-center justify-center',
+                isRecording
+                  ? 'bg-red-600 border-red-400 text-white animate-pulse'
+                  : 'bg-[#1E293B] border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10'
+              )}
+            >
+              {isRecording ? (
+                <Square className="w-4 h-4" />
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
+            </button>
+
             <input
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Nhập tin nhắn..."
+              placeholder={isRecording ? 'Đang ghi âm, nhấn stop để gửi...' : 'Nhập tin nhắn...'}
               disabled={isTyping}
               className="flex-1 bg-[#1E293B] text-white placeholder:text-[#C9A961]/50 rounded-xl px-4 py-3 text-sm border border-[#C9A961]/20 focus:outline-none focus:border-[#C9A961] focus:ring-1 focus:ring-[#C9A961] disabled:opacity-50 transition-all"
             />
@@ -403,7 +565,7 @@ useEffect(() => {
       <button
         type="button"
         onMouseDown={handleDragStart}
-        onClick={handleButtonClick} 
+        onClick={handleButtonClick}
         className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg shadow-[#C9A961]/20 hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-move"
       >
         {isOpen ? (

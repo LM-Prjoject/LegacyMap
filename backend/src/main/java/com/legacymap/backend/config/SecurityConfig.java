@@ -172,7 +172,7 @@ public class SecurityConfig {
                         // Debug & Docs
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/actuator/**").permitAll()
                         .requestMatchers("/api/debug/**", "/legacy/api/debug/**").permitAll()
-
+                        .requestMatchers("/api/voice/transcribe").permitAll()
                         // Admin
                         .requestMatchers("/api/admin/**", "/legacy/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/support/**").permitAll()
