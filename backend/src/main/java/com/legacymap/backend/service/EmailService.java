@@ -25,11 +25,8 @@ public class EmailService {
     }
 
     public void sendVerificationEmail(String toEmail, String userName, String token) throws MessagingException {
-        // Tự động dùng URL theo môi trường (Render hoặc Local)
+
         String verifyUrl = backendUrl + "/legacy/api/auth/verify?token=" + token;
-
-        log.info("📧 Sending verification email to {} with verify URL: {}", toEmail, verifyUrl);
-
         String htmlContent = buildVerificationEmail(userName, verifyUrl);
 
         MimeMessage mimeMessage = mailSender.createMimeMessage();
@@ -72,16 +69,12 @@ public class EmailService {
             helper.setText(message, false);
 
             mailSender.send(mimeMessage);
-            log.info("Sent email to {}: {}", toEmail, subject);
         } catch (MessagingException e) {
-            log.error("Failed to send email to {}", toEmail, e);
             throw new RuntimeException("Failed to send email", e);
         }
     }
 
     public void sendTreeShareNotification(String toEmail, String recipientName, String treeName, String ownerName, String accessLevel, String shareUrl) throws MessagingException {
-        log.info("📧 Sending tree share notification to {}", toEmail);
-
         String htmlContent = buildTreeShareEmail(recipientName, treeName, ownerName, accessLevel, shareUrl);
 
         MimeMessage mimeMessage = mailSender.createMimeMessage();
@@ -130,7 +123,6 @@ public class EmailService {
         helper.setText(html, true);
 
         mailSender.send(mimeMessage);
-        log.info("Sent person invite email to {} for person {}", toEmail, personName);
     }
 
     private String buildPersonInviteEmail(String inviterName, String personName, String ctaUrl) {

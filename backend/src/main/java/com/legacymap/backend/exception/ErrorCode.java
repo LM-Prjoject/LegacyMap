@@ -37,7 +37,7 @@ public enum ErrorCode {
     RELATIONSHIP_SELF_LINK("Cannot create a relationship with yourself", 1106),
     TREE_NOT_FOUND("Family tree not found", 1107),
     ALREADY_HAS_EDIT_ACCESS("You already have edit access to this tree", 4009),
-    USER_BANNED("Your account has been banned. Please contact support", 1110),
+    USER_BANNED("Tài khoản này đã bị khóa, vui lòng liên hệ đội ngũ hỗ trợ", 1110),
     USER_ALREADY_BANNED("This user is already banned", 1111),
     USER_NOT_BANNED("This user is not banned", 1112),
     CANNOT_BAN_ADMIN("Cannot ban an admin account", 1113),

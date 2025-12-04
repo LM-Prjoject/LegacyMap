@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { X } from 'lucide-react';
 import DragonsBackground from '@/components/visual/DragonsBackground';
 import { PasswordInput } from "@/pages/auth/AccountSecuritySection/AccountSecuritySection";
+import {showToast} from "@/lib/toast.ts";
 
 const forgotPasswordSchema = z.object({
     email: z.string().email('Email không hợp lệ'),
@@ -67,7 +68,7 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
         try {
             const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:8080/legacy/api';
             const params = new URLSearchParams();
-            params.set('redirect', `${window.location.origin}`);
+            params.set('redirect', `${window.location.origin}/auth/reset-password`);
 
             const res = await fetch(`${API_BASE}/auth/password/forgot?${params.toString()}`, {
                 method: 'POST',
@@ -75,15 +76,24 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                 body: JSON.stringify({ email: data.email }),
             });
             const payload = await res.json().catch(() => ({} as any));
+
             if (res.ok && payload?.success) {
                 setIsEmailSent(true);
-            } else {
-                const msg = payload?.message || 'Gửi email thất bại. Vui lòng thử lại.';
-                alert(msg);
+                return;
             }
+
+            const msg = payload?.message || 'Gửi email thất bại. Vui lòng thử lại.';
+            const code = payload?.code || payload?.errorCode;
+
+            if (code === 'USER_BANNED') {
+                showToast.error('Tài khoản này đã bị khóa, vui lòng liên hệ đội ngũ hỗ trợ');
+                return;
+            }
+
+            showToast.error(msg);
         } catch (error) {
             console.error('Error sending reset email:', error);
-            alert('Gửi email thất bại. Vui lòng thử lại.');
+            showToast.error('Gửi email thất bại. Vui lòng thử lại.');
         }
     };
 
@@ -125,7 +135,6 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
 
     if (isRecovery) {
         return (
-            // FIXED: Background trong suốt giống SignUp
             <div className="fixed inset-0 z-50 overflow-hidden" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(8px)'}}>
                 <div className="flex min-h-full items-center justify-center p-4">
                     <DragonsBackground
@@ -135,7 +144,6 @@ const PasswordReset = ({ onClose, onShowSignIn, token: initialToken }: PasswordR
                         right={{ enabled: true, flipX: false, delayMs: 250 }}
                     />
 
-                    {/* FIXED: Container scroll duy nhất giống SignUp */}
                     <div className="relative w-full max-w-md max-h-[90vh] z-10 mx-auto overflow-y-auto">
                         <div className="relative rounded-3xl shadow-2xl p-8" style={{
                             background: 'linear-gradient(135deg, rgba(255, 245, 220, 0.95) 0%, rgba(255, 235, 200, 0.9) 25%, rgba(255, 245, 220, 0.95) 50%, rgba(255, 235, 200, 0.9) 75%, rgba(255, 245, 220, 0.95) 100%)',
