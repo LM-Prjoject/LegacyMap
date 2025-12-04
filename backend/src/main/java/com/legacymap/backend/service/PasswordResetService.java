@@ -30,7 +30,12 @@ public class PasswordResetService {
             return ApiResponse.error(ErrorCode.USER_NOT_FOUND, "Email không tồn tại");
         }
 
+
         User user = userOpt.get();
+        if (Boolean.TRUE.equals(user.getIsBanned())) {
+            return ApiResponse.error(
+                    ErrorCode.USER_BANNED);
+        }
 
         AuthToken token = AuthToken.builder()
                 .user(user)
@@ -67,12 +72,19 @@ public class PasswordResetService {
         }
 
         User user = authToken.getUser();
+
+        if (Boolean.TRUE.equals(user.getIsBanned())) {
+            return ApiResponse.error(
+                    ErrorCode.USER_BANNED);
+        }
+
         user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
 
-        user.setIsActive(true);
+        if (!Boolean.TRUE.equals(user.getIsBanned())) {
+            user.setIsActive(true);
+        }
         user.setFailedAttempts(0);
-
+        userRepository.save(user);
         authToken.setUsed(true);
         authTokenRepository.save(authToken);
 
