@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Bot, X, Send, Mic, Square } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy')
   .replace(/\/+$/, '');
 
@@ -21,13 +22,11 @@ const getAuthToken = (): string | null => {
   }
 };
 
-// Kích thước ước lượng của widget
-const CHAT_WIDTH = 384;   // w-96 -> 96 * 4
-const CHAT_HEIGHT = 520;  // h-[520px]
-const BUTTON_SIZE = 56;   // w-14 h-14 -> 14 * 4
-const EDGE_PADDING = 16;  // chừa lề 16px
+const CHAT_WIDTH = 384;
+const CHAT_HEIGHT = 520;
+const BUTTON_SIZE = 56;
+const EDGE_PADDING = 16;
 
-// Một vài gợi ý câu hỏi cho người dùng
 const SUGGESTIONS = [
   'LegacyMap là gì và dùng để làm gì?',
   'Làm sao để tạo cây gia phả mới?',
@@ -48,9 +47,10 @@ export default function LegacyChatWidget() {
       sender: 'bot'
     }
   ]);
+
   const [isTyping, setIsTyping] = useState(false);
 
-  // --- DRAG STATE: vị trí widget & thông tin kéo ---
+  // DRAG STATE
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const positionRef = useRef(position);
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function LegacyChatWidget() {
   });
 
   useEffect(() => {
-    const offsetTop = 72; // để tránh đè lên navbar
+    const offsetTop = 72;
     const x = window.innerWidth - BUTTON_SIZE - EDGE_PADDING;
     const y = offsetTop;
 
@@ -150,9 +150,7 @@ export default function LegacyChatWidget() {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const sessionId = useRef(
-    'web_' + Math.random().toString(36).substr(2, 9)
-  ).current;
+  const sessionId = useRef('web_' + Math.random().toString(36).substr(2, 9)).current;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -162,95 +160,50 @@ export default function LegacyChatWidget() {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // ================== 🎤 STATE & LOGIC CHO VOICE ==================
+  // ================= VOICE =================
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const transcribeAudio = async (audioBlob: Blob) => {
-    try {
-      console.log("AUDIO BLOB:", audioBlob);
-
-      const formData = new FormData();
-      // Đổi tên file thành .wav để OpenAI nhận tốt hơn
-      formData.append('file', audioBlob, 'voice.wav');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'vi'); // nhận diện tiếng Việt cực chuẩn
-
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Whisper failed');
-
-      const data = await response.json();
-      const transcript = data.text?.trim();
-
-      console.log("TRANSCRIPT:", transcript);
-
-      if (transcript) {
-        setInput(transcript);
-        sendToBot(transcript);
-      } else {
-        throw new Error('Empty transcript');
-      }
-    } catch (err) {
-      console.error('Lỗi STT:', err);
-      setMessages(prev => [...prev, {
-        text: 'Em không nghe rõ lắm, anh/chị nói to hơn chút giúp em nha',
-        sender: 'bot'
-      }]);
-    }
-  };
-
-
   const uploadAudioToBackend = async (audioBlob: Blob) => {
     try {
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'voice.webm'); // tên field phải là "audio"
+      formData.append('audio', audioBlob, 'voice.webm');
 
       const token = getAuthToken();
-      const textChatUrl = `${API_BASE}/support/chat`;
 
-      const res = await fetch(`${API_BASE}/voice/chat${sessionId ? `?sessionId=${sessionId}` : ''}`, {
-        method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
-      });
+      const res = await fetch(
+        `${API_BASE}/voice/chat${sessionId ? `?sessionId=${sessionId}` : ''}`,
+        {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        }
+      );
 
-      if (!res.ok) throw new Error('Voice chat failed');
+      if (!res.ok) throw new Error();
 
       const data = await res.json();
 
-      // Hiển thị tin nhắn người dùng (text đã được STT)
       setMessages(prev => [...prev, { text: data.userText, sender: 'user' }]);
-
-      // Hiển thị phản hồi của bot
       setMessages(prev => [...prev, { text: data.botText, sender: 'bot' }]);
 
-      // PHÁT ÂM THANH BOT NÓI (siêu quan trọng!)
       if (data.audio && data.audio.startsWith('data:audio')) {
-        const audio = new Audio(data.audio);
-        audio.play().catch(e => console.log('Không phát được âm thanh:', e));
+        new Audio(data.audio).play();
       }
 
-    } catch (err) {
-      console.error('Lỗi voice chat:', err);
-      setMessages(prev => [...prev, {
-        text: 'Hic, em đang mệt xíu, anh/chị nói lại giúp em nha',
-        sender: 'bot'
-      }]);
+    } catch {
+      setMessages(prev => [
+        ...prev,
+        { text: 'Em đang hơi mệt xíu, anh/chị nói lại giúp em nha', sender: 'bot' }
+      ]);
     }
   };
+
   const startRecording = async () => {
     try {
-      console.log("▶️ startRecording");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
 
@@ -259,66 +212,47 @@ export default function LegacyChatWidget() {
       setIsRecording(true);
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log("📥 ondataavailable, size =", event.data.size);
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        console.log("⏹ onstop, chunks:", audioChunksRef.current.length);
         setIsRecording(false);
-
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        console.log("🎧 audioBlob size:", audioBlob.size);
-
-        // GỬI LÊN BACKEND
         uploadAudioToBackend(audioBlob);
-
         stream.getTracks().forEach((t) => t.stop());
       };
 
-
       mediaRecorder.start();
-    } catch (err) {
-      console.error('Không truy cập được micro:', err);
+    } catch {
       setMessages(prev => [
         ...prev,
         {
-          text: 'Em không mở được micro trên trình duyệt rồi ạ. Anh/chị kiểm tra lại quyền truy cập micro giúp em nha 🙏',
-          sender: 'bot',
+          text: 'Em không mở được micro rồi ạ. Anh/chị kiểm tra lại quyền truy cập giúp em nhé 🙏',
+          sender: 'bot'
         },
       ]);
     }
   };
 
   const stopRecording = () => {
-    console.log("⏹ stopRecording clicked");
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
   };
 
   const toggleRecording = () => {
-    console.log("🎚 toggleRecording, isRecording =", isRecording);
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
+    if (isRecording) stopRecording();
+    else startRecording();
   };
 
-  // ================================================================
-
-
-  // Hàm core để gửi tin nhắn lên server (dùng chung cho input & gợi ý & voice)
+  // ================= TEXT CHAT (SSE) =================
   const sendToBot = (userMessage: string) => {
     const trimmed = userMessage.trim();
     if (!trimmed || isTyping) return;
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+    if (eventSourceRef.current) eventSourceRef.current.close();
 
     setMessages(prev => [...prev, { text: trimmed, sender: 'user' }]);
     setInput('');
@@ -366,10 +300,7 @@ export default function LegacyChatWidget() {
       setIsTyping(false);
       setMessages(prev => [
         ...prev,
-        {
-          text: 'Oops! Mình đang hơi chậm, bạn thử lại sau vài giây nhé!',
-          sender: 'bot'
-        }
+        { text: 'Oops! Mình đang hơi chậm, bạn thử lại sau vài giây nhé!', sender: 'bot' }
       ]);
     };
   };
@@ -385,19 +316,20 @@ export default function LegacyChatWidget() {
     sendToBot(suggestion);
   };
 
+  // ================= RETURN UI =================
   return (
     <div
       className="fixed z-50 flex flex-col items-end gap-3"
       style={{ top: position.y, left: position.x }}
     >
-      {/* Chat Window */}
+      {/* CHAT WINDOW */}
       <div
         className={cn(
           'flex flex-col bg-[#2C3E50] rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden',
           isOpen ? 'w-96 h-[520px] opacity-100' : 'w-0 h-0 opacity-0 pointer-events-none'
         )}
       >
-        {/* Header */}
+        {/* HEADER */}
         <div className="flex items-center justify-between p-3 border-b border-[#C9A961]/20 bg-[#1E293B]/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#C9A961] flex items-center justify-center shadow-md">
@@ -420,7 +352,7 @@ export default function LegacyChatWidget() {
           </button>
         </div>
 
-        {/* Messages */}
+        {/* MESSAGES */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#2C3E50]">
           {messages.map((msg, i) => (
             <div
@@ -439,34 +371,26 @@ export default function LegacyChatWidget() {
                 )}
               >
                 {msg.sender === 'bot' ? (
-                  <>
-                    <ReactMarkdown
-                      components={{
-                        a: ({
-                          node,
-                          ...props
-                        }: React.ComponentProps<'a'> & { node?: any }) => (
-                          <a
-                            {...props}
-                            target={
-                              props.href && props.href.startsWith('/')
-                                ? '_self'
-                                : '_blank'
-                            }
-                            rel="noopener noreferrer"
-                            className="underline text-[#C9A961] hover:opacity-80"
-                          />
-                        )
-                      }}
-                    >
-                      {msg.text}
-                    </ReactMarkdown>
-                    {i === messages.length - 1 && isTyping && (
-                      <span className="inline-block w-2 h-5 ml-1 bg-[#C9A961] animate-pulse align-middle" />
-                    )}
-                  </>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ ...props }) => (
+                        <a
+                          {...props}
+                          target={
+                            props.href && props.href.startsWith('/')
+                              ? '_self'
+                              : '_blank'
+                          }
+                          rel="noopener noreferrer"
+                          className="underline text-[#C9A961] hover:opacity-80"
+                        />
+                      )
+                    }}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
                 ) : (
-                  <>{msg.text}</>
+                  msg.text
                 )}
               </div>
             </div>
@@ -476,10 +400,7 @@ export default function LegacyChatWidget() {
             <div className="flex justify-start">
               <div className="bg-[#1E293B] border border-[#C9A961]/20 rounded-2xl rounded-tl-sm px-4 py-3">
                 <div className="flex gap-1.5">
-                  <span
-                    className="w-2 h-2 bg-[#C9A961] rounded-full animate-bounce"
-                    style={{ animationDelay: '0ms' }}
-                  />
+                  <span className="w-2 h-2 bg-[#C9A961] rounded-full animate-bounce" />
                   <span
                     className="w-2 h-2 bg-[#C9A961] rounded-full animate-bounce"
                     style={{ animationDelay: '150ms' }}
@@ -492,10 +413,11 @@ export default function LegacyChatWidget() {
               </div>
             </div>
           )}
+
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Gợi ý câu hỏi – chỉ hiện khi chưa có tin nhắn của user */}
+        {/* GỢI Ý */}
         {!messages.some(m => m.sender === 'user') && (
           <div className="px-4 pt-2 pb-1 bg-[#1E293B]/40 border-t border-[#C9A961]/10">
             <p className="text-[11px] uppercase tracking-wide text-[#C9A961]/70 mb-1">
@@ -508,7 +430,7 @@ export default function LegacyChatWidget() {
                   type="button"
                   onClick={() => handleSuggestionClick(s)}
                   disabled={isTyping}
-                  className="text-[11px] px-3 py-1 rounded-full border border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                  className="text-[11px] px-3 py-1 rounded-full border border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10 disabled:opacity-40 transition-colors"
                 >
                   {s}
                 </button>
@@ -517,13 +439,12 @@ export default function LegacyChatWidget() {
           </div>
         )}
 
-        {/* Input */}
+        {/* INPUT */}
         <form
           onSubmit={sendMessage}
           className="p-4 border-t border-[#C9A961]/20 bg-[#1E293B]/30"
         >
           <div className="flex gap-2 items-center">
-            {/* Nút micro */}
             <button
               type="button"
               onClick={toggleRecording}
@@ -535,25 +456,21 @@ export default function LegacyChatWidget() {
                   : 'bg-[#1E293B] border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10'
               )}
             >
-              {isRecording ? (
-                <Square className="w-4 h-4" />
-              ) : (
-                <Mic className="w-4 h-4" />
-              )}
+              {isRecording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
 
             <input
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder={isRecording ? 'Đang ghi âm, nhấn stop để gửi...' : 'Nhập tin nhắn...'}
+              placeholder={isRecording ? 'Đang ghi âm...' : 'Nhập tin nhắn...'}
               disabled={isTyping}
-              className="flex-1 bg-[#1E293B] text-white placeholder:text-[#C9A961]/50 rounded-xl px-4 py-3 text-sm border border-[#C9A961]/20 focus:outline-none focus:border-[#C9A961] focus:ring-1 focus:ring-[#C9A961] disabled:opacity-50 transition-all"
+              className="flex-1 bg-[#1E293B] text-white placeholder:text-[#C9A961]/50 rounded-xl px-4 py-3 text-sm border border-[#C9A961]/20 focus:outline-none focus:border-[#C9A961] focus:ring-1 focus:ring-[#C9A961] disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={!input.trim() || isTyping}
-              className="bg-[#C9A961] text-[#2C3E50] rounded-xl p-3 hover:bg-[#D4AF37] disabled:opacity-50 disabled:hover:bg-[#C9A961] transition-colors shadow-md"
+              className="bg-[#C9A961] text-[#2C3E50] rounded-xl p-3 hover:bg-[#D4AF37] disabled:opacity-50 transition-colors shadow-md"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -561,17 +478,17 @@ export default function LegacyChatWidget() {
         </form>
       </div>
 
-      {/* Toggle Button (luôn hiển thị & dùng để kéo) */}
+      {/* TOGGLE BUTTON */}
       <button
         type="button"
         onMouseDown={handleDragStart}
         onClick={handleButtonClick}
-        className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg shadow-[#C9A961]/20 hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-move"
+        className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-move"
       >
         {isOpen ? (
-          <X className="w-7 h-7 transition-transform duration-300 group-hover:rotate-90" />
+          <X className="w-7 h-7 group-hover:rotate-90 transition-transform" />
         ) : (
-          <Bot className="w-8 h-8 transition-transform duration-300 group-hover:-rotate-12" />
+          <Bot className="w-8 h-8 group-hover:-rotate-12 transition-transform" />
         )}
       </button>
     </div>
