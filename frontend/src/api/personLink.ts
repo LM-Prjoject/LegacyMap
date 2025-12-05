@@ -30,4 +30,10 @@ export const personLinkApi = {
         const { data } = await http.get(`/persons/${personId}/links/self/verified`)
         return data
     },
+    async unlinkSelf(personId: string, requesterId: string) {
+        const { data } = await http.delete(`/persons/${personId}/links/self`, {
+            params: { userId: requesterId }
+        })
+        return data
+    },
 }

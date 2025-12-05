@@ -19,6 +19,8 @@ public interface PersonUserLinkRepository extends JpaRepository<PersonUserLink, 
 
     boolean existsByPerson_IdAndLinkTypeAndStatus(UUID personId, PersonUserLink.LinkType linkType, PersonUserLink.Status status);
 
+    Optional<PersonUserLink> findByPerson_IdAndLinkTypeAndStatus(UUID personId, PersonUserLink.LinkType linkType, PersonUserLink.Status status);
+
     List<PersonUserLink> findByUser_IdAndStatus(UUID userId, PersonUserLink.Status status);
 
     // Check if a user has a verified self link in a specific family tree
