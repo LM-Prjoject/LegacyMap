@@ -335,20 +335,20 @@ export default function PersonDetailsModal({
     if (!isOpen || !person) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 transition-opacity" onClick={() => { onClose(); }}></div>
-            <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl">
-                <div className="sticky top-0 bg-white z-20 flex justify-between items-center p-4 border-b">
-                    <h2 className="text-xl font-semibold text-black">Thông tin chi tiết</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(3px)'}}>
+                <div className="absolute inset-0 bg-black/50 transition-opacity" onClick={() => { onClose(); }}></div>
+                <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-gradient-to-br from-[#1e2a3a]/95 via-[#0f1419]/90 to-[#1e2a3a]/95">
+                    <div className="sticky top-0 bg-gradient-to-br from-[#1e2a3a]/95 via-[#0f1419]/90 to-[#1e2a3a]/95 z-20 flex justify-between items-center p-4 border-b">
+                        <h2 className="text-xl font-semibold text-[#ffd89b]">Thông tin chi tiết</h2>
 
-                    <div className="flex items-center gap-2">
-                        {!readOnly && invitedPending && (
-                            <span className="px-2 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">Đang chờ xác minh</span>
-                        )}
-                        {!readOnly && !canInvite && (
-                            <span className="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">Đã xác minh</span>
-                        )}
-                        {/* Owner-only action to revoke verification */}
+                        <div className="flex items-center gap-2">
+                            {!readOnly && invitedPending && (
+                                <span className="px-2 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">Đang chờ xác minh</span>
+                            )}
+                            {!readOnly && !canInvite && (
+                                <span className="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">Đã xác minh</span>
+                            )}
+                          {/* Owner-only action to revoke verification */}
                         {!readOnly && !canInvite && isOwner && (
                             <button
                                 onClick={() => setShowUnverifyModal(true)}
@@ -359,56 +359,60 @@ export default function PersonDetailsModal({
                                 Hủy xác minh
                             </button>
                         )}
-                        {!readOnly && canInvite && (
-                            <button
-                                onClick={() => setInviteOpen(true)}
-                                className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm hover:bg-emerald-700"
-                                aria-label="Mời xác minh hồ sơ"
-                                title="Mời xác minh hồ sơ"
-                            >
-                                Mời xác minh hồ sơ
-                            </button>
-                        )}
-                        {!readOnly && (
-                            <button
-                                onClick={onEditClick}
-                                className="p-2 rounded-full hover:bg-gray-100 text-gray-700"
-                                aria-label="Chỉnh sửa"
-                                title="Chỉnh sửa"
-                            >
-                                <Pencil className="h-5 w-5" />
-                            </button>
-                        )}
-                        {!readOnly && (
-                            <button
-                                onClick={async () => {
-                                    if (prepareDeleting) return;
-                                    setOrphanCount(0);
-                                    if (onPrepareDelete && person?.id) {
-                                        try {
-                                            setPrepareDeleting(true);
-                                            const res = await onPrepareDelete(person.id);
-                                            const c = (res as any)?.count ?? 0;
-                                            setOrphanCount(typeof c === 'number' ? c : 0);
-                                        } catch {
-                                            setOrphanCount(0);
-                                        } finally {
-                                            setPrepareDeleting(false);
+                            {!readOnly && canInvite && (
+                                <button
+                                    onClick={() => setInviteOpen(true)}
+                                    className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+                                    aria-label="Mời xác minh hồ sơ"
+                                    title="Mời xác minh hồ sơ"
+                                >
+                                    Mời xác minh hồ sơ
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button
+                                    onClick={onEditClick}
+                                    className="p-2 rounded-full hover:bg-gray-500 text-gray-700"
+                                    aria-label="Chỉnh sửa"
+                                    title="Chỉnh sửa"
+                                >
+                                    <Pencil className="h-5 w-5 text-white" />
+                                </button>
+                            )}
+                            {!readOnly && (
+                                <button
+                                    onClick={async () => {
+                                        if (prepareDeleting) return;
+                                        setOrphanCount(0);
+                                        if (onPrepareDelete && person?.id) {
+                                            try {
+                                                setPrepareDeleting(true);
+                                                const res = await onPrepareDelete(person.id);
+                                                const c = (res as any)?.count ?? 0;
+                                                setOrphanCount(typeof c === 'number' ? c : 0);
+                                            } catch {
+                                                setOrphanCount(0);
+                                            } finally {
+                                                setPrepareDeleting(false);
+                                            }
                                         }
-                                    }
-                                    setShowDeleteModal(true);
-                                }}
-                                className={`p-2 rounded-full hover:bg-red-50 text-red-600 ${prepareDeleting ? 'opacity-60 cursor-not-allowed' : ''}`}
-                                aria-label="Xoá khỏi cây"
-                                title="Xoá khỏi cây"
-                                aria-busy={prepareDeleting}
-                                disabled={prepareDeleting}
-                            >
-                                {prepareDeleting ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    <Trash2 className="h-5 w-5" />
-                                )}
+                                        setShowDeleteModal(true);
+                                    }}
+                                    className={`p-2 rounded-full hover:bg-gray-500 text-red-600 ${prepareDeleting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                    aria-label="Xoá khỏi cây"
+                                    title="Xoá khỏi cây"
+                                    aria-busy={prepareDeleting}
+                                    disabled={prepareDeleting}
+                                >
+                                    {prepareDeleting ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-5 w-5" />
+                                    )}
+                                </button>
+                            )}
+                            <button onClick={() => { onClose(); }} className="p-1 rounded-full hover:bg-gray-500" aria-label="Đóng">
+                                <X className="h-5 w-5 text-white" />
                             </button>
                         )}
                         <button onClick={() => { onClose(); }} className="p-1 rounded-full hover:bg-gray-100" aria-label="Đóng">
@@ -435,8 +439,8 @@ export default function PersonDetailsModal({
                         <div className="flex-1">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-700">{person.fullName}</h1>
-                                    <p className="text-gray-600">
+                                    <h1 className="text-2xl font-bold text-[#ffd89b]">{person.fullName}</h1>
+                                        <p className="text-[#ffd89b]">
                                         <span className="font-bold">Giới tính: </span>
                                         {String(person.gender).toUpperCase() === "MALE"
                                             ? "Nam"
@@ -449,89 +453,94 @@ export default function PersonDetailsModal({
 
                             <div className=" grid grid-cols-1 md:grid-cols-2 gap-1">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Ngày sinh</p>
-                                    <p className="text-slate-500">{formatDate(person.birthDate)}</p>
+                                    <p className="text-sm font-medium text-[#ffd89b]">Ngày sinh</p>
+                                        <p className="text-[#ffd89b]">{formatDate(person.birthDate)}</p>
                                 </div>
 
                                 {person.deathDate && (
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Ngày mất</p>
-                                        <p className="text-slate-500">{formatDate(person.deathDate)}</p>
-                                    </div>
-                                )}
+                                        <div>
+                                            <p className="text-sm font-medium text-[#ffd89b]">Ngày mất</p>
+                                            <p className="text-[#ffd89b]">{formatDate(person.deathDate)}</p>
+                                        </div>
+                                    )}
 
                                 {person.birthPlace && (
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Nơi sinh</p>
-                                        <p className="text-slate-500">{person.birthPlace}</p>
-                                    </div>
-                                )}
+                                        <div>
+                                            <p className="text-sm font-medium text-[#ffd89b]">Nơi sinh</p>
+                                            <p className="text-[#ffd89b]">{person.birthPlace}</p>
+                                        </div>
+                                    )}
 
                                 {person.deathPlace && (
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Nơi mất</p>
-                                        <p className="text-slate-500">{person.deathPlace}</p>
-                                    </div>
-                                )}
+                                        <div>
+                                            <p className="text-sm font-medium text-[#ffd89b]">Nơi mất</p>
+                                            <p className="text-[#ffd89b]">{person.deathPlace}</p>
+                                        </div>
+                                    )}
 
-                                {person.phone && (
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Số điện thoại</p>
-                                        <p className="text-slate-500">{person.phone}</p>
-                                    </div>
-                                )}
+                                    {person.phone && (
+                                        <div>
+                                            <p className="text-sm font-medium text-[#ffd89b]">Số điện thoại</p>
+                                            <p className="text-[#ffd89b]">{person.phone}</p>
+                                        </div>
+                                    )}
 
-                                {person.email && (
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">Email</p>
-                                        <p className="text-slate-500">{person.email}</p>
+                                    {person.email && (
+                                        <div>
+                                            <p className="text-sm font-medium text-[#ffd89b]">Email</p>
+                                            <p className="text-[#ffd89b]">{person.email}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {person.biography && (
+                                    <div className="mt-6">
+                                        <p className="text-sm font-medium text-[#ffd89b] mb-2">Tiểu sử</p>
+                                        <p className="whitespace-pre-line text-[#ffd89b]">{person.biography}</p>
                                     </div>
                                 )}
                             </div>
 
-                            {person.biography && (
-                                <div className="mt-6">
-                                    <p className="text-sm font-medium text-gray-500 mb-2">Tiểu sử</p>
-                                    <p className="whitespace-pre-line text-gray-800">{person.biography}</p>
-                                </div>
-                            )}
-
-                            <div className="mt-2">
-                                <p className="text-sm font-medium text-gray-500 mb-3">Mối quan hệ</p>
-                                {filteredRelationships.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {filteredRelationships.map((rel, index) => (
-                                            <div
-                                                key={`${rel.relationshipId || index}-${rel.type}`}
-                                                className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    {rel.person?.avatarUrl ? (
-                                                        <img
-                                                            src={rel.person.avatarUrl}
-                                                            alt={rel.person.fullName}
-                                                            className="w-10 h-10 rounded-full object-cover"
-                                                            onError={(e) => {
-                                                                const target = e.target as HTMLImageElement;
-                                                                target.onerror = null;
-                                                                target.src = "";
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                                                            <span className="text-xs">{rel.person?.fullName?.charAt(0) || "?"}</span>
+                                <div className="mt-2">
+                                    <p className="text-sm font-medium text-[#ffd89b] mb-3">Mối quan hệ</p>
+                                    {filteredRelationships.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {filteredRelationships.map((rel, index) => (
+                                                <div
+                                                    key={`${rel.relationshipId || index}-${rel.type}`}
+                                                    className="p-3 bg-white/10 rounded-lg hover:bg-gray-500 transition-colors cursor-pointer"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {rel.person?.avatarUrl ? (
+                                                            <img
+                                                                src={rel.person.avatarUrl}
+                                                                alt={rel.person.fullName}
+                                                                className="w-10 h-10 rounded-full object-cover"
+                                                                onError={(e) => {
+                                                                    const target = e.target as HTMLImageElement;
+                                                                    target.onerror = null;
+                                                                    target.src = "";
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                                                                <span className="text-xs">{rel.person?.fullName?.charAt(0) || "?"}</span>
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <p className="text-sm text-gray-400 font-semibold">{rel.text}</p>
                                                         </div>
                                                     )}
                                                     <div>
                                                         <p className="text-sm text-gray-800 font-semibold">{rel.text}</p>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-gray-500">Người này chưa có thông tin mối quan hệ</p>
-                                )}
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-100">Người này chưa có thông tin mối quan hệ</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
