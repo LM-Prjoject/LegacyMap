@@ -84,8 +84,32 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
         return m;
     }, [persons]);
 
+    const normalizedRels = useMemo(
+        () =>
+            relationships.map((r) => {
+                const t = String(r.type).toUpperCase();
+                if (t === "CHILD") {
+                    return {
+                        ...r,
+                        type: "PARENT",
+                        fromPersonId: r.toPersonId,
+                        toPersonId: r.fromPersonId,
+                    };
+                }
+                return {
+                    ...r,
+                    type: t as any,
+                };
+            }),
+        [relationships]
+    );
+
     const parentsByChild = useMemo(() => {
-        const out = new Map<string, { fathers: Set<string>; mothers: Set<string>; others: Set<string> }>();
+        const out = new Map<
+            string,
+            { fathers: Set<string>; mothers: Set<string>; others: Set<string> }
+        >();
+
         const ensure = (id: string) => {
             if (!out.has(id)) {
                 out.set(id, {
@@ -96,25 +120,73 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
             }
             return out.get(id)!;
         };
-        for (const r of relationships) {
+
+        // 1) Ghi nhận các parent thật từ quan hệ PARENT
+        for (const r of normalizedRels) {
             const t = String(r.type).toUpperCase();
             if (t !== "PARENT") continue;
+
             const parentId = r.fromPersonId;
             const childId = r.toPersonId;
             const g = genderOf.get(parentId);
             const bucket = ensure(childId);
+
             if (g === "MALE") bucket.fathers.add(parentId);
             else if (g === "FEMALE") bucket.mothers.add(parentId);
             else if (g === "OTHER") bucket.others.add(parentId);
             else bucket.others.add(parentId);
         }
 
+        for (const [, bucket] of out.entries()) {
+            const allParents = new Set<string>([
+                ...bucket.fathers,
+                ...bucket.mothers,
+                ...bucket.others,
+            ]);
+
+            if (allParents.size !== 1) continue;
+
+            const [onlyParentId] = Array.from(allParents);
+
+            const spouseIds = normalizedRels
+                .filter(
+                    (r) =>
+                        String(r.type).toUpperCase() === "SPOUSE" &&
+                        (r.fromPersonId === onlyParentId ||
+                            r.toPersonId === onlyParentId)
+                )
+                .map((r) =>
+                    r.fromPersonId === onlyParentId ? r.toPersonId : r.fromPersonId
+                );
+
+            for (const spId of spouseIds) {
+                if (allParents.has(spId)) continue;
+
+                const g = genderOf.get(spId);
+                if (g === "MALE") bucket.fathers.add(spId);
+                else if (g === "FEMALE") bucket.mothers.add(spId);
+                else if (g === "OTHER") bucket.others.add(spId);
+                else bucket.others.add(spId);
+            }
+        }
+
         return out;
-    }, [relationships, genderOf]);
+    }, [normalizedRels, genderOf]);
 
     const highlightSets = useMemo(() => {
-        if (!hoveredId) return { fathers: new Set<string>(), mothers: new Set<string>(), others: new Set<string>() };
-        return parentsByChild.get(hoveredId) ?? { fathers: new Set(), mothers: new Set(), others: new Set() };
+        if (!hoveredId)
+            return {
+                fathers: new Set<string>(),
+                mothers: new Set<string>(),
+                others: new Set<string>(),
+            };
+        return (
+            parentsByChild.get(hoveredId) ?? {
+                fathers: new Set(),
+                mothers: new Set(),
+                others: new Set(),
+            }
+        );
     }, [hoveredId, parentsByChild]);
 
     const colorForNode = useCallback(
@@ -380,8 +452,11 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
     };
 
     const hasEdges = useMemo(
-        () => relationships.some((r) => ["PARENT", "CHILD"].includes(String(r.type).toUpperCase())),
-        [relationships]
+        () =>
+            normalizedRels.some((r) =>
+                ["PARENT", "CHILD"].includes(String(r.type).toUpperCase())
+            ),
+        [normalizedRels]
     );
 
     const [viewport, setViewport] = useState<{ k: number; x: number; y: number }>({
@@ -406,7 +481,8 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
 
     const lines = useMemo(() => {
         if (!hasEdges) return null;
-        return relationships
+
+        return normalizedRels
             .map((r) => {
                 const type = String(r.type).toUpperCase();
                 if (type !== "PARENT" && type !== "CHILD") return null;
@@ -417,6 +493,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                 const a = nodePos[parentId];
                 const b = nodePos[childId];
                 if (!a || !b) return null;
+
                 const p1 = { x: a.y, y: a.x };
                 const p2 = { x: b.y, y: b.x };
 
@@ -427,6 +504,7 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                     const g = genderOf.get(parentId);
                     if (g === "MALE") stroke = COLOR_FATHER;
                     else if (g === "FEMALE") stroke = COLOR_MOTHER;
+                    else if (g === "OTHER") stroke = COLOR_OTHER;
                     strokeWidth = 3.5;
                 }
 
@@ -443,7 +521,8 @@ export default function TreeGraph({ persons, relationships, onNodeClick, selecte
                 );
             })
             .filter(Boolean);
-    }, [nodePos, relationships, hasEdges, hoveredId, genderOf]);
+    }, [nodePos, normalizedRels, hasEdges, hoveredId, genderOf]);
+
 
     return (
         <div
