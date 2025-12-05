@@ -24,13 +24,13 @@ public class PersonLinkController {
     }
 
     @PostMapping("/{personId}/invite")
-    public ResponseEntity<ApiResponse<Void>> invite(
+    public ResponseEntity<ApiResponse<com.legacymap.backend.dto.response.PersonLinkInviteResponse>> invite(
             @PathVariable("personId") UUID personId,
             @RequestParam("userId") String inviterId,
             @RequestBody @Valid PersonLinkInviteRequest req
     ) {
-        personLinkService.inviteByEmail(parseUUID(inviterId), personId, req);
-        return ResponseEntity.ok(ApiResponse.success());
+        com.legacymap.backend.dto.response.PersonLinkInviteResponse res = personLinkService.inviteByEmail(parseUUID(inviterId), personId, req);
+        return ResponseEntity.ok(ApiResponse.success(res));
     }
 
     @PostMapping("/{personId}/claims/accept")
@@ -58,6 +58,15 @@ public class PersonLinkController {
             @RequestParam("userId") String requesterId
     ) {
         personLinkService.unlink(parseUUID(requesterId), personId, userId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @DeleteMapping("/{personId}/links/self")
+    public ResponseEntity<ApiResponse<Void>> unlinkSelf(
+            @PathVariable("personId") UUID personId,
+            @RequestParam("userId") String requesterId
+    ) {
+        personLinkService.unlinkSelf(parseUUID(requesterId), personId);
         return ResponseEntity.ok(ApiResponse.success());
     }
 

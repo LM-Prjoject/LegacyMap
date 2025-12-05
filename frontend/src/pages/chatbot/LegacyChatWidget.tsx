@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bot, X, Send } from 'lucide-react';
+import { Bot, X, Send, Mic, Square } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-// Hàm cn đơn giản (không cần @/lib/utils nữa)
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/legacy')
+  .replace(/\/+$/, '');
+
 const cn = (...inputs: (string | undefined | null | false)[]) =>
   inputs.filter(Boolean).join(' ');
 
@@ -20,13 +22,11 @@ const getAuthToken = (): string | null => {
   }
 };
 
-// Kích thước ước lượng của widget
-const CHAT_WIDTH = 384;   // w-96 -> 96 * 4
-const CHAT_HEIGHT = 520;  // h-[520px]
-const BUTTON_SIZE = 56;   // w-14 h-14 -> 14 * 4
-const EDGE_PADDING = 16;  // chừa lề 16px
+const CHAT_WIDTH = 384;
+const CHAT_HEIGHT = 520;
+const BUTTON_SIZE = 56;
+const EDGE_PADDING = 16;
 
-// Một vài gợi ý câu hỏi cho người dùng
 const SUGGESTIONS = [
   'LegacyMap là gì và dùng để làm gì?',
   'Làm sao để tạo cây gia phả mới?',
@@ -47,39 +47,39 @@ export default function LegacyChatWidget() {
       sender: 'bot'
     }
   ]);
+
   const [isTyping, setIsTyping] = useState(false);
 
-  // --- DRAG STATE: vị trí widget & thông tin kéo ---
+  // DRAG STATE
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const positionRef = useRef(position);
   useEffect(() => {
     positionRef.current = position;
   }, [position]);
 
-const dragRef = useRef({
-  isDragging: false,
-  offsetX: 0,
-  offsetY: 0,
-  hasMoved: false,
-});
-
-useEffect(() => {
-  const offsetTop = 72; // để tránh đè lên navbar
-  const x = window.innerWidth - BUTTON_SIZE - EDGE_PADDING;
-  const y = offsetTop;
-
-  setPosition({
-    x: Math.max(EDGE_PADDING, x),
-    y: Math.max(EDGE_PADDING, y)
+  const dragRef = useRef({
+    isDragging: false,
+    offsetX: 0,
+    offsetY: 0,
+    hasMoved: false,
   });
-}, []);
 
+  useEffect(() => {
+    const offsetTop = 72;
+    const x = window.innerWidth - BUTTON_SIZE - EDGE_PADDING;
+    const y = offsetTop;
+
+    setPosition({
+      x: Math.max(EDGE_PADDING, x),
+      y: Math.max(EDGE_PADDING, y)
+    });
+  }, []);
 
   const handleDragStart = (e: React.MouseEvent<HTMLButtonElement>) => {
     dragRef.current.isDragging = true;
     dragRef.current.offsetX = e.clientX - positionRef.current.x;
     dragRef.current.offsetY = e.clientY - positionRef.current.y;
-      dragRef.current.hasMoved = false; 
+    dragRef.current.hasMoved = false;
   };
 
   const handleDragMove = useCallback(
@@ -88,9 +88,8 @@ useEffect(() => {
 
       const x = e.clientX - dragRef.current.offsetX;
       const y = e.clientY - dragRef.current.offsetY;
-    dragRef.current.hasMoved = true;
-      // Nếu đang mở -> giới hạn theo kích thước panel
-      // Nếu đang đóng -> chỉ theo kích thước nút
+      dragRef.current.hasMoved = true;
+
       const currentWidth = isOpen ? CHAT_WIDTH : BUTTON_SIZE;
       const currentHeight = isOpen ? CHAT_HEIGHT : BUTTON_SIZE;
 
@@ -109,7 +108,6 @@ useEffect(() => {
     dragRef.current.isDragging = false;
   }, []);
 
-  // Lắng nghe mousemove / mouseup toàn màn hình
   useEffect(() => {
     window.addEventListener('mousemove', handleDragMove);
     window.addEventListener('mouseup', handleDragEnd);
@@ -119,7 +117,6 @@ useEffect(() => {
     };
   }, [handleDragMove, handleDragEnd]);
 
-  // Khi bấm mở, tự căn lại để panel KHÔNG tràn khỏi màn hình
   const toggleOpen = () => {
     setIsOpen(prev => {
       const next = !prev;
@@ -144,19 +141,16 @@ useEffect(() => {
   };
 
   const handleButtonClick = () => {
-  if (dragRef.current.hasMoved) {
-    // vừa kéo xong → bỏ qua click này
-    dragRef.current.hasMoved = false;
-    return;
-  }
-  toggleOpen();
-};
+    if (dragRef.current.hasMoved) {
+      dragRef.current.hasMoved = false;
+      return;
+    }
+    toggleOpen();
+  };
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const sessionId = useRef(
-    'web_' + Math.random().toString(36).substr(2, 9)
-  ).current;
+  const sessionId = useRef('web_' + Math.random().toString(36).substr(2, 9)).current;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -166,30 +160,114 @@ useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Hàm core để gửi tin nhắn lên server (dùng chung cho input & gợi ý)
+  // ================= VOICE =================
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const uploadAudioToBackend = async (audioBlob: Blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'voice.webm');
+
+      const token = getAuthToken();
+
+      const res = await fetch(
+        `${API_BASE}/voice/chat${sessionId ? `?sessionId=${sessionId}` : ''}`,
+        {
+          method: 'POST',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        }
+      );
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+
+      setMessages(prev => [...prev, { text: data.userText, sender: 'user' }]);
+      setMessages(prev => [...prev, { text: data.botText, sender: 'bot' }]);
+
+      if (data.audio && data.audio.startsWith('data:audio')) {
+        new Audio(data.audio).play();
+      }
+
+    } catch {
+      setMessages(prev => [
+        ...prev,
+        { text: 'Em đang hơi mệt xíu, anh/chị nói lại giúp em nha', sender: 'bot' }
+      ]);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      setIsRecording(true);
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        setIsRecording(false);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        uploadAudioToBackend(audioBlob);
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+      mediaRecorder.start();
+    } catch {
+      setMessages(prev => [
+        ...prev,
+        {
+          text: 'Em không mở được micro rồi ạ. Anh/chị kiểm tra lại quyền truy cập giúp em nhé 🙏',
+          sender: 'bot'
+        },
+      ]);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) stopRecording();
+    else startRecording();
+  };
+
+  // ================= TEXT CHAT (SSE) =================
   const sendToBot = (userMessage: string) => {
     const trimmed = userMessage.trim();
     if (!trimmed || isTyping) return;
 
-    // Đóng event cũ nếu có
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+    if (eventSourceRef.current) eventSourceRef.current.close();
 
     setMessages(prev => [...prev, { text: trimmed, sender: 'user' }]);
     setInput('');
     setIsTyping(true);
 
     const token = getAuthToken();
-    const baseUrl = `${import.meta.env.VITE_API_BASE_URL}/support/chat`;
+    const textChatUrl = `${API_BASE}/support/chat`;
 
     const params = new URLSearchParams({
       sessionId,
       message: trimmed,
-      authToken: token || '' // DÒNG NÀY LÀ CHÌA KHÓA VÀNG!
+      authToken: token || ''
     });
 
-    const es = new EventSource(`${baseUrl}?${params}`);
+    const es = new EventSource(`${textChatUrl}?${params}`);
     eventSourceRef.current = es;
 
     let botResponse = '';
@@ -203,7 +281,6 @@ useEffect(() => {
 
       botResponse += event.data;
 
-      // Chỉ update tin nhắn bot cuối cùng
       setMessages(prev => {
         const newMessages = [...prev];
         if (
@@ -223,10 +300,7 @@ useEffect(() => {
       setIsTyping(false);
       setMessages(prev => [
         ...prev,
-        {
-          text: 'Oops! Mình đang hơi chậm, bạn thử lại sau vài giây nhé!',
-          sender: 'bot'
-        }
+        { text: 'Oops! Mình đang hơi chậm, bạn thử lại sau vài giây nhé!', sender: 'bot' }
       ]);
     };
   };
@@ -238,23 +312,24 @@ useEffect(() => {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    if (isTyping) return; // đang trả lời thì ignore click
+    if (isTyping) return;
     sendToBot(suggestion);
   };
 
+  // ================= RETURN UI =================
   return (
     <div
       className="fixed z-50 flex flex-col items-end gap-3"
       style={{ top: position.y, left: position.x }}
     >
-      {/* Chat Window */}
+      {/* CHAT WINDOW */}
       <div
         className={cn(
           'flex flex-col bg-[#2C3E50] rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden',
           isOpen ? 'w-96 h-[520px] opacity-100' : 'w-0 h-0 opacity-0 pointer-events-none'
         )}
       >
-        {/* Header */}
+        {/* HEADER */}
         <div className="flex items-center justify-between p-3 border-b border-[#C9A961]/20 bg-[#1E293B]/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#C9A961] flex items-center justify-center shadow-md">
@@ -277,7 +352,7 @@ useEffect(() => {
           </button>
         </div>
 
-        {/* Messages */}
+        {/* MESSAGES */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#2C3E50]">
           {messages.map((msg, i) => (
             <div
@@ -296,34 +371,26 @@ useEffect(() => {
                 )}
               >
                 {msg.sender === 'bot' ? (
-                  <>
-                    <ReactMarkdown
-                      components={{
-                        a: ({
-                          node,
-                          ...props
-                        }: React.ComponentProps<'a'> & { node?: any }) => (
-                          <a
-                            {...props}
-                            target={
-                              props.href && props.href.startsWith('/')
-                                ? '_self'
-                                : '_blank'
-                            }
-                            rel="noopener noreferrer"
-                            className="underline text-[#C9A961] hover:opacity-80"
-                          />
-                        )
-                      }}
-                    >
-                      {msg.text}
-                    </ReactMarkdown>
-                    {i === messages.length - 1 && isTyping && (
-                      <span className="inline-block w-2 h-5 ml-1 bg-[#C9A961] animate-pulse align-middle" />
-                    )}
-                  </>
+                  <ReactMarkdown
+                    components={{
+                      a: ({ ...props }) => (
+                        <a
+                          {...props}
+                          target={
+                            props.href && props.href.startsWith('/')
+                              ? '_self'
+                              : '_blank'
+                          }
+                          rel="noopener noreferrer"
+                          className="underline text-[#C9A961] hover:opacity-80"
+                        />
+                      )
+                    }}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
                 ) : (
-                  <>{msg.text}</>
+                  msg.text
                 )}
               </div>
             </div>
@@ -333,10 +400,7 @@ useEffect(() => {
             <div className="flex justify-start">
               <div className="bg-[#1E293B] border border-[#C9A961]/20 rounded-2xl rounded-tl-sm px-4 py-3">
                 <div className="flex gap-1.5">
-                  <span
-                    className="w-2 h-2 bg-[#C9A961] rounded-full animate-bounce"
-                    style={{ animationDelay: '0ms' }}
-                  />
+                  <span className="w-2 h-2 bg-[#C9A961] rounded-full animate-bounce" />
                   <span
                     className="w-2 h-2 bg-[#C9A961] rounded-full animate-bounce"
                     style={{ animationDelay: '150ms' }}
@@ -349,10 +413,11 @@ useEffect(() => {
               </div>
             </div>
           )}
+
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Gợi ý câu hỏi – chỉ hiện khi chưa có tin nhắn của user */}
+        {/* GỢI Ý */}
         {!messages.some(m => m.sender === 'user') && (
           <div className="px-4 pt-2 pb-1 bg-[#1E293B]/40 border-t border-[#C9A961]/10">
             <p className="text-[11px] uppercase tracking-wide text-[#C9A961]/70 mb-1">
@@ -365,7 +430,7 @@ useEffect(() => {
                   type="button"
                   onClick={() => handleSuggestionClick(s)}
                   disabled={isTyping}
-                  className="text-[11px] px-3 py-1 rounded-full border border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                  className="text-[11px] px-3 py-1 rounded-full border border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10 disabled:opacity-40 transition-colors"
                 >
                   {s}
                 </button>
@@ -374,24 +439,38 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Input */}
+        {/* INPUT */}
         <form
           onSubmit={sendMessage}
           className="p-4 border-t border-[#C9A961]/20 bg-[#1E293B]/30"
         >
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <button
+              type="button"
+              onClick={toggleRecording}
+              disabled={isTyping}
+              className={cn(
+                'rounded-xl p-3 border transition-all flex items-center justify-center',
+                isRecording
+                  ? 'bg-red-600 border-red-400 text-white animate-pulse'
+                  : 'bg-[#1E293B] border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10'
+              )}
+            >
+              {isRecording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+
             <input
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder="Nhập tin nhắn..."
+              placeholder={isRecording ? 'Đang ghi âm...' : 'Nhập tin nhắn...'}
               disabled={isTyping}
-              className="flex-1 bg-[#1E293B] text-white placeholder:text-[#C9A961]/50 rounded-xl px-4 py-3 text-sm border border-[#C9A961]/20 focus:outline-none focus:border-[#C9A961] focus:ring-1 focus:ring-[#C9A961] disabled:opacity-50 transition-all"
+              className="flex-1 bg-[#1E293B] text-white placeholder:text-[#C9A961]/50 rounded-xl px-4 py-3 text-sm border border-[#C9A961]/20 focus:outline-none focus:border-[#C9A961] focus:ring-1 focus:ring-[#C9A961] disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={!input.trim() || isTyping}
-              className="bg-[#C9A961] text-[#2C3E50] rounded-xl p-3 hover:bg-[#D4AF37] disabled:opacity-50 disabled:hover:bg-[#C9A961] transition-colors shadow-md"
+              className="bg-[#C9A961] text-[#2C3E50] rounded-xl p-3 hover:bg-[#D4AF37] disabled:opacity-50 transition-colors shadow-md"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -399,17 +478,17 @@ useEffect(() => {
         </form>
       </div>
 
-      {/* Toggle Button (luôn hiển thị & dùng để kéo) */}
+      {/* TOGGLE BUTTON */}
       <button
         type="button"
         onMouseDown={handleDragStart}
-        onClick={handleButtonClick} 
-        className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg shadow-[#C9A961]/20 hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-move"
+        onClick={handleButtonClick}
+        className="group w-14 h-14 rounded-full bg-[#C9A961] text-[#2C3E50] shadow-lg hover:bg-[#D4AF37] hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-move"
       >
         {isOpen ? (
-          <X className="w-7 h-7 transition-transform duration-300 group-hover:rotate-90" />
+          <X className="w-7 h-7 group-hover:rotate-90 transition-transform" />
         ) : (
-          <Bot className="w-8 h-8 transition-transform duration-300 group-hover:-rotate-12" />
+          <Bot className="w-8 h-8 group-hover:-rotate-12 transition-transform" />
         )}
       </button>
     </div>

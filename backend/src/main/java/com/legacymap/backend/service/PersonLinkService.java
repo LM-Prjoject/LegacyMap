@@ -52,7 +52,7 @@ public class PersonLinkService {
     }
 
     @Transactional
-    public void inviteByEmail(UUID inviterId, UUID personId, PersonLinkInviteRequest req) {
+    public com.legacymap.backend.dto.response.PersonLinkInviteResponse inviteByEmail(UUID inviterId, UUID personId, PersonLinkInviteRequest req) {
         Person person = loadPersonOrThrow(personId);
         assertOwnerOfTree(inviterId, person);
 
@@ -85,7 +85,9 @@ public class PersonLinkService {
             if (personUserLinkRepository.existsByPerson_IdAndLinkTypeAndStatus(person.getId(), PersonUserLink.LinkType.self, PersonUserLink.Status.approved))
                 throw new AppException(ErrorCode.VALIDATION_FAILED);
 
-            // Upsert link pending
+            boolean selfInvite = target.getId().equals(inviterId);
+
+            // Upsert link; if self-invite, auto-approve and skip notifications/emails
             PersonUserLink link = personUserLinkRepository
                     .findByPerson_IdAndUser_Id(person.getId(), target.getId())
                     .orElseGet(() -> PersonUserLink.builder()
@@ -93,30 +95,58 @@ public class PersonLinkService {
                             .person(person)
                             .user(target)
                             .linkType(PersonUserLink.LinkType.self)
-                            .status(PersonUserLink.Status.pending)
                             .linkedAt(OffsetDateTime.now(ZoneOffset.UTC))
                             .build());
 
             link.setLinkType(PersonUserLink.LinkType.self);
-            link.setStatus(PersonUserLink.Status.pending);
-            link.setVerifiedAt(null);
+            if (selfInvite) {
+                link.setStatus(PersonUserLink.Status.approved);
+                link.setVerifiedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            } else {
+                link.setStatus(PersonUserLink.Status.pending);
+                link.setVerifiedAt(null);
+            }
             personUserLinkRepository.save(link);
 
-            // Thông báo cho user được mời
-            notificationService.sendSystemNotification(target.getId(),
-                    "Lời mời liên kết hồ sơ",
-                    "Bạn được mời xác nhận liên kết với hồ sơ " + person.getFullName());
+            if (selfInvite) {
+                // sync rooms for approved link; do not send self notifications/emails
+                chatSyncService.syncUserToRooms(target.getId(), person.getId());
+                chatSyncService.syncAllMembersToFamilyRoom(person.getFamilyTree().getId());
+            } else {
+                // Chuẩn bị thông tin chi tiết
+                String treeName = person.getFamilyTree().getName();
+                String personName = person.getFullName();
+                String gender = person.getGender() != null ? person.getGender() : "";
+                String birth = person.getBirthDate() != null ? person.getBirthDate().toString() : "";
 
-            // Gửi email mời (trang trọng, thân thiện)
-            try {
-                User inviter = loadUserOrThrow(inviterId);
-                emailService.sendPersonInviteEmail(email,
-                        inviter.getUsername(),
-                        person.getFullName());
-            } catch (Exception e) {
-                log.warn("Send invite email failed: {}", e.getMessage());
+                // Thông báo cho user được mời (kèm thông tin nhận diện)
+                String notiTitle = "Lời mời liên kết hồ sơ";
+                String notiBody = String.format(
+                        "Bạn được mời xác nhận liên kết với hồ sơ %s (Giới tính: %s, Ngày sinh: %s) trong cây '%s'",
+                        personName, gender, birth, treeName
+                );
+                notificationService.sendSystemNotification(target.getId(), notiTitle, notiBody);
+
+                // Gửi email mời: tiêu đề/nội dung có chi tiết để người nhận phân biệt
+                try {
+                    User inviter = loadUserOrThrow(inviterId);
+                    String subject = "Lời mời xác nhận hồ sơ: " + personName + " - Cây: " + treeName;
+                    String ctaUrl = ""; // frontend login + claims
+                    try { ctaUrl = emailService != null ? "" : ""; } catch (Exception ignore) {}
+                    String body = String.format(
+                            "Xin chào,\n\n%s đã mời bạn xác nhận liên kết với hồ sơ: %s\nGiới tính: %s\nNgày sinh: %s\nThuộc cây: %s\n\nĐăng nhập để xác nhận tại: %s\n\nNếu bạn không mong đợi thư này, vui lòng bỏ qua.",
+                            inviter.getUsername(), personName, gender, birth, treeName,
+                            ("" + (System.getenv("FRONTEND_URL") != null ? System.getenv("FRONTEND_URL") + "/login?redirect=/me/claims" : "http://localhost:3000/login?redirect=/me/claims"))
+                    );
+                    emailService.sendEmail(email, subject, body);
+                } catch (Exception e) {
+                    log.warn("Send invite email failed: {}", e.getMessage());
+                }
             }
-            return;
+            return com.legacymap.backend.dto.response.PersonLinkInviteResponse.builder()
+                    .status(selfInvite ? "APPROVED" : "PENDING")
+                    .message(selfInvite ? "Đã tự xác minh thành công" : "Đã gửi lời mời")
+                    .build();
         }
 
         // Nếu email CHƯA có tài khoản → chỉ gửi CTA đăng ký/đăng nhập
@@ -125,9 +155,18 @@ public class PersonLinkService {
             emailService.sendPersonInviteEmail(email,
                     inviter.getUsername(),
                     person.getFullName());
-        } catch (Exception e) {
+
+
+
+
+    } catch (Exception e) {
             log.warn("Send invite email failed: {}", e.getMessage());
         }
+
+        return com.legacymap.backend.dto.response.PersonLinkInviteResponse.builder()
+                .status("PENDING")
+                .message("Đã gửi email mời đăng ký")
+                .build();
     }
 
     @Transactional
@@ -222,6 +261,30 @@ public class PersonLinkService {
 
         if (!requesterIsSelf) {
             notificationService.sendSystemNotification(user.getId(),
+                    "Hủy liên kết hồ sơ",
+                    "Liên kết của bạn với hồ sơ " + person.getFullName() + " đã được gỡ");
+        }
+    }
+
+    @Transactional
+    public void unlinkSelf(UUID requesterId, UUID personId) {
+        Person person = loadPersonOrThrow(personId);
+        // Only owner or the verified self user can perform this
+        boolean requesterIsOwner = person.getFamilyTree().getCreatedBy().getId().equals(requesterId);
+
+        // Find the approved self link
+        PersonUserLink link = personUserLinkRepository
+                .findByPerson_IdAndLinkTypeAndStatus(personId, PersonUserLink.LinkType.self, PersonUserLink.Status.approved)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND, "No verified self link to unlink"));
+
+        UUID linkedUserId = link.getUser().getId();
+        boolean requesterIsSelf = linkedUserId.equals(requesterId);
+        if (!requesterIsOwner && !requesterIsSelf) throw new AppException(ErrorCode.UNAUTHORIZED);
+
+        personUserLinkRepository.delete(link);
+
+        if (!requesterIsSelf) {
+            notificationService.sendSystemNotification(linkedUserId,
                     "Hủy liên kết hồ sơ",
                     "Liên kết của bạn với hồ sơ " + person.getFullName() + " đã được gỡ");
         }
