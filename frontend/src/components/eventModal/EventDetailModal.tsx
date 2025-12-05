@@ -20,121 +20,59 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
     const [loading, setLoading] = useState(true);
     const [errors, setErrors] = useState<Errors>({});
 
-    useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => {
-            document.body.style.overflow = 'unset';
-        };
-    }, [isOpen]);
-
-    useEffect(() => {
-        if (isOpen && eventId) {
-            fetchEvent();
-        } else {
-            setIsEditing(false);
-            setErrors({});
-        }
-    }, [isOpen, eventId]);
-
-    const fetchEvent = async () => {
-        setLoading(true);
-        try {
-            const data = await eventsApi.getEvent(eventId);
-            setEvent(data);
-
-            const formatted = {
-                ...data,
-                startDate: data.startDate ? isoToLocalInput(data.startDate, data.isFullDay) : '',
-                endDate: data.endDate ? isoToLocalInput(data.endDate, data.isFullDay) : '',
-                reminder: data.reminder || { daysBefore: 3, methods: ['notification'] }
-            };
-            setEditedEvent(formatted);
-        } catch (err) {
-            showToast.error('Không tải được sự kiện');
-        } finally {
-            setLoading(false);
-        }
+    const getCurrentVNTime = () => {
+        const now = new Date();
+        const vnOffset = 7 * 60 * 60 * 1000;
+        return new Date(now.getTime() + vnOffset);
     };
 
-    const validate = () => {
-        const err: Errors = {};
-        if (!editedEvent.title?.trim()) err.title = 'Vui lòng nhập tiêu đề sự kiện';
-        if (!editedEvent.startDate) err.startDate = 'Vui lòng chọn ngày bắt đầu';
-        setErrors(err);
-        return Object.keys(err).length === 0;
+    const formatToLocalInput = (date: Date) => {
+        return date.toISOString().slice(0, 16);
     };
 
-    const handleSave = async () => {
-        if (!validate()) return;
 
-        try {
-            const payload = {
-                ...editedEvent,
-                startDate: localInputToIso(editedEvent.startDate!, editedEvent.isFullDay),
-                endDate: editedEvent.endDate ? localInputToIso(editedEvent.endDate, editedEvent.isFullDay) : undefined,
-                isRecurring: !!editedEvent.recurrenceRule && editedEvent.recurrenceRule !== RecurrenceRule.NONE,
-            };
-
-            const updated = await eventsApi.updateEvent(eventId, payload);
-            const fullEvent = { ...event!, ...updated } as Event;
-
-            setEvent(fullEvent);
-            setEditedEvent(fullEvent);
-            onUpdate?.(fullEvent);
-
-            setIsEditing(false);
-            setErrors({});
-            showToast.success('Cập nhật thành công!');
-        } catch {
-            showToast.error('Cập nhật thất bại');
-        }
-    };
-
-    const handleDelete = async () => {
-        try {
-            await eventsApi.deleteEvent(eventId);
-            showToast.success('Đã xóa sự kiện!');
-            onDelete?.();
-            setShowDeleteModal(false);
-            onClose();
-        } catch {
-            showToast.error('Xóa thất bại');
-        }
-    };
-
-    const isoToLocalInput = (iso: string, isFullDay = false): string => {
+    const isoToLocalInput = (iso: string | undefined, isFullDay = false): string => {
         if (!iso) return '';
         const date = new Date(iso);
-
+        if (isNaN(date.getTime())) return '';
         const vnOffset = 7 * 60;
         const localDate = new Date(date.getTime() + vnOffset * 60 * 1000);
-
-        if (isFullDay) {
-            return localDate.toISOString().split('T')[0];
-        }
-        return localDate.toISOString().slice(0, 16);
+        return isFullDay
+            ? localDate.toISOString().split('T')[0]
+            : localDate.toISOString().slice(0, 16);
     };
 
-    const localInputToIso = (local: string, isFullDay = false): string => {
+    const localInputToIso = (local: string | undefined, isFullDay = false): string => {
         if (!local) return '';
 
-        let date: Date;
-        if (isFullDay) {
-            date = new Date(local + 'T00:00:00.000+07:00');
-        } else {
-            date = new Date(local + (local.includes('T') ? '' : 'T12:00') + ':00.000+07:00');
+        try {
+            if (isFullDay) {
+                return new Date(local + 'T00:00:00.000+07:00').toISOString();
+            }
+            const withTime = local.includes('T') ? local : local + 'T12:00';
+            return new Date(withTime + ':00.000+07:00').toISOString();
+        } catch {
+            return '';
         }
-
-        return date.toISOString();
     };
 
-    const formatDisplayDateTime = (dateStr: string) => {
+    const getMaxPossibleDaysBefore = (startDateIso: string): number => {
+        if (!startDateIso) return 0;
+        const now = new Date();
+        const start = new Date(startDateIso);
+        if (isNaN(start.getTime())) return 0;
+
+        if (now.toDateString() === start.toDateString()) return 0;
+        const diffMs = start.getTime() - now.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        return Math.max(0, diffDays);
+    };
+
+    const formatDisplayDateTime = (dateStr: string | undefined) => {
         if (!dateStr) return '';
-        return new Date(dateStr).toLocaleString('vi-VN', {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return 'Ngày không hợp lệ';
+        return date.toLocaleString('vi-VN', {
             year: 'numeric', month: 'long', day: 'numeric',
             hour: '2-digit', minute: '2-digit', hour12: false
         });
@@ -154,26 +92,165 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
     };
 
     const displayDate = useMemo(() => {
-        if (selectedDate && event) {
+        if (selectedDate && event?.startDate) {
             const orig = new Date(event.startDate);
             const d = new Date(selectedDate);
-            d.setHours(orig.getHours(), orig.getMinutes());
+            if (!isNaN(orig.getTime())) {
+                d.setHours(orig.getHours(), orig.getMinutes());
+            }
             return d.toISOString();
         }
         return event?.startDate;
     }, [selectedDate, event]);
 
-    const getMaxPossibleDaysBefore = (startDateIso: string): number => {
-        const now = new Date();
-        const start = new Date(startDateIso);
+    const resetEditedEvent = () => {
+        if (!event) return;
+        const formatted = {
+            ...event,
+            startDate: isoToLocalInput(event.startDate, event.isFullDay),
+            endDate: isoToLocalInput(event.endDate, event.isFullDay),
+            reminder: event.reminder || { daysBefore: 3, methods: ['notification'] },
+            calendarType: event.calendarType || CalendarType.SOLAR,
+            eventType: event.eventType || EventType.OTHER,
+            isFullDay: event.isFullDay || false,
+            isRecurring: event.isRecurring || false,
+            recurrenceRule: event.recurrenceRule || RecurrenceRule.NONE,
+            location: event.location || '',
+            description: event.description || ''
+        };
+        setEditedEvent(formatted);
+    };
 
-        const isSameDay = now.toDateString() === start.toDateString();
-        if (isSameDay) return 0;
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isOpen]);
 
-        const diffMs = start.getTime() - now.getTime();
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    useEffect(() => {
+        if (isOpen && eventId) {
+            fetchEvent();
+        } else {
+            setIsEditing(false);
+            setErrors({});
+            setShowDeleteModal(false);
+            setEvent(null);
+            setEditedEvent({});
+        }
+    }, [isOpen, eventId]);
 
-        return Math.max(0, diffDays);
+    const fetchEvent = async () => {
+        setLoading(true);
+        try {
+            const data = await eventsApi.getEvent(eventId);
+            setEvent(data);
+            const formatted = {
+                ...data,
+                startDate: isoToLocalInput(data.startDate, data.isFullDay),
+                endDate: isoToLocalInput(data.endDate, data.isFullDay),
+                reminder: data.reminder || { daysBefore: 3, methods: ['notification'] },
+                calendarType: data.calendarType || CalendarType.SOLAR,
+                eventType: data.eventType || EventType.OTHER,
+                isFullDay: data.isFullDay || false,
+                isRecurring: data.isRecurring || false,
+                recurrenceRule: data.recurrenceRule || RecurrenceRule.NONE,
+                location: data.location || '',
+                description: data.description || ''
+            };
+            setEditedEvent(formatted);
+        } catch (err) {
+            showToast.error('Không tải được sự kiện');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const validate = () => {
+        const err: Errors = {};
+        if (!editedEvent.title?.trim()) err.title = 'Vui lòng nhập tiêu đề sự kiện';
+        if (!editedEvent.startDate) err.startDate = 'Vui lòng chọn ngày bắt đầu';
+        setErrors(err);
+        return Object.keys(err).length === 0;
+    };
+
+    const startDateInputValue = editedEvent.startDate || '';
+    const isoFromInput = startDateInputValue ? localInputToIso(startDateInputValue, editedEvent.isFullDay ?? false) : '';
+    const maxDaysForReminder = isoFromInput ? getMaxPossibleDaysBefore(isoFromInput) : 7;
+    const currentReminderDays = editedEvent.reminder?.daysBefore ?? 3;
+    const isReminderInvalid = currentReminderDays > maxDaysForReminder;
+
+    useEffect(() => {
+        if (isEditing && isReminderInvalid && maxDaysForReminder >= 0) {
+            setEditedEvent(prev => ({
+                ...prev,
+                reminder: {
+                    ...(prev.reminder || { methods: ['notification'] }),
+                    daysBefore: maxDaysForReminder,
+                },
+            }));
+        }
+    }, [isEditing, isReminderInvalid, maxDaysForReminder]);
+
+    const handleSave = async () => {
+        if (!validate()) return;
+
+        try {
+            const newStartDate = new Date(editedEvent.startDate + ':00.000+07:00');
+            const now = getCurrentVNTime();
+
+            if (newStartDate < now) {
+                showToast.error('Không thể cập nhật sự kiện với thời gian trong quá khứ');
+                return;
+            }
+
+            const payload = {
+                ...editedEvent,
+                startDate: localInputToIso(editedEvent.startDate!, editedEvent.isFullDay),
+                endDate: editedEvent.endDate ? localInputToIso(editedEvent.endDate, editedEvent.isFullDay) : undefined,
+                isRecurring: !!editedEvent.recurrenceRule && editedEvent.recurrenceRule !== RecurrenceRule.NONE,
+            };
+
+            const updated = await eventsApi.updateEvent(eventId, payload);
+            const fullEvent = { ...event!, ...updated } as Event;
+
+            setEvent(fullEvent);
+            const formatted = {
+                ...fullEvent,
+                startDate: isoToLocalInput(fullEvent.startDate, fullEvent.isFullDay),
+                endDate: isoToLocalInput(fullEvent.endDate, fullEvent.isFullDay),
+                reminder: fullEvent.reminder || { daysBefore: 3, methods: ['notification'] },
+                calendarType: fullEvent.calendarType || CalendarType.SOLAR,
+                eventType: fullEvent.eventType || EventType.OTHER,
+                isFullDay: fullEvent.isFullDay || false,
+                isRecurring: fullEvent.isRecurring || false,
+                recurrenceRule: fullEvent.recurrenceRule || RecurrenceRule.NONE,
+                location: fullEvent.location || '',
+                description: fullEvent.description || ''
+            };
+            setEditedEvent(formatted);
+
+            onUpdate?.(fullEvent);
+            setIsEditing(false);
+            setErrors({});
+            showToast.success('Cập nhật thành công!');
+        } catch {
+            showToast.error('Cập nhật thất bại');
+        }
+    };
+
+    const handleDelete = async () => {
+        try {
+            await eventsApi.deleteEvent(eventId);
+            showToast.success('Đã xóa sự kiện!');
+            onDelete?.();
+            setShowDeleteModal(false);
+            onClose();
+        } catch {
+            showToast.error('Xóa thất bại');
+        }
     };
 
     if (!isOpen) return null;
@@ -263,7 +340,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                                             type={editedEvent.isFullDay ? 'date' : 'datetime-local'}
                                                             value={editedEvent.startDate || ''}
                                                             onChange={e => setEditedEvent(prev => ({ ...prev, startDate: e.target.value }))}
-                                                            min={new Date().toISOString().slice(0, 16)}
+                                                            min={formatToLocalInput(getCurrentVNTime())}
                                                             className="w-full px-3 py-2 rounded-lg bg-[#0d1321]/60 border border-[#D1B066]/20 focus:border-[#D1B066] text-white text-sm placeholder-white/40 outline-none transition-all"
                                                         />
                                                         {errors.startDate && <p className="text-red-400 text-sm mt-1">{errors.startDate}</p>}
@@ -396,78 +473,84 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                 <div className="flex gap-4">
                                     <Bell className="w-5 h-5 text-[#EEDC9A] mt-1" />
                                     <div className="flex-1">
-                                        <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">Thông báo nhắc nhở</div>
-                                        {isEditing ? (
-                                            <>
-                                                {(() => {
-                                                    const startDate = editedEvent.startDate || event?.startDate;
-                                                    const maxDays = startDate ? getMaxPossibleDaysBefore(localInputToIso(startDate, editedEvent.isFullDay)) : 7;
-                                                    const currentDays = editedEvent.reminder?.daysBefore ?? 3;
-                                                    const isInvalid = currentDays > maxDays;
+                                        <div className="font-bold text-m text-[#EEDC9A] uppercase tracking-wider mb-3">
+                                            Thông báo nhắc nhở
+                                        </div>
 
-                                                    useEffect(() => {
-                                                        if (isInvalid) {
+                                        {isEditing ? (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {/* Thời gian nhắc */}
+                                                <div>
+                                                    <label className="text-sm text-white/80">Thời gian nhắc</label>
+                                                    <select
+                                                        value={isReminderInvalid ? maxDaysForReminder : currentReminderDays}
+                                                        onChange={e =>
                                                             setEditedEvent(prev => ({
                                                                 ...prev,
-                                                                reminder: { ...(prev.reminder || { methods: ['notification'] }), daysBefore: maxDays }
-                                                            }));
+                                                                reminder: {
+                                                                    ...(prev.reminder || { methods: ['notification'] }),
+                                                                    daysBefore: Number(e.target.value),
+                                                                },
+                                                            }))
                                                         }
-                                                    }, [maxDays]);
+                                                        className={`w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border text-white text-sm outline-none cursor-pointer ${
+                                                            isReminderInvalid
+                                                                ? 'border-red-500 ring-2 ring-red-500'
+                                                                : 'border-[#D1B066]/20 focus:border-[#D1B066]'
+                                                        }`}
+                                                    >
+                                                        {[0, 1, 3, 7]
+                                                            .filter(d => d <= maxDaysForReminder)
+                                                            .map(d => (
+                                                                <option key={d} value={d}>
+                                                                    {d === 0 ? 'Đúng giờ' : `${d} ngày trước`}
+                                                                </option>
+                                                            ))}
+                                                    </select>
+                                                    {isReminderInvalid && (
+                                                        <p className="text-red-400 text-xs mt-1">
+                                                            Đã tự động điều chỉnh (chỉ còn {maxDaysForReminder} ngày)
+                                                        </p>
+                                                    )}
+                                                    {maxDaysForReminder === 0 && (
+                                                        <p className="text-yellow-300 text-xs mt-1">
+                                                            Hôm nay → chỉ nhắc đúng giờ
+                                                        </p>
+                                                    )}
+                                                </div>
 
-                                                    return (
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div>
-                                                                <label className="text-sm text-white/80">Thời gian nhắc</label>
-                                                                <select
-                                                                    value={isInvalid ? maxDays : currentDays}
-                                                                    onChange={e => setEditedEvent(prev => ({
-                                                                        ...prev,
-                                                                        reminder: {
-                                                                            ...(prev.reminder || { daysBefore: 3, methods: ['notification'] }),
-                                                                            daysBefore: Number(e.target.value)
-                                                                        }
-                                                                    }))}
-                                                                    className={`w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border text-white text-sm outline-none cursor-pointer ${
-                                                                        isInvalid ? 'border-red-500 ring-2 ring-red-500' : 'border-[#D1B066]/20 focus:border-[#D1B066]'
-                                                                    }`}
-                                                                >
-                                                                    {[0,1,3,7].filter(d => d <= maxDays).map(d => (
-                                                                        <option key={d} value={d}>
-                                                                            {d === 0 ? 'Đúng giờ' : `${d} ngày trước`}
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-                                                                {isInvalid && (
-                                                                    <p className="text-red-400 text-xs mt-1">Đã tự động điều chỉnh (chỉ còn {maxDays} ngày)</p>
-                                                                )}
-                                                                {maxDays === 0 && <p className="text-yellow-300 text-xs mt-1">Hôm nay → chỉ nhắc đúng giờ</p>}
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-sm text-white/80">Phương thức</label>
-                                                                <select
-                                                                    value={editedEvent.reminder?.methods?.[0] || 'notification'}
-                                                                    onChange={e => setEditedEvent(prev => ({
-                                                                        ...prev,
-                                                                        reminder: {
-                                                                            ...(prev.reminder || { daysBefore: 3, methods: ['notification'] }),
-                                                                            methods: [e.target.value as any]
-                                                                        }
-                                                                    }))}
-                                                                    className="w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border border-[#D1B066]/20 focus:border-[#D1B066] text-white text-sm outline-none cursor-pointer"
-                                                                >
-                                                                    <option value="notification">Thông báo</option>
-                                                                    <option value="email">Email</option>
-                                                                    <option value="both">Cả hai</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </>
+                                                {/* Phương thức */}
+                                                <div>
+                                                    <label className="text-sm text-white/80">Phương thức</label>
+                                                    <select
+                                                        value={editedEvent.reminder?.methods?.[0] || 'notification'}
+                                                        onChange={e =>
+                                                            setEditedEvent(prev => ({
+                                                                ...prev,
+                                                                reminder: {
+                                                                    ...(prev.reminder || { daysBefore: 3 }),
+                                                                    methods: [e.target.value],
+                                                                },
+                                                            }))
+                                                        }
+                                                        className="w-full mt-1 px-3 py-2 rounded-lg bg-[#0d1321]/60 border border-[#D1B066]/20 focus:border-[#D1B066] text-white text-sm outline-none cursor-pointer"
+                                                    >
+                                                        <option value="notification">Thông báo</option>
+                                                        <option value="email">Email</option>
+                                                        <option value="both">Cả hai</option>
+                                                    </select>
+                                                </div>
+                                            </div>
                                         ) : (
                                             <p className="text-white">
                                                 {event?.reminder
-                                                    ? `${event.reminder.daysBefore === 0 ? 'Đúng giờ' : `${event.reminder.daysBefore} ngày trước`}, ${event.reminder.methods?.includes('both') ? 'Thông báo + Email' : event.reminder.methods?.[0] === 'email' ? 'Email' : 'Thông báo'}`
+                                                    ? `${event.reminder.daysBefore === 0 ? 'Đúng giờ' : `${event.reminder.daysBefore} ngày trước`}, ${
+                                                        event.reminder.methods?.includes('both')
+                                                            ? 'Thông báo + Email'
+                                                            : event.reminder.methods?.[0] === 'email'
+                                                                ? 'Email'
+                                                                : 'Thông báo'
+                                                    }`
                                                     : 'Chưa cài đặt'}
                                             </p>
                                         )}
@@ -565,7 +648,7 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ eventId, isOpen, on
                                 <button
                                     onClick={() => {
                                         setIsEditing(false);
-                                        setEditedEvent(event!);
+                                        resetEditedEvent();
                                         setErrors({});
                                     }}
                                     className="px-6 h-10 rounded-xl border-2 border-[#D1B066]/50 text-[#EEDC9A] font-semibold hover:bg-[#D1B066]/10 hover:border-[#D1B066] transition-all duration-300 hover:scale-105"

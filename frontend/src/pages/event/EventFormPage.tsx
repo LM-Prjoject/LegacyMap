@@ -11,13 +11,46 @@ import Navbar from "@/components/layout/Navbar.tsx";
 const EventFormPage: React.FC = () => {
     const navigate = useNavigate();
     const {triggerEventsUpdate} = useEventContext();
-    const now = new Date();
-    const minDateTime = now.toISOString().slice(0, 16);
+
+    const utcToZonedTime = (date: Date | number | string, timeZone: string): Date => {
+        const formatted = formatInTimeZone(date, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+        return new Date(formatted);
+    };
+
+    const zonedTimeToUtc = (date: Date | number | string, timeZone: string): Date => {
+        const utcString = formatInTimeZone(date, 'UTC', "yyyy-MM-dd'T'HH:mm:ss'Z'", {
+            timeZone,
+        });
+        return new Date(utcString);
+    };
+
+    const getCurrentVNTime = () => {
+        const now = new Date();
+        return utcToZonedTime(now, 'Asia/Ho_Chi_Minh');
+    };
+
+    const formatToLocalInput = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    const parseVNTime = (dateTimeString: string) => {
+        if (!dateTimeString) return new Date();
+        const localDate = new Date(dateTimeString + ':00');
+        return zonedTimeToUtc(localDate, 'Asia/Ho_Chi_Minh');
+    };
+
+    const nowVN = getCurrentVNTime();
+    const minDateTime = formatToLocalInput(nowVN);
     const [formData, setFormData] = useState<EventCreateRequest>({
         title: '',
         description: '',
         eventType: EventType.OTHER,
-        startDate: new Date().toISOString().slice(0, 16),
+        startDate: minDateTime,
         endDate: '',
         isFullDay: false,
         calendarType: CalendarType.SOLAR,
@@ -30,7 +63,6 @@ const EventFormPage: React.FC = () => {
             daysBefore: 3,
             methods: ['notification'] as ('notification' | 'email')[]
         },
-        
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -107,14 +139,13 @@ const EventFormPage: React.FC = () => {
         const relatedPersonsError = validateField('relatedPersons', formData.relatedPersons);
 
         setErrors({
-            title: titleError,
-            startDate: startDateError,
-            tree: treeError,
-            relatedPersons: relatedPersonsError,
+            title: titleError || undefined,
+            startDate: startDateError || undefined,
+            tree: treeError || undefined,
+            relatedPersons: relatedPersonsError || undefined,
         });
 
         if (titleError || startDateError || treeError) {
-            setError('Vui lòng kiểm tra lại các trường bắt buộc');
             return;
         }
 
@@ -160,6 +191,26 @@ const EventFormPage: React.FC = () => {
 
         if (field === 'title' || field === 'startDate') {
             setErrors(prev => ({ ...prev, [field]: undefined }));
+            setError(null);
+        }
+
+        if (field === 'startDate' && !formData.isFullDay) {
+            const selectedDateTime = parseVNTime(value as string);
+            const now = getCurrentVNTime();
+
+            const isPast = selectedDateTime.getTime() < now.getTime() - 60000;
+
+            if (isPast) {
+                setErrors(prev => ({
+                    ...prev,
+                    startDate: 'Thời gian bắt đầu phải lớn hơn hoặc bằng thời gian hiện tại'
+                }));
+            } else {
+                setErrors(prev => ({ ...prev, startDate: undefined }));
+                if (error?.includes('thời gian')) {
+                    setError(null);
+                }
+            }
         }
     };
 
@@ -185,7 +236,19 @@ const EventFormPage: React.FC = () => {
             case 'title':
                 return value.trim() ? '' : 'Vui lòng nhập tên sự kiện';
             case 'startDate':
-                return value ? '' : 'Vui lòng chọn thời gian bắt đầu';
+                if (!value) return 'Vui lòng chọn thời gian bắt đầu';
+
+                if (formData.isFullDay) {
+                    return '';
+                }
+
+                const selectedDateTime = parseVNTime(value);
+                const now = getCurrentVNTime();
+
+                if (selectedDateTime.getTime() < now.getTime() - 60000) {
+                    return 'Thời gian bắt đầu phải lớn hơn hoặc bằng thời gian hiện tại';
+                }
+                return '';
             case 'tree':
                 return !isPersonalEvent && !selectedTreeId ? 'Vui lòng chọn cây gia phả' : '';
             case 'relatedPersons':
@@ -206,12 +269,12 @@ const EventFormPage: React.FC = () => {
         if (field === 'tree') value = selectedTreeId;
 
         const error = validateField(field, value);
-        setErrors(prev => ({ ...prev, [field]: error }));
+        setErrors(prev => ({ ...prev, [field]: error || undefined }));
     };
 
     const getMaxPossibleDaysBefore = (startDateIso: string): number => {
-        const now = new Date();
-        const start = new Date(startDateIso);
+        const now = getCurrentVNTime();
+        const start = parseVNTime(startDateIso);
 
         const isSameDay = now.toDateString() === start.toDateString();
         if (isSameDay) return 0;
@@ -260,17 +323,6 @@ const EventFormPage: React.FC = () => {
                     <div className="w-20 sm:w-24"></div>
                 </div>
             </div>
-
-            {error && (
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-6">
-                    <div className="p-4 rounded-2xl border animate-pulse" style={{
-                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%)',
-                        borderColor: 'rgba(239, 68, 68, 0.4)',
-                    }}>
-                        <p className="text-red-300 text-center font-medium">{error}</p>
-                    </div>
-                </div>
-            )}
 
             {/* Main form */}
             <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 pb-20">
@@ -339,7 +391,7 @@ const EventFormPage: React.FC = () => {
                                             className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] appearance-none cursor-pointer transition-all"
                                             style={{
                                                 background: 'rgba(255, 255, 255, 0.05)',
-                                                border: '1px solid rgba(255, 216, 155, 0.2)',
+                                                border: errors.tree ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(255, 216, 155, 0.2)',
                                                 color: 'white'
                                             }}
                                         >
@@ -477,7 +529,7 @@ const EventFormPage: React.FC = () => {
                             className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
                             style={{
                                 background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 216, 155, 0.2)',
+                                border: errors.title ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(255, 216, 155, 0.2)',
                                 color: 'white'
                             }}
                             required
@@ -577,12 +629,12 @@ const EventFormPage: React.FC = () => {
                                     value={formData.startDate}
                                     onChange={(e) => handleInputChange('startDate', e.target.value)}
                                     onBlur={() => handleBlur('startDate')}
-                                    min={minDateTime}
+                                    min={formData.isFullDay ? undefined : minDateTime}
                                     disabled={formData.isFullDay}
                                     className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)] transition-all"
                                     style={{
                                         background: 'rgba(255, 255, 255, 0.05)',
-                                        border: '1px solid rgba(255, 216, 155, 0.3)',
+                                        border: errors.startDate ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(255, 216, 155, 0.3)',
                                         color: 'white'
                                     }}
                                     required
@@ -668,6 +720,9 @@ const EventFormPage: React.FC = () => {
 
                                                 handleInputChange('startDate', startStr);
                                                 handleInputChange('endDate', endStr);
+
+                                                // Xóa lỗi khi chuyển sang chế độ cả ngày
+                                                setErrors(prev => ({ ...prev, startDate: undefined }));
                                             }
                                         }}
                                         className="w-4 h-4 rounded"
@@ -756,32 +811,34 @@ const EventFormPage: React.FC = () => {
 
                                         return (
                                             <>
-                                                <select
-                                                    value={isInvalid ? maxDays : currentDays}
-                                                    onChange={(e) => handleReminderChange('daysBefore', Number(e.target.value))}
-                                                    className={`w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
-                                                        isInvalid ? 'ring-2 ring-red-500' : 'focus:ring-[rgb(255,216,155)]'
-                                                    }`}
-                                                    style={{
-                                                        background: 'rgba(255, 255, 255, 0.05)',
-                                                        border: '1px solid rgba(255, 216, 155, 0.3)',
-                                                        color: 'white'
-                                                    }}
-                                                >
-                                                    {reminderOptions
-                                                        .filter(opt => opt.value <= maxDays)
-                                                        .map(option => (
-                                                            <option key={option.value} value={String(option.value)} className="bg-[#2a3548]">
-                                                                {option.label}
+                                                <div className="relative">
+                                                    <select
+                                                        value={isInvalid ? maxDays : currentDays}
+                                                        onChange={(e) => handleReminderChange('daysBefore', Number(e.target.value))}
+                                                        className={`w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all ${
+                                                            isInvalid ? 'ring-2 ring-red-500' : 'focus:ring-[rgb(255,216,155)]'
+                                                        }`}
+                                                        style={{
+                                                            background: 'rgba(255, 255, 255, 0.05)',
+                                                            border: '1px solid rgba(255, 216, 155, 0.3)',
+                                                            color: 'white'
+                                                        }}
+                                                    >
+                                                        {reminderOptions
+                                                            .filter(opt => opt.value <= maxDays)
+                                                            .map(option => (
+                                                                <option key={option.value} value={String(option.value)} className="bg-[#2a3548]">
+                                                                    {option.label}
+                                                                </option>
+                                                            ))}
+                                                        {maxDays < 7 && reminderOptions.some(o => o.value > maxDays && o.value <= 7) && (
+                                                            <option disabled className="text-gray-500">
+                                                                Các lựa chọn không khả dụng
                                                             </option>
-                                                        ))}
-                                                    {maxDays < 7 && reminderOptions.some(o => o.value > maxDays && o.value <= 7) && (
-                                                        <option disabled className="text-gray-500">
-                                                            Các lựa chọn không khả dụng
-                                                        </option>
-                                                    )}
-                                                </select>
-                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(255,216,155)] pointer-events-none" />
+                                                        )}
+                                                    </select>
+                                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(255,216,155)] pointer-events-none" />
+                                                </div>
 
                                                 {isInvalid && (
                                                     <p className="text-red-400 text-sm mt-2 flex items-center gap-1 animate-pulse">
