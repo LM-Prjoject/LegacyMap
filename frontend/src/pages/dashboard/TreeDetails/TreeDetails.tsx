@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TreeGraph from "@/components/familyTree/TreeGraph";
 import RelationshipModal, { type RelationUpper } from "@/components/familyTree/relaModal/RelationshipModal";
@@ -13,7 +13,7 @@ import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
 import Navbar from "@/components/layout/Navbar";
 import MemberListModal from "@/components/familyTree/MemberListModal";
-import { ArrowLeft, LucideUserPlus, Share2, Download, History, Edit} from "lucide-react";
+import { ArrowLeft, LucideUserPlus, Share2, Download, History, Edit } from "lucide-react";
 import * as htmlToImage from "html-to-image";
 import { personLinkApi } from "@/api/personLink";
 
@@ -67,6 +67,7 @@ export default function TreeDetails() {
     const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
     const [graphVersion, setGraphVersion] = useState(0);
     const [readOnly, setReadOnly] = useState(false);
+    const [ownsTree, setOwnsTree] = useState(false);
     const [pendingNew, setPendingNew] = useState<Person | null>(null);
     const [isInAddFlow, setIsInAddFlow] = useState(false);
     const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -112,6 +113,7 @@ export default function TreeDetails() {
                 ]);
                 const allTrees: any[] = [...owned, ...viewable];
                 const found: any = allTrees.find((t) => t.id === treeId) || null;
+                setOwnsTree(!!owned.find((t: any) => t?.id === treeId));
 
                 let createdById: string | null;
                 try {
@@ -345,9 +347,9 @@ export default function TreeDetails() {
     };
 
     const confirmRelationship = async ({
-                                           relation,
-                                           candidateId,
-                                       }: {
+        relation,
+        candidateId,
+    }: {
         relation: RelationUpper;
         candidateId: string;
     }) => {
@@ -387,8 +389,14 @@ export default function TreeDetails() {
         // After relationship is created, send pending invite if requested
         try {
             if (pendingInvite?.send && pendingInvite.email?.trim()) {
-                await personLinkApi.invite(source.id, userId, pendingInvite.email.trim());
-                showToast.success("Đã gửi thông báo mời liên kết");
+                const res = await personLinkApi.invite(source.id, userId, pendingInvite.email.trim());
+                const result = res?.result;
+                if (result?.status === "APPROVED") {
+                    showToast.success(result.message || "Đã tự xác minh thành công");
+                } else {
+                    showToast.success(result?.message || "Đã gửi thông báo mời liên kết");
+                }
+
             }
         } catch (inviteErr: any) {
             console.warn("Invite after relationship failed", inviteErr?.message || inviteErr);
@@ -623,18 +631,18 @@ export default function TreeDetails() {
                         const diff = yCand - ySrc;
                         if (rel === "PARENT" || rel === "CHILD") {
                             if (Math.abs(diff) < MIN_PARENT_GAP) {
-                                try { console.log("[fetchSuggestions] reject age-gap-too-small", { sourceId: personId, candId: cand.id, diff, MIN_PARENT_GAP, rel }); } catch {}
+                                try { console.log("[fetchSuggestions] reject age-gap-too-small", { sourceId: personId, candId: cand.id, diff, MIN_PARENT_GAP, rel }); } catch { }
                                 continue;
                             }
                             if (diff > 0 && rel !== "PARENT") {
                                 rel = "PARENT";
                                 conf *= 0.95;
-                                try { console.log("[fetchSuggestions] orient->PARENT", { sourceId: personId, candId: cand.id, diff, conf }); } catch {}
+                                try { console.log("[fetchSuggestions] orient->PARENT", { sourceId: personId, candId: cand.id, diff, conf }); } catch { }
                             }
                             if (diff < 0 && rel !== "CHILD") {
                                 rel = "CHILD";
                                 conf *= 0.95;
-                                try { console.log("[fetchSuggestions] orient->CHILD", { sourceId: personId, candId: cand.id, diff, conf }); } catch {}
+                                try { console.log("[fetchSuggestions] orient->CHILD", { sourceId: personId, candId: cand.id, diff, conf }); } catch { }
                             }
                         }
                     }
@@ -644,7 +652,7 @@ export default function TreeDetails() {
                         const gSrc = String(src?.gender || "").toUpperCase();
                         const gCand = String(cand.gender || "").toUpperCase();
                         if (!gSrc || !gCand || gSrc === gCand) {
-                            try { console.log("[fetchSuggestions] reject spouse same/missing gender", { gSrc, gCand, personId, candId: cand.id }); } catch {}
+                            try { console.log("[fetchSuggestions] reject spouse same/missing gender", { gSrc, gCand, personId, candId: cand.id }); } catch { }
                             continue;
                         }
                     }
@@ -657,22 +665,22 @@ export default function TreeDetails() {
                         key = rel === "PARENT" ? `PARENT:${personId}->${cand.id}` : `PARENT:${cand.id}->${personId}`;
                     }
                     if (existingKeys.has(key)) {
-                        try { console.log("[fetchSuggestions] reject duplicate", { key }); } catch {}
+                        try { console.log("[fetchSuggestions] reject duplicate", { key }); } catch { }
                         continue;
                     }
 
                     if (conf <= 0.3) {
-                        try { console.log("[fetchSuggestions] reject low-confidence", { conf }); } catch {}
+                        try { console.log("[fetchSuggestions] reject low-confidence", { conf }); } catch { }
                         continue;
                     }
                     out.push({ candidateId: cand.id, relation: rel, confidence: conf });
                 }
             } catch (e) {
-                try { console.log("[fetchSuggestions] batch-error", e); } catch {}
+                try { console.log("[fetchSuggestions] batch-error", e); } catch { }
             }
 
             const sorted = out.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-            try { console.log("[fetchSuggestions] final", { sourceId: personId, size: sorted.length, top: sorted[0] }); } catch {}
+            try { console.log("[fetchSuggestions] final", { sourceId: personId, size: sorted.length, top: sorted[0] }); } catch { }
             return sorted;
         };
     }, [treeId, userId, persons, rels]);
@@ -959,7 +967,7 @@ export default function TreeDetails() {
                                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 shadow-sm hover:shadow transition-all text-white"
                                     title="Yêu cầu quyền chỉnh sửa"
                                 >
-                                    <Edit size="20"/> Yêu cầu quyền edit
+                                    <Edit size="20" /> Yêu cầu quyền edit
                                 </button>
                             )}
                         </div>
@@ -980,7 +988,7 @@ export default function TreeDetails() {
                 />
 
                 <main ref={treeWrapperRef}
-                      className="col-span-12 md:col-span-9 bg-white rounded-xl shadow p-3">
+                    className="col-span-12 md:col-span-9 bg-white rounded-xl shadow p-3">
                     {!treeId ? (
                         <div className="text-sm text-slate-500">Không tìm thấy treeId trong URL.</div>
                     ) : loading ? (
@@ -1028,10 +1036,11 @@ export default function TreeDetails() {
                 persons={persons}
                 relationships={rels}
                 onClose={handleCloseDetails}
-                onEditClick={readOnly ? () => {} : handleEditClick}
+                onEditClick={readOnly ? () => { } : handleEditClick}
                 onPrepareDelete={readOnly ? undefined : prepareDelete}
-                onDelete={readOnly ? () => {} : (pId) => confirmDeleteFromDetails(pId)}
+                onDelete={readOnly ? () => { } : (pId) => confirmDeleteFromDetails(pId)}
                 readOnly={readOnly}
+                isOwner={!readOnly && (ownsTree || (!!tree?.createdById && tree?.createdById === userId))}
             />
 
             {source && (

@@ -10,5 +10,5 @@ export const usersApi = {
       | { exists: boolean; userId?: string; username?: string }
       | undefined
     return payload ?? { exists: false }
-  }
+  },
 }
