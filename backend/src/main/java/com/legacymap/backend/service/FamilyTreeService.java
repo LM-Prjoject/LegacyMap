@@ -376,6 +376,9 @@ public class FamilyTreeService {
             }
             relationshipRepository.deleteAll(links);
         }
+        
+        // Log audit trước khi xóa
+        historyService.logMemberDeleted(treeId, userId, p.getId(), p);
         personRepository.delete(p);
 
         // Always prune using KEEP roots: ancestor roots if available, otherwise global roots

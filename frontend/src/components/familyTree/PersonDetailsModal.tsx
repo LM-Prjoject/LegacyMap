@@ -524,7 +524,7 @@ export default function PersonDetailsModal({
                                                 </div>
                                             )}
                                             <div>
-                                                <p className="text-sm text-gray-800 font-semibold">{rel.text}</p>
+                                                <p className="text-sm text-white font-semibold">{rel.text}</p>
                                             </div>
                                         </div>
                                     </div>
