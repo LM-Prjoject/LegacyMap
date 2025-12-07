@@ -92,38 +92,29 @@ public class ChatRoomService {
 
     @Transactional
     public ChatRoomResponse createBranchRoom(UUID creatorId, BranchRoomCreateRequest request) {
-        // Validate creator and request
         User creator = getUserOrThrow(creatorId);
         Person branchPerson = personRepository.findById(request.getBranchPersonId())
                 .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
 
         FamilyTree familyTree = branchPerson.getFamilyTree();
-        
-        // Check if user has access to the family tree
+
         if (!familyTreeRepository.existsByIdAndUserHasAccess(familyTree.getId(), creatorId)) {
             throw new AppException(ErrorCode.ACCESS_DENIED);
         }
-        
-        // Check if branch room already exists
+
         chatRoomBranchRepository.findByBranchPersonId(branchPerson.getId())
                 .ifPresent(room -> {
-                    // SỬA: Thay constant không tồn tại
                     throw new AppException(ErrorCode.RELATIONSHIP_ALREADY_EXISTS, "Branch room already exists");
                 });
-        
-        // Fetch all relationships and person_user_links for the tree
+
         List<Relationship> allRelationships = relationshipRepository.findAllByFamilyTree_Id(familyTree.getId());
-        
-        // Build graph in memory
+
         GraphData graphData = buildGraph(allRelationships);
-        
-        // Traverse using BFS to find all descendants
+
         Set<UUID> descendantPersonIds = findDescendantsWithGraph(branchPerson.getId(), graphData);
-        
-        // Map person IDs to user IDs (only verified links)
+
         Set<UUID> userIds = personUserLinkRepository.findUserIdsByPersonIds(descendantPersonIds);
-        
-        // Create the chat room
+
         ChatRoom room = ChatRoom.builder()
                 .name(request.getName() != null ? request.getName() : "Nhánh " + branchPerson.getFullName())
                 .description(request.getDescription())
@@ -133,8 +124,7 @@ public class ChatRoomService {
                 .build();
 
         ChatRoom savedRoom = chatRoomRepository.save(room);
-        
-        // Add branch person to chat_room_branches
+
         ChatRoomBranch branch = ChatRoomBranch.builder()
                 .id(new ChatRoomBranchId(savedRoom.getId(), branchPerson.getId()))
                 .room(savedRoom)
@@ -142,11 +132,9 @@ public class ChatRoomService {
                 .createdBy(creator)
                 .build();
         chatRoomBranchRepository.save(branch);
-        
-        // Add all users to the room
+
         addMembersToRoom(savedRoom, userIds, creatorId);
-        
-        // Add creator as admin if not already a member
+
         if (!userIds.contains(creatorId)) {
             addMember(savedRoom, creator, null, ChatRoomMember.ChatMemberRole.admin);
         }
@@ -154,9 +142,6 @@ public class ChatRoomService {
         return mapToChatRoomResponse(savedRoom, creatorId);
     }
 
-    /**
-     * Kiểm tra user có quyền truy cập tree không
-     */
     private boolean canUserAccessTree(UUID treeId, UUID userId) {
         Optional<FamilyTree> tree = familyTreeRepository.findById(treeId);
         if (tree.isPresent() && tree.get().getCreatedBy().getId().equals(userId)) {

@@ -54,6 +54,7 @@ export interface ChatMessage {
   createdAt: string;
   updatedAt: string;
   recipients: ChatMessageRecipientStatus[];
+  pending?: boolean;
 }
 
 export interface ChatMessagePage {

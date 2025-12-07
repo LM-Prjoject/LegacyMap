@@ -162,7 +162,6 @@ export const ChatWidget = () => {
     try {
       await chatApi.updateMyMembership(roomId, { muted: newMuted });
     } catch (err) {
-      // Revert on failure
       setRooms(prevRooms =>
         prevRooms.map(room =>
           room.id === roomId

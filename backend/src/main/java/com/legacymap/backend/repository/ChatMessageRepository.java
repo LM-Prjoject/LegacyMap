@@ -34,8 +34,15 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
                           @Param("now") OffsetDateTime now);
 
     @Modifying
-    @Query("UPDATE ChatMessage m " + "SET m.deleted = true, " + "    m.deletedAt = :now, " + "    m.deletedBy.id = :userId " +
-            "WHERE m.id = :messageId " + "  AND m.room.id = :roomId " + "  AND (m.sender.id = :userId OR :isAdmin = true)")
+    @Query("""
+        UPDATE ChatMessage m 
+        SET m.deleted = true,
+            m.deletedAt = :now,
+            m.deletedBy = (SELECT u FROM User u WHERE u.id = :userId)
+        WHERE m.id = :messageId 
+          AND m.room.id = :roomId 
+          AND (m.sender.id = :userId OR :isAdmin = true)
+    """)
     int markAsDeleted(@Param("messageId") UUID messageId,
                       @Param("roomId") UUID roomId,
                       @Param("userId") UUID userId,
