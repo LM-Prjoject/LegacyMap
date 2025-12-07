@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -41,6 +42,7 @@ public class ChatMessageService {
     private final MessageStatusRepository messageStatusRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final EntityManager entityManager;
 
     @Transactional
     public ChatMessageResponse sendMessage(UUID senderId, ChatMessageSendRequest request) {
@@ -172,14 +174,14 @@ public class ChatMessageService {
                 .roomId(message.getRoom().getId())
                 .senderId(message.getSender().getId())
                 .senderName(message.getSender().getUsername())
-                .messageText(message.getDeleted() ? "The message has been deleted" : message.getMessageText())
+                .messageText(message.getMessageText())
                 .messageType(message.getMessageType())
                 .fileUrl(message.getFileUrl())
                 .fileName(message.getFileName())
                 .fileSize(message.getFileSize())
                 .fileType(message.getFileType())
                 .replyToId(message.getReplyTo() != null ? message.getReplyTo().getId() : null)
-                .replyToText(message.getReplyTo() != null ? (message.getReplyTo().getDeleted() ? "The message has been deleted" : message.getReplyTo().getMessageText()) : null)
+                .replyToText(message.getReplyTo() == null ? null : (message.getReplyTo().getDeleted() ? "Tin nhắn đã bị xóa" : message.getReplyTo().getMessageText()))
                 .replyToSenderName(message.getReplyTo() != null ? message.getReplyTo().getSender().getUsername() : null)
                 .edited(message.getEdited())
                 .deleted(message.getDeleted())
@@ -205,7 +207,11 @@ public class ChatMessageService {
             throw new AppException(ErrorCode.BAD_REQUEST, "Edit failed");
         }
 
-        message = chatMessageRepository.findByIdAndRoomIdWithRelations(messageId, roomId).get();
+        entityManager.flush();
+        entityManager.clear();
+
+        message = chatMessageRepository.findByIdAndRoomIdWithRelations(messageId, roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
         List<MessageStatus> statuses = messageStatusRepository.findByMessage_Id(messageId);
         ChatMessageResponse response = toResponse(message, statuses);
         broadcast(roomId, response);
@@ -227,17 +233,28 @@ public class ChatMessageService {
             throw new AppException(ErrorCode.ACCESS_DENIED, "You do not have permission to delete this message");
         }
 
-        int updated = chatMessageRepository.markAsDeleted(messageId, roomId, userId, true, OffsetDateTime.now());
+        int updated = chatMessageRepository.markAsDeleted(
+                messageId,
+                roomId,
+                userId,
+                isAdmin,
+                OffsetDateTime.now()
+        );
+
         if (updated == 0) {
             throw new AppException(ErrorCode.BAD_REQUEST, "Failed to delete the message");
         }
 
-        message = chatMessageRepository.findByIdAndRoomIdWithRelations(messageId, roomId).get();
+        entityManager.flush();
+        entityManager.clear();
+
+        message = chatMessageRepository.findByIdAndRoomIdWithRelations(messageId, roomId)
+                .orElseThrow(() -> new AppException(ErrorCode.NOT_FOUND));
         List<MessageStatus> statuses = messageStatusRepository.findByMessage_Id(messageId);
         ChatMessageResponse response = toResponse(message, statuses);
         broadcast(roomId, response);
     }
-    
+
     private void broadcast(UUID roomId, ChatMessageResponse response) {
         messagingTemplate.convertAndSend("/topic/chat/" + roomId, response);
     }

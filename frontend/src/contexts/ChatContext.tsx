@@ -98,7 +98,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     }
   });
   const [isConnecting, setIsConnecting] = useState(false);
-
   const clientRef = useRef<Client | null>(null);
   const subscriptionsRef = useRef<Record<string, StompSubscription>>({});
   const wsUrlRef = useRef(resolveWsUrl());
@@ -108,10 +107,16 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   const selectedRoomRef = useRef<string | null>(null);
   const roomsLoadedRef = useRef(false);
   const authTokenRef = useRef<string | null>(authToken);
-
-  // Refs for optimistic updates
+  const pendingMessagesRef = useRef<Set<string>>(new Set());
   const roomsRef = useRef(rooms);
   const messagesByRoomRef = useRef(messagesByRoom);
+
+  const currentRoom = useMemo(
+    () => rooms.find((room) => room.id === selectedRoomId) ?? null,
+    [rooms, selectedRoomId],
+  );
+
+  const totalUnread = Object.values(unreadByRoom).reduce((sum, val) => sum + (val || 0), 0);
 
   useEffect(() => {
     roomsRef.current = rooms;
@@ -120,13 +125,6 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   useEffect(() => {
     messagesByRoomRef.current = messagesByRoom;
   }, [messagesByRoom]);
-
-  const currentRoom = useMemo(
-    () => rooms.find((room) => room.id === selectedRoomId) ?? null,
-    [rooms, selectedRoomId],
-  );
-
-  const totalUnread = Object.values(unreadByRoom).reduce((sum, val) => sum + (val || 0), 0);
 
   useEffect(() => {
     const event = new CustomEvent('chatUnreadChanged', { detail: totalUnread });
@@ -177,6 +175,11 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
         try {
           const payload = JSON.parse(frame.body) as ChatMessage;
 
+          const wasPending = pendingMessagesRef.current.has(payload.id);
+          if (wasPending) {
+            pendingMessagesRef.current.delete(payload.id);
+          }
+
           if (payload.messageType === 'system' && payload.messageText?.includes('deleted')) {
             setRooms(prev => prev.filter(r => r.id !== roomId));
             setMessagesByRoom(prev => {
@@ -194,20 +197,63 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
           setMessagesByRoom((prev) => {
             const existing = prev[roomId] ?? [];
-            const alreadyExists = existing.some((msg) => msg.id === payload.id);
+            const existingMessage = existing.find((msg) => msg.id === payload.id);
 
-            if (alreadyExists) {
+            if (!existingMessage) {
               return {
                 ...prev,
-                [roomId]: existing.map((msg) => (msg.id === payload.id ? payload : msg)),
+                [roomId]: [...existing, payload].sort(
+                  (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                ),
               };
             }
 
             return {
               ...prev,
-              [roomId]: [...existing, payload].sort(
-                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-              ),
+              [roomId]: existing.map((msg) => {
+                if (msg.id !== payload.id) return msg;
+
+                if (payload.deleted) {
+                  return {
+                    ...msg,
+                    ...payload,
+                    messageText: 'Tin nhắn đã bị xóa',
+                    pending: false,
+                  };
+                }
+
+
+                if (msg.pending) {
+                  const edited = msg.edited || payload.edited || false;
+
+                  const messageText = payload.messageText !== msg.messageText
+                    ? payload.messageText
+                    : msg.messageText;
+
+                  return {
+                    ...payload,
+                    messageText,
+                    edited,
+                    pending: false,
+                  };
+                }
+
+                if (msg.edited && !payload.edited) {
+                  return msg;
+                }
+
+                if (payload.updatedAt && msg.updatedAt) {
+                  if (new Date(payload.updatedAt) > new Date(msg.updatedAt)) {
+                    return { ...payload, pending: false };
+                  }
+                }
+
+                return {
+                  ...msg,
+                  ...payload,
+                  pending: false,
+                };
+              }),
             };
           });
 
@@ -239,65 +285,95 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
 
       subscriptionsRef.current[roomId] = subscription;
     },
-    [bumpRoomToTop, isConnected, currentUserId, isWidgetOpen, rooms],
+    [bumpRoomToTop, isConnected, currentUserId, isWidgetOpen, rooms, selectedRoomId],
   );
 
   const updateMessage = useCallback(async (roomId: string, messageId: string, payload: { messageText: string }) => {
     if (!roomId || !messageId) {
-      console.error('Missing roomId or messageId for updateMessage');
       return null;
     }
 
-    const previousMessages = messagesByRoomRef.current[roomId];
+    const currentMessages = messagesByRoom[roomId] || [];
+    const messageToUpdate = currentMessages.find(m => m.id === messageId);
+
+    if (!messageToUpdate) {
+      return null;
+    }
+
+    const tempUpdatedAt = new Date().toISOString();
+    const optimisticUpdate = {
+      ...messageToUpdate,
+      ...payload,
+      edited: true,
+      pending: true,
+      _tempUpdatedAt: tempUpdatedAt,
+    };
+
+    pendingMessagesRef.current.add(messageId);
 
     // Optimistic update
     setMessagesByRoom(prev => ({
       ...prev,
-      [roomId]: (prev[roomId] || []).map(m => m.id === messageId ? { ...m, ...payload, edited: true } : m)
+      [roomId]: (prev[roomId] || []).map(m =>
+        m.id === messageId ? optimisticUpdate : m
+      )
     }));
+
     showToast.success('Đã cập nhật tin nhắn');
 
     try {
       const updated = await chatApi.updateMessage(roomId, messageId, payload);
-      if (updated) {
-        setMessagesByRoom(prev => ({
-          ...prev,
-          [roomId]: (prev[roomId] || []).map(m => m.id === messageId ? updated : m)
-        }));
-      }
+
       return updated;
     } catch (err) {
-      // Revert
-      console.error('Update message failed', err);
       setMessagesByRoom(prev => ({
         ...prev,
-        [roomId]: previousMessages
+        [roomId]: (prev[roomId] || []).map(m =>
+          m.id === messageId ? { ...messageToUpdate, pending: false } : m
+        )
       }));
       showToast.error('Sửa tin nhắn thất bại');
       return null;
+    } finally {
+      setTimeout(() => {
+        if (pendingMessagesRef.current.has(messageId)) {
+          pendingMessagesRef.current.delete(messageId);
+
+          setMessagesByRoom(prev => ({
+            ...prev,
+            [roomId]: (prev[roomId] || []).map(m =>
+              m.id === messageId ? { ...m, pending: false } : m
+            )
+          }));
+        }
+      }, 5000);
     }
-  }, []);
+  }, [messagesByRoom]);
 
   const deleteMessage = useCallback(async (roomId: string, messageId: string, isAdmin = false) => {
     const previousMessages = messagesByRoomRef.current[roomId];
 
-    // Optimistic update
+    pendingMessagesRef.current.add(messageId);
+
     setMessagesByRoom(prev => ({
       ...prev,
-      [roomId]: (prev[roomId] || []).map(m => m.id === messageId ? { ...m, deleted: true, messageText: 'Tin nhắn đã bị xóa' } : m)
+      [roomId]: (prev[roomId] || []).map(m =>
+        m.id === messageId ? { ...m, deleted: true, messageText: 'Tin nhắn đã bị xóa', pending: true } : m
+      )
     }));
     showToast.success('Đã xóa tin nhắn');
 
     try {
       await chatApi.deleteMessage(roomId, messageId, isAdmin);
     } catch (err) {
-      // Revert
       console.error('Delete message failed', err);
       setMessagesByRoom(prev => ({
         ...prev,
         [roomId]: previousMessages
       }));
       showToast.error('Xóa tin nhắn thất bại');
+    } finally {
+      pendingMessagesRef.current.delete(messageId);
     }
   }, []);
 
@@ -368,11 +444,9 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     try {
       await chatApi.leaveRoom(roomId);
     } catch (err) {
-      // Revert
       console.error('Leave room failed', err);
       setRooms(previousRooms);
       setMessagesByRoom(previousMessages);
-      // Re-subscribe if needed
       subscribeRoom(roomId);
       showToast.error('Rời phòng thất bại');
     }
