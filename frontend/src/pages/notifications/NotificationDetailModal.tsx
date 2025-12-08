@@ -85,9 +85,7 @@ const NotificationDetailModal = ({
                     >
                         {isUnbanRequest && (
                             <>
-                                <p className="text-s font-semibold text-gray-500 mb-1">
-                                    Thông tin:
-                                </p>
+                                <p className="text-s font-semibold text-gray-500 mb-1">Thông tin:</p>
                                 <div className="text-sm space-y-2 text-gray-700">
                                     <p>
                                         <span className="font-semibold">Người yêu cầu:&nbsp;</span>
@@ -96,28 +94,32 @@ const NotificationDetailModal = ({
                                     <p>
                                         <span className="font-semibold">Lý do:&nbsp;</span>
                                         <span className="whitespace-pre-line">
-                                            {related.reason || "Không cung cấp lý do"}
-                                        </span>
+            {related.reason || "Không cung cấp lý do"}
+          </span>
                                     </p>
                                 </div>
+                                <div className="my-3 h-px bg-gray-200/80" />
                             </>
                         )}
+
+                        <div className="text-sm text-gray-700 whitespace-pre-line">
+                            {notification.message}
+                        </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-end">
                         {showModerationActions && (
                             <div className="flex gap-3">
                                 <button
                                     disabled={actionLoading}
                                     onClick={() => onReject(notification)}
                                     className={`px-4 py-2 rounded-xl text-sm font-semibold shadow-md transition-all ${
-                                        actionLoading ? "opacity-50 cursor-not-allowed" : "hover:brightness-110"
+                                        actionLoading ? "opacity-50 cursor-not-allowed" : "hover:brightness-105 active:scale-[0.98]"
                                     }`}
                                     style={{
-                                        background:
-                                            "linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.95) 100%)",
-                                        color: "white",
-                                        border: "2px solid rgba(220, 38, 38, 0.7)",
+                                        background: "linear-gradient(135deg, rgba(190,38,38,0.96) 0%, rgba(136,19,19,0.96) 100%)",
+                                        color: "#fff",
+                                        border: "2px solid rgba(239,68,68,0.6)",
                                     }}
                                 >
                                     {actionLoading ? "Đang xử lý..." : "Từ chối"}
@@ -127,16 +129,15 @@ const NotificationDetailModal = ({
                                     disabled={actionLoading}
                                     onClick={() => onApprove(notification)}
                                     className={`px-4 py-2 rounded-xl text-sm font-semibold shadow-md transition-all ${
-                                        actionLoading ? "opacity-50 cursor-not-allowed" : "hover:brightness-110"
+                                        actionLoading ? "opacity-50 cursor-not-allowed" : "hover:brightness-110 active:scale-[0.98]"
                                     }`}
                                     style={{
-                                        background:
-                                            "linear-gradient(135deg, rgba(34, 197, 94, 0.95) 0%, rgba(22, 163, 74, 0.95) 100%)",
-                                        color: "white",
-                                        border: "2px solid rgba(22, 163, 74, 0.7)",
+                                        background: "linear-gradient(135deg, rgba(212,175,122,0.95) 0%, rgba(255,216,155,0.95) 100%)",
+                                        color: "#2a3548",
+                                        border: "2px solid rgba(212, 175, 122, 0.8)",
                                     }}
                                 >
-                                    {actionLoading ? "Đang xử lý..." : "Xác nhận"}
+                                    {actionLoading ? "Đang xử lý..." : "Chấp nhận"}
                                 </button>
                             </div>
                         )}

@@ -468,13 +468,30 @@ const NotificationsPage = () => {
     const isPersonInvite = (n: NotificationResponse) => {
         const t = (n.title || '').toLowerCase();
         const m = (n.message || '').toLowerCase();
+
+        // Loại trừ các thông báo kết quả/hủy/gỡ
+        const isResult =
+            t.includes('đã chấp nhận') || t.includes('đã từ chối') || t.includes('đã xác nhận') ||
+            t.includes('hủy liên kết') || t.includes('đã hủy') || t.includes('được gỡ') ||
+            m.includes('đã chấp nhận') || m.includes('đã từ chối') || m.includes('đã xác nhận') ||
+            m.includes('hủy liên kết') || m.includes('đã hủy') || m.includes('được gỡ') ||
+            m.includes('removed') || m.includes('unlinked') || m.includes('rejected') || m.includes('accepted');
+
+        if (isResult) return false;
+
+        // Nhận diện đúng lời mời
         return (
             t.includes('lời mời liên kết hồ sơ') ||
-            t.includes('liên kết hồ sơ') ||
             m.includes('mời xác nhận liên kết') ||
-            m.includes('liên kết hồ sơ') ||
             m.includes('xác nhận liên kết')
         );
+    };
+
+    const isInviteActionVisible = (n: NotificationResponse) => {
+        if (!isPersonInvite(n)) return false;
+        if (n.isRead) return false;
+        const acted = inviteActionById[n.id] === 'accepted' || inviteActionById[n.id] === 'rejected';
+        return !acted;
     };
 
     const resolveInviteTarget = (n: NotificationResponse): { personId: string; personFullName?: string } | null => {
@@ -772,22 +789,8 @@ const NotificationsPage = () => {
                                         <p className="text-xs" style={{ color: 'rgb(255, 216, 155)', opacity: 0.7 }}>
                                             {formatTimestamp(n.createdAt)}
                                         </p>
-                                        {claimsLoaded && canActOnInvite(n) && !n.isRead && (
-                                            <div className="mt-3 flex gap-2">
-                                                <button
-                                                    className="relative overflow-hidden flex-1 px-4 py-2.5 bg-gradient-to-r from-[#d4af7a] via-[#ffd89b] to-[#d4af7a] bg-[length:200%_100%] hover:bg-[position:100%] text-[#0f1419] rounded-lg transition-all duration-500 font-semibold shadow-[0_8px_30px_rgba(255,216,155,0.3)] hover:shadow-[0_12px_40px_rgba(255,216,155,0.5)] hover:scale-105 group border border-[#ffd89b]/30 text-sm"
-                                                    onClick={(e) => { e.stopPropagation(); acceptInvite(n); }}
-                                                >
-                                                    Chấp nhận
-                                                    <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12" />
-                                                </button>
-                                                <button
-                                                    className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 border border-[#ffd89b]/30 rounded-lg transition-all duration-300 text-sm font-medium hover:border-red-500/50 hover:text-red-300"
-                                                    onClick={(e) => { e.stopPropagation(); rejectInvite(n); }}
-                                                >
-                                                    Từ chối
-                                                </button>
-                                            </div>
+                                        {false && claimsLoaded && canActOnInvite(n) && !n.isRead && (
+                                            <div /> /* hidden: moved to detail modal */
                                         )}
                                         {/* Nút approve/reject cho access_request và edit_request */}
                                         {(n.type === 'access_request' || n.type === 'edit_request') && !n.isRead && (
@@ -873,9 +876,22 @@ const NotificationsPage = () => {
                 isOpen={detailModal.isOpen}
                 notification={detailModal.notification}
                 onClose={() => setDetailModal({ isOpen: false, notification: null })}
-                onApprove={handleApproveFromDetail}
-                onReject={handleRejectFromDetail}
-                showModerationActions={isUnbanRequestNotification(detailModal.notification)}
+
+                // Nếu là lời mời đang chờ -> gọi accept/reject; ngược lại dùng flow hiện tại
+                onApprove={(n) => {
+                    if (isInviteActionVisible(n)) return acceptInvite(n);
+                    return handleApproveFromDetail(n);
+                }}
+                onReject={(n) => {
+                    if (isInviteActionVisible(n)) return rejectInvite(n);
+                    return handleRejectFromDetail(n);
+                }}
+
+                // Chỉ hiển thị nút khi là unban_request hoặc lời mời đang chờ
+                showModerationActions={
+                    isUnbanRequestNotification(detailModal.notification) ||
+                    (!!detailModal.notification && isInviteActionVisible(detailModal.notification))
+                }
                 actionLoading={actionLoading}
             />
 
