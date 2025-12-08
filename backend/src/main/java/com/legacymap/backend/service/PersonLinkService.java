@@ -35,6 +35,7 @@ public class PersonLinkService {
     private final NotificationService notificationService;
     private final EmailService emailService;
     private final ChatSyncService chatSyncService;
+    private final com.legacymap.backend.repository.TreeAccessRepository treeAccessRepository;
 
     private Person loadPersonOrThrow(UUID personId) {
         return personRepository.findById(personId)
@@ -46,15 +47,29 @@ public class PersonLinkService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    private void assertOwnerOfTree(UUID inviterId, Person person) {
+    private void assertCanInviteForTree(UUID inviterId, Person person) {
         UUID ownerId = person.getFamilyTree().getCreatedBy().getId();
-        if (!ownerId.equals(inviterId)) throw new AppException(ErrorCode.UNAUTHORIZED);
+        if (ownerId != null && ownerId.equals(inviterId)) return;
+
+        Boolean isPublic = person.getFamilyTree().getIsPublic();
+        String sharePerm = person.getFamilyTree().getSharePermission();
+        if (Boolean.TRUE.equals(isPublic) && "edit".equals(sharePerm)) return;
+
+        UUID treeId = person.getFamilyTree().getId();
+        java.util.Optional<com.legacymap.backend.entity.TreeAccess> access =
+                treeAccessRepository.findByUserIdAndFamilyTreeId(inviterId, treeId);
+        if (access.isPresent()) {
+            String lvl = access.get().getAccessLevel();
+            if ("edit".equals(lvl) || "admin".equals(lvl)) return;
+        }
+
+        throw new AppException(ErrorCode.UNAUTHORIZED);
     }
 
     @Transactional
     public com.legacymap.backend.dto.response.PersonLinkInviteResponse inviteByEmail(UUID inviterId, UUID personId, PersonLinkInviteRequest req) {
         Person person = loadPersonOrThrow(personId);
-        assertOwnerOfTree(inviterId, person);
+        assertCanInviteForTree(inviterId, person);
 
         String email = req.getEmail() != null ? req.getEmail().trim().toLowerCase() : null;
         if (email == null || email.isBlank()) throw new AppException(ErrorCode.VALIDATION_FAILED);
@@ -159,7 +174,7 @@ public class PersonLinkService {
 
 
 
-    } catch (Exception e) {
+        } catch (Exception e) {
             log.warn("Send invite email failed: {}", e.getMessage());
         }
 

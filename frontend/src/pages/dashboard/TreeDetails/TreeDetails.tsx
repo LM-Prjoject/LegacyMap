@@ -756,7 +756,7 @@ export default function TreeDetails() {
         return ans;
     }, [persons, relsNormalized]);
 
-    const createdByName = user?.profile?.fullName?.trim?.() || "—";
+    const createdByName = (ownerProfile?.fullName || "—").toString().trim();
 
     const anyModalOpen = memberOpen || isEditing || isViewingDetails || modalOpen;
 
