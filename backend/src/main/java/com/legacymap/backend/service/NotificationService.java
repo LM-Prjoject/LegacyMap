@@ -192,7 +192,6 @@ public class NotificationService {
         log.info("Deleted {} old notifications for user {}", deletedCount, userId);
     }
 
-    /** Gửi các loại thông báo khác nhau **/
     public void sendEventReminderNotification(UUID userId, String eventTitle, OffsetDateTime eventTime, UUID eventId) {
         String formattedTime = eventTime
                 .atZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
@@ -200,7 +199,7 @@ public class NotificationService {
 
         NotificationCreateRequest request = new NotificationCreateRequest();
         request.setTitle("Nhắc nhở sự kiện");
-        request.setMessage(String.format("Sự kiện \"%s\" sẽ diễn ra vào %s", eventTitle, formattedTime));
+        request.setMessage(String.format("Sự kiện \"%s\" diễn ra vào %s", eventTitle, formattedTime));
         request.setType(Notification.NotificationType.event_reminder);
         request.setRelatedEntity(Map.of(
                 "type", "event",
