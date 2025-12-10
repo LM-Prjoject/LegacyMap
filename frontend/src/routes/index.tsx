@@ -30,6 +30,13 @@ function LoginAlias() {
     return <Navigate to={`/signin${search}` } replace />
 }
 
+// Alias component to redirect /auth/reset-password -> /password-reset while preserving query string (token)
+function ResetAlias() {
+    const location = useLocation();
+    const search = location.search || '';
+    return <Navigate to={`/password-reset${search}`} replace />
+}
+
 export const router = createBrowserRouter([
     // 🌐 Main app layout (Navbar cố định, tránh flash trắng)
     {
@@ -119,13 +126,7 @@ export const router = createBrowserRouter([
 
     {
         path: '/signin',
-        element: (
-            <SignIn
-                onClose={() => window.history.back()}
-                onShowPasswordReset={() => (window.location.href = '/password-reset')}
-                onShowSignUp={() => (window.location.href = '/signup')}
-            />
-        ),
+        element: <Navigate to="/?showSignIn=true" replace />,
     },
     {
         path: '/login',
@@ -175,5 +176,6 @@ export const router = createBrowserRouter([
     { path: '/app', element: <Navigate to="/dashboard" replace /> },
     { path: '/forgot-password', element: <Navigate to="/password-reset" replace /> },
     { path: '/reset-password', element: <Navigate to="/password-reset" replace /> },
+    { path: '/auth/reset-password', element: <ResetAlias /> },
     { path: '/forgot', element: <Navigate to="/password-reset" replace /> },
 ])
