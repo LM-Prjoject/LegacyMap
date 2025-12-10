@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, ChevronDown, Users, FileText, MapPin, Calendar, Bell, X, ContactRound, ListTree } from 'lucide-react';
 import { eventsApi } from '@/api/eventApi';
@@ -72,6 +72,8 @@ const EventFormPage: React.FC = () => {
     const [members, setMembers] = useState<Person[]>([]);
     const [searchMember, setSearchMember] = useState('');
     const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+    const memberDropdownRef = useRef<HTMLDivElement>(null);
+    const memberInputRef = useRef<HTMLInputElement>(null);
     const [selectAll, setSelectAll] = useState(false);
     const [errors, setErrors] = useState<{
         title?: string;
@@ -129,6 +131,27 @@ const EventFormPage: React.FC = () => {
             handleInputChange('relatedPersons', []);
         }
     }, [selectAll, members]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                memberDropdownRef.current &&
+                !memberDropdownRef.current.contains(event.target as Node) &&
+                memberInputRef.current &&
+                !memberInputRef.current.contains(event.target as Node)
+            ) {
+                setShowMemberDropdown(false);
+            }
+        };
+
+        if (showMemberDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showMemberDropdown]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -428,86 +451,89 @@ const EventFormPage: React.FC = () => {
                                 </label>
                             </div>
 
-                            <div className="relative mb-4">
-                                <input
-                                    type="text"
-                                    placeholder="Tìm và chọn người..."
-                                    value={searchMember}
-                                    onChange={(e) => setSearchMember(e.target.value)}
-                                    onFocus={() => setShowMemberDropdown(true)}
-                                    className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)]"
-                                    style={{
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        border: '1px solid rgba(255, 216, 155, 0.2)',
-                                        color: 'white'
-                                    }}
-                                />
+                            <div ref={memberDropdownRef} className="relative">
+                                <div className="relative mb-4">
+                                    <input
+                                        ref={memberInputRef}
+                                        type="text"
+                                        placeholder="Tìm và chọn người..."
+                                        value={searchMember}
+                                        onChange={(e) => setSearchMember(e.target.value)}
+                                        onFocus={() => setShowMemberDropdown(true)}
+                                        className="w-full px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgb(255,216,155)]"
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            border: '1px solid rgba(255, 216, 155, 0.2)',
+                                            color: 'white'
+                                        }}
+                                    />
 
-                                {showMemberDropdown && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#2a3548] border border-[rgba(255,216,155,0.3)] rounded-xl shadow-xl z-10 max-h-60 overflow-y-auto">
-                                        {members
-                                            .filter(m => m.fullName.toLowerCase().includes(searchMember.toLowerCase()))
-                                            .map(member => {
-                                                const isSelected = formData.relatedPersons?.some(p => p.id === member.id);
-                                                return (
-                                                    <div
-                                                        key={member.id}
-                                                        onClick={() => {
-                                                            if (!isSelected) {
-                                                                handleInputChange('relatedPersons', [
-                                                                    ...(formData.relatedPersons || []),
-                                                                    { id: member.id, name: member.fullName }
-                                                                ]);
-                                                            }
-                                                            setSearchMember('');
-                                                            setShowMemberDropdown(false);
-                                                        }}
-                                                        className="px-4 py-3 hover:bg-[rgba(255,216,155,0.1)] cursor-pointer flex items-center justify-between"
-                                                    >
-                                                        <span className="text-white">{member.fullName}</span>
-                                                        {isSelected && <span className="text-[rgb(255,216,155)] text-xs">Đã chọn</span>}
-                                                    </div>
-                                                );
-                                            })}
+                                    {showMemberDropdown && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 bg-[#2a3548] border border-[rgba(255,216,155,0.3)] rounded-xl shadow-xl z-10 max-h-60 overflow-y-auto">
+                                            {members
+                                                .filter(m => m.fullName.toLowerCase().includes(searchMember.toLowerCase()))
+                                                .map(member => {
+                                                    const isSelected = formData.relatedPersons?.some(p => p.id === member.id);
+                                                    return (
+                                                        <div
+                                                            key={member.id}
+                                                            onClick={() => {
+                                                                if (!isSelected) {
+                                                                    handleInputChange('relatedPersons', [
+                                                                        ...(formData.relatedPersons || []),
+                                                                        { id: member.id, name: member.fullName }
+                                                                    ]);
+                                                                }
+                                                                setSearchMember('');
+                                                                setShowMemberDropdown(false);
+                                                            }}
+                                                            className="px-4 py-3 hover:bg-[rgba(255,216,155,0.1)] cursor-pointer flex items-center justify-between"
+                                                        >
+                                                            <span className="text-white">{member.fullName}</span>
+                                                            {isSelected && <span className="text-[rgb(255,216,155)] text-xs">Đã chọn</span>}
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectAll}
+                                        onChange={e => setSelectAll(e.target.checked)}
+                                        className="w-4 h-4"
+                                        style={{ accentColor: 'rgb(255, 216, 155)' }}
+                                    />
+                                    <span className="text-white/90">Chọn tất cả thành viên trong cây</span>
+                                </label>
+
+                                {formData.relatedPersons && formData.relatedPersons.length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {formData.relatedPersons.map((p, i) => (
+                                            <div key={i} className="px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                                                 style={{ background: 'rgba(255,216,155,0.15)', color: 'rgb(255,216,155)' }}>
+                                                {p.name}
+                                                <button type="button" onClick={() => {
+                                                    const newList = formData.relatedPersons!.filter((_, idx) => idx !== i);
+                                                    handleInputChange('relatedPersons', newList);
+                                                    if (newList.length < members.length) setSelectAll(false);
+                                                }}>
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {errors.relatedPersons && (
+                                    <div className="mt-3 flex items-center gap-2 text-red-400 text-sm animate-pulse">
+                                        <X className="w-4 h-4" />
+                                        <span>{errors.relatedPersons}</span>
                                     </div>
                                 )}
                             </div>
-
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={selectAll}
-                                    onChange={e => setSelectAll(e.target.checked)}
-                                    className="w-4 h-4"
-                                    style={{ accentColor: 'rgb(255, 216, 155)' }}
-                                />
-                                <span className="text-white/90">Chọn tất cả thành viên trong cây</span>
-                            </label>
-
-                            {formData.relatedPersons && formData.relatedPersons.length > 0 && (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    {formData.relatedPersons.map((p, i) => (
-                                        <div key={i} className="px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                                             style={{ background: 'rgba(255,216,155,0.15)', color: 'rgb(255,216,155)' }}>
-                                            {p.name}
-                                            <button type="button" onClick={() => {
-                                                const newList = formData.relatedPersons!.filter((_, idx) => idx !== i);
-                                                handleInputChange('relatedPersons', newList);
-                                                if (newList.length < members.length) setSelectAll(false);
-                                            }}>
-                                                <X className="w-3 h-3" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {errors.relatedPersons && (
-                                <div className="mt-3 flex items-center gap-2 text-red-400 text-sm animate-pulse">
-                                    <X className="w-4 h-4" />
-                                    <span>{errors.relatedPersons}</span>
-                                </div>
-                            )}
                         </div>
                     )}
 

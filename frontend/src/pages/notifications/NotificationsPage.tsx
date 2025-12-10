@@ -21,7 +21,7 @@ interface ConfirmModalProps {
 }
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }: ConfirmModalProps) => {
-    console.log('🎯 ConfirmModal render:', { isOpen, title });
+    console.log('ConfirmModal render:', { isOpen, title });
     if (!isOpen) return null;
 
     return createPortal(
@@ -130,7 +130,7 @@ const NotificationsPage = () => {
     });
 
     const showConfirm = (title: string, message: string, onConfirm: () => void) => {
-        console.log('🔔 showConfirm called:', { title, message });
+        console.log('showConfirm called:', { title, message });
         setConfirmModal({ isOpen: true, title, message, onConfirm });
     };
 
@@ -210,7 +210,6 @@ const NotificationsPage = () => {
 
                 await api.approveEditRequest(userId, treeId, requesterId);
 
-                // Đánh dấu đã đọc
                 await notificationApi.markAsRead(notification.id);
                 setNotifications(prev => prev.map(n =>
                     n.id === notification.id ? { ...n, isRead: true } : n
@@ -790,7 +789,7 @@ const NotificationsPage = () => {
                                             {formatTimestamp(n.createdAt)}
                                         </p>
                                         {false && claimsLoaded && canActOnInvite(n) && !n.isRead && (
-                                            <div /> /* hidden: moved to detail modal */
+                                            <div />
                                         )}
                                         {/* Nút approve/reject cho access_request và edit_request */}
                                         {(n.type === 'access_request' || n.type === 'edit_request') && !n.isRead && (
