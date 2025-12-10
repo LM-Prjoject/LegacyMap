@@ -114,6 +114,9 @@ export const ChatWidget = () => {
   const hasPlayedSoundRef = useRef<Set<string>>(new Set());
   const editingMessageRef = useRef<HTMLDivElement>(null);
   const [selectedMemberForRoleChange, setSelectedMemberForRoleChange] = useState<ChatRoomMember | null>(null);
+  const [showDeleteConversationModal, setShowDeleteConversationModal] = useState(false);
+  const [showLeaveRoomModal, setShowLeaveRoomModal] = useState(false);
+  const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
 
   const currentMessages = useMemo(
     () => (currentRoom ? messagesByRoom[currentRoom.id] ?? [] : []),
@@ -878,9 +881,7 @@ export const ChatWidget = () => {
           {(isBranch || isGroup) && canLeaveRoom(currentRoom) && (
             <button
               onClick={() => {
-                if (confirm('Rời khỏi phòng chat này?')) {
-                  leaveRoom(currentRoom.id);
-                }
+                setShowLeaveRoomModal(true);
                 setShowRoomMenu(false);
               }}
               className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3"
@@ -893,9 +894,7 @@ export const ChatWidget = () => {
           {isPrivate && (
             <button
               onClick={() => {
-                if (confirm('Xóa hội thoại này khỏi thiết bị của bạn?')) {
-                  deleteConversationLocally(currentRoom.id);
-                }
+                setShowDeleteConversationModal(true);
                 setShowRoomMenu(false);
               }}
               className="w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition flex items-center gap-3 text-orange-400"
@@ -910,9 +909,7 @@ export const ChatWidget = () => {
               <div className="border-t border-white/10 my-1" />
               <button
                 onClick={() => {
-                  if (confirm('XÓA HOÀN TOÀN phòng này? Tất cả tin nhắn sẽ mất!')) {
-                    deleteRoom(currentRoom.id);
-                  }
+                  setShowDeleteRoomModal(true);
                   setShowRoomMenu(false);
                 }}
                 className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-500/20 transition flex items-center gap-3 text-red-400"
@@ -1940,6 +1937,136 @@ export const ChatWidget = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal xác nhận xóa hội thoại riêng tư */}
+      {showDeleteConversationModal && currentRoom && currentRoom.roomType === 'private_chat' && (
+          <div className="fixed inset-0 z-[1400] bg-black/60 flex items-center justify-center px-4">
+            <div className="bg-[#1e2a3a] rounded-2xl border border-[#ffd89b]/30 p-6 w-full max-w-sm shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-orange-400">Xóa hội thoại?</h3>
+                <button
+                    onClick={() => setShowDeleteConversationModal(false)}
+                    className="text-white/70 hover:text-white transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <p className="text-sm text-white/80 mb-6">
+                Hội thoại với <span className="font-medium text-[#ffd89b]">{getDisplayName(currentRoom)}</span> sẽ bị xóa khỏi thiết bị của bạn.
+                Người kia vẫn giữ nguyên hội thoại.
+              </p>
+
+              <div className="flex justify-end gap-3">
+                <button
+                    onClick={() => setShowDeleteConversationModal(false)}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-sm transition"
+                >
+                  Hủy
+                </button>
+                <button
+                    onClick={() => {
+                      deleteConversationLocally(currentRoom.id);
+                      setShowDeleteConversationModal(false);
+                      showToast.success('Đã xóa hội thoại khỏi thiết bị của bạn');
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 font-medium text-sm transition shadow-lg border border-orange-500/50"
+                >
+                  Xóa hội thoại
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
+
+      {/* Modal xác nhận rời phòng */}
+      {showLeaveRoomModal && currentRoom && (
+          <div className="fixed inset-0 z-[1400] bg-black/60 flex items-center justify-center px-4">
+            <div className="bg-[#1e2a3a] rounded-2xl border border-[#ffd89b]/30 p-6 w-full max-w-sm shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-orange-400">Rời khỏi phòng?</h3>
+                <button
+                    onClick={() => setShowLeaveRoomModal(false)}
+                    className="text-white/70 hover:text-white transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <p className="text-sm text-white/80 mb-6">
+                Bạn sẽ không còn nhận tin nhắn từ phòng <span className="font-medium text-[#ffd89b]">{currentRoom.name}</span> nữa.
+                Bạn có thể tham gia lại nếu có người mời.
+              </p>
+
+              <div className="flex justify-end gap-3">
+                <button
+                    onClick={() => setShowLeaveRoomModal(false)}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-sm transition"
+                >
+                  Hủy
+                </button>
+                <button
+                    onClick={() => {
+                      leaveRoom(currentRoom.id);
+                      setShowLeaveRoomModal(false);
+                      showToast.success('Đã rời phòng');
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 font-medium text-sm transition shadow-lg border border-orange-500/50"
+                >
+                  Rời phòng
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
+
+      {/* Modal xác nhận xóa phòng hoàn toàn */}
+      {showDeleteRoomModal && currentRoom && (
+          <div className="fixed inset-0 z-[1400] bg-black/60 flex items-center justify-center px-4">
+            <div className="bg-[#1e2a3a] rounded-2xl border border-red-500/40 p-6 w-full max-w-sm shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-red-400">XÓA HOÀN TOÀN phòng này?</h3>
+                <button
+                    onClick={() => setShowDeleteRoomModal(false)}
+                    className="text-white/70 hover:text-white transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <p className="text-sm text-white/90">
+                  Phòng <span className="font-bold text-[#ffd89b]">{currentRoom.name}</span> sẽ bị xóa <span className="text-red-400 font-bold">vĩnh viễn</span>.
+                </p>
+                <p className="text-sm text-red-300">
+                  TẤT CẢ tin nhắn, tệp đính kèm sẽ mất đối với mọi thành viên!
+                </p>
+                <p className="text-xs text-white/60 italic">
+                  Hành động này không thể hoàn tác.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                    onClick={() => setShowDeleteRoomModal(false)}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-sm transition"
+                >
+                  Hủy
+                </button>
+                <button
+                    onClick={() => {
+                      deleteRoom(currentRoom.id);
+                      setShowDeleteRoomModal(false);
+                      showToast.success('Đã xóa phòng hoàn toàn');
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium text-sm transition shadow-lg"
+                >
+                  Xóa vĩnh viễn
+                </button>
+              </div>
+            </div>
+          </div>
       )}
     </>
   );
