@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
-import SignIn from '@/pages/auth/SignIn'
+// import SignIn from '@/pages/auth/SignIn'
 import SignUp from '@/pages/auth/SignUp'
 import PasswordReset from '@/pages/auth/password-reset'
 import TreesList from '@/pages/dashboard/TreesList'
