@@ -7,7 +7,7 @@ import PersonDetailsModal from "@/components/familyTree/PersonDetailsModal";
 import ShareTreeModal from "@/components/familyTree/ShareTreeModal";
 import DetailsSidebar from "@/pages/dashboard/TreeDetails/DetailsSidebar";
 import { TreeHistoryModal } from '@/components/familyTree/historyModal/TreeHistoryModal';
-import api, { type Person, type Relationship, exportTreePdfWithImage } from "@/api/trees";
+import api, { type Person, type Relationship, type TreeStatistics, exportTreePdfWithImage } from "@/api/trees";
 import { showToast } from "@/lib/toast";
 import { uploadMemberAvatarToSupabase } from "@/lib/upload";
 import { authApi, type UserProfile } from "@/api/auth";
@@ -49,6 +49,7 @@ export default function TreeDetails() {
 
     const [persons, setPersons] = useState<Person[]>([]);
     const [rels, setRels] = useState<Relationship[]>([]);
+    const [statistics, setStatistics] = useState<TreeStatistics | null>(null);
     const [loading, setLoading] = useState(true);
 
     const [memberOpen, setMemberOpen] = useState(false);
@@ -159,22 +160,26 @@ export default function TreeDetails() {
                 }
 
                 try {
-                    const [ps, rs] = await Promise.all([
+                    const [ps, rs, stats] = await Promise.all([
                         api.listMembers(userId, treeId),
                         api.listRelationships(userId, treeId),
+                        api.getTreeStatistics(userId, treeId),
                     ]);
                     setPersons(ps);
                     setRels(rs);
+                    setStatistics(stats);
                     setReadOnly(false);
                 } catch (err: any) {
                     const msg = String(err?.message || "").toLowerCase();
                     if (msg.includes("unauthorized") || msg.includes("không") || msg.includes("forbidden")) {
-                        const [psV, rsV] = await Promise.all([
+                        const [psV, rsV, statsV] = await Promise.all([
                             api.listMembersForViewer(userId, treeId),
                             api.listRelationshipsForViewer(userId, treeId),
+                            api.getTreeStatistics(userId, treeId),
                         ]);
                         setPersons(psV);
                         setRels(rsV);
+                        setStatistics(statsV);
                         setReadOnly(true);
                     } else {
                         throw err;
@@ -982,7 +987,7 @@ export default function TreeDetails() {
                     description={tree?.description ?? null}
                     createdByName={createdByName}
                     createdAt={tree?.createdAt ?? null}
-                    memberCount={loading ? 0 : persons.length}
+                    memberCount={loading ? 0 : (statistics?.memberCount ?? persons.length)}
                     generationCount={loading ? 0 : generationCount}
                     onMembersClick={() => setMemberListOpen(true)}
                 />

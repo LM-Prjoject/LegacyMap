@@ -93,6 +93,12 @@ public class AuditLogService {
     // Log khi xóa member
     @Transactional
     public void logMemberDeleted(UUID treeId, UUID userId, UUID personId, Person person) {
+        logMemberDeleted(treeId, userId, personId, person, "Đã xóa thành viên: " + person.getFullName());
+    }
+
+    // Log khi xóa member với description tùy chỉnh
+    @Transactional
+    public void logMemberDeleted(UUID treeId, UUID userId, UUID personId, Person person, String customDescription) {
         try {
             log.debug("🔄 START logMemberDeleted - treeId: {}, userId: {}, personId: {}", treeId, userId, personId);
             Map<String, Object> oldData = toSafeMap(person);
@@ -101,7 +107,7 @@ public class AuditLogService {
             saveHistory(treeId, userId, "DELETED",
                     "MEMBER", personId, person.getFullName(),
                     oldData, null,
-                    "Đã xóa thành viên: " + person.getFullName());
+                    customDescription);
             log.debug("✅ COMPLETED logMemberDeleted");
         } catch (Exception e) {
             log.error("❌ FAILED logMemberDeleted - treeId: {}, userId: {}, personId: {}",

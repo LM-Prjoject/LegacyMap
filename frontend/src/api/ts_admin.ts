@@ -16,8 +16,14 @@ export interface User {
     provider?: string;
 }
 
+export interface UserStatistics {
+    familyTreeCount: number;
+    lastLoginText: string;
+    usageDays: number;
+}
+
 export interface UserDetail extends User {
-    // Có thể thêm fields khác nếu cần
+    statistics: UserStatistics;
 }
 
 export interface FamilyTree {

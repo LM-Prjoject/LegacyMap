@@ -83,14 +83,33 @@ public class FamilyTreeService {
     @Transactional
     public FamilyTree create(UUID userId, FamilyTreeCreateRequest req) {
         User creator = loadUserOrThrow(userId);
+        
+        // 🔍 DEBUG: Log giá trị isPublic từ request
+        Boolean requestIsPublic = req.getIsPublic();
+        Boolean finalIsPublic = requestIsPublic != null ? requestIsPublic : false;
+        
+        log.info("🔍 CREATE TREE DEBUG:");
+        log.info("🔍 Request isPublic: {}", requestIsPublic);
+        log.info("🔍 Final isPublic: {}", finalIsPublic);
+        log.info("🔍 Tree name: {}", req.getName());
+        
+        System.out.println("🔍 CREATE TREE DEBUG:");
+        System.out.println("🔍 Request isPublic: " + requestIsPublic);
+        System.out.println("🔍 Final isPublic: " + finalIsPublic);
+        System.out.println("🔍 Tree name: " + req.getName());
+        
         FamilyTree tree = FamilyTree.builder()
                 .name(req.getName())
                 .description(req.getDescription())
-                .isPublic(req.getIsPublic() != null ? req.getIsPublic() : false)
+                .isPublic(finalIsPublic)
                 .coverImageUrl(req.getCoverImageUrl())
                 .createdBy(creator)
                 .build();
         FamilyTree savedTree = familyTreeRepository.save(tree);
+        
+        // 🔍 DEBUG: Log giá trị sau khi save
+        log.info("🔍 SAVED TREE isPublic: {}", savedTree.getIsPublic());
+        System.out.println("🔍 SAVED TREE isPublic: " + savedTree.getIsPublic());
 
         createFamilyRoomForTree(savedTree, creator);
 
@@ -147,11 +166,32 @@ public class FamilyTreeService {
         FamilyTree tree = findOwnedTreeOrThrow(treeId, userId);
         boolean nameChanged = req.getName() != null && !req.getName().equals(tree.getName());
 
+        // 🔍 DEBUG: Log giá trị isPublic trong update request
+        log.info("🔍 UPDATE TREE DEBUG:");
+        log.info("🔍 Tree ID: {}", treeId);
+        log.info("🔍 Tree name: {}", tree.getName());
+        log.info("🔍 Current isPublic: {}", tree.getIsPublic());
+        log.info("🔍 Request isPublic: {}", req.getIsPublic());
+        
+        System.out.println("🔍 UPDATE TREE DEBUG:");
+        System.out.println("🔍 Tree ID: " + treeId);
+        System.out.println("🔍 Tree name: " + tree.getName());
+        System.out.println("🔍 Current isPublic: " + tree.getIsPublic());
+        System.out.println("🔍 Request isPublic: " + req.getIsPublic());
+
         if (req.getName() != null) tree.setName(req.getName());
         if (req.getDescription() != null) tree.setDescription(req.getDescription());
-        if (req.getIsPublic() != null) tree.setIsPublic(req.getIsPublic());
+        if (req.getIsPublic() != null) {
+            log.info("🔍 SETTING isPublic from {} to {}", tree.getIsPublic(), req.getIsPublic());
+            System.out.println("🔍 SETTING isPublic from " + tree.getIsPublic() + " to " + req.getIsPublic());
+            tree.setIsPublic(req.getIsPublic());
+        }
         if (req.getCoverImageUrl() != null) tree.setCoverImageUrl(req.getCoverImageUrl());
         FamilyTree saved = familyTreeRepository.save(tree);
+        
+        // 🔍 DEBUG: Log giá trị sau khi save
+        log.info("🔍 UPDATED TREE isPublic: {}", saved.getIsPublic());
+        System.out.println("🔍 UPDATED TREE isPublic: " + saved.getIsPublic());
 
         if (nameChanged) {
             chatRoomRepository.findByFamilyTreeIdAndRoomType(treeId, ChatRoom.ChatRoomType.family)
@@ -338,15 +378,12 @@ public class FamilyTreeService {
 
     @Transactional
     public void deleteMember(UUID treeId, UUID userId, UUID personId) {
-        FamilyTree tree = findEditableTreeOrThrow(treeId, userId);
-        Person p = personRepository.findById(personId)
-                .orElseThrow(() -> new AppException(ErrorCode.PERSON_NOT_FOUND));
-        if (!p.getFamilyTree().getId().equals(tree.getId())) {
-            throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
-        }
-
-        historyService.logMemberDeleted(treeId, userId, p.getId(), p);
-        personRepository.delete(p);
+        // 🔥 REDIRECT TO SAFE DELETE METHOD
+        System.out.println("⚠️ DELETE MEMBER (REGULAR) REDIRECTING TO SAFE DELETE");
+        System.err.println("⚠️ DELETE MEMBER (REGULAR) REDIRECTING TO SAFE DELETE");
+        log.info("⚠️ DELETE MEMBER (REGULAR) REDIRECTING TO SAFE DELETE");
+        
+        deleteMemberSafe(treeId, userId, personId);
     }
 
     @Transactional
@@ -358,12 +395,19 @@ public class FamilyTreeService {
             throw new AppException(ErrorCode.RELATIONSHIP_NOT_SAME_TREE);
         }
 
+        System.out.println("🔥🔥🔥 DELETE MEMBER SAFE CALLED: Bắt đầu xóa thành viên - " + p.getFullName());
+        System.err.println("🔥🔥🔥 DELETE MEMBER SAFE CALLED: Bắt đầu xóa thành viên - " + p.getFullName());
+        log.error("🔥🔥🔥 DELETE MEMBER SAFE CALLED: Bắt đầu xóa thành viên - {}", p.getFullName());
+
         java.util.Set<UUID> parentIds = new java.util.HashSet<>(relationshipRepository.findParentIdsByPersonId(personId));
         java.util.Set<UUID> anchorRoots = computeAncestorRoots(tree.getId(), parentIds);
+        log.info("🔥 DELETE MEMBER SAFE: parentIds={}, anchorRoots={}", parentIds.size(), anchorRoots.size());
 
         List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(personId, personId);
         // Seed set: children + spouses
         java.util.Set<UUID> seedIds = new java.util.HashSet<>(relationshipRepository.findChildIdsByPersonId(personId));
+        log.info("🔥 DELETE MEMBER SAFE: relationships={}, children={}", links.size(), seedIds.size());
+        
         if (!links.isEmpty()) {
             for (Relationship r : links) {
                 String t = r.getRelationshipType();
@@ -371,22 +415,60 @@ public class FamilyTreeService {
                     UUID a = r.getPerson1() != null ? r.getPerson1().getId() : null;
                     UUID b = r.getPerson2() != null ? r.getPerson2().getId() : null;
                     UUID spouse = personId.equals(a) ? b : a;
-                    if (spouse != null) seedIds.add(spouse);
+                    if (spouse != null) {
+                        seedIds.add(spouse);
+                        log.info("🔥 DELETE MEMBER SAFE: Thêm spouse vào seedIds");
+                    }
                 }
             }
             relationshipRepository.deleteAll(links);
         }
         
-        // Log audit trước khi xóa
-        historyService.logMemberDeleted(treeId, userId, p.getId(), p);
+        log.info("🔥 DELETE MEMBER SAFE: seedIds cuối cùng={}", seedIds.size());
+        
+        // 🔥 Lấy danh sách tất cả thành viên TRƯỚC khi xóa để capture TẤT CẢ thành viên bị xóa
+        List<Person> allPersonsBeforeDelete = personRepository.findAllByFamilyTree_Id(treeId);
+        System.out.println("🔥 BEFORE DELETE: Tổng số thành viên = " + allPersonsBeforeDelete.size());
+        
+        // 🔥 Xóa thành viên chính - KHÔNG TẠO AUDIT LOG
         personRepository.delete(p);
-
-        // Always prune using KEEP roots: ancestor roots if available, otherwise global roots
+        
+        // 🔥 Prune disconnected components - KHÔNG TẠO INDIVIDUAL AUDIT LOGS
         if (anchorRoots == null || anchorRoots.isEmpty()) {
-            pruneComponentFromSeeds(tree.getId(), seedIds, /*keepRoots*/ null);
+            log.info("🔥 DELETE MEMBER SAFE: Sử dụng global roots");
+            pruneComponentFromSeeds(tree.getId(), userId, seedIds, /*keepRoots*/ null);
         } else {
-            pruneComponentFromSeeds(tree.getId(), seedIds, anchorRoots);
+            log.info("🔥 DELETE MEMBER SAFE: Sử dụng anchor roots");
+            pruneComponentFromSeeds(tree.getId(), userId, seedIds, anchorRoots);
         }
+        
+        // 🔥 Lấy danh sách tất cả thành viên SAU khi xóa (bao gồm cả pruning)
+        List<Person> allPersonsAfterDelete = personRepository.findAllByFamilyTree_Id(treeId);
+        System.out.println("🔥 AFTER ALL DELETES: Tổng số thành viên = " + allPersonsAfterDelete.size());
+        
+        // 🔥 Tìm TẤT CẢ thành viên bị xóa (bao gồm cả từ cascade và pruning)
+        Set<UUID> afterIds = allPersonsAfterDelete.stream().map(Person::getId).collect(Collectors.toSet());
+        List<String> deletedMemberNames = new ArrayList<>();
+        
+        for (Person person : allPersonsBeforeDelete) {
+            if (!afterIds.contains(person.getId())) {
+                deletedMemberNames.add(person.getFullName());
+            }
+        }
+        
+        // 🔥 TẠO MỘT AUDIT LOG DUY NHẤT CHO TẤT CẢ THÀNH VIÊN BỊ XÓA
+        if (!deletedMemberNames.isEmpty()) {
+            String allDeletedNames = String.join(", ", deletedMemberNames);
+            String description = "Đã xóa thành viên: " + allDeletedNames;
+            
+            System.out.println("🔥 COMBINED DELETE LOG: " + description);
+            System.err.println("🔥 COMBINED DELETE LOG: " + description);
+            
+            // Ghi 1 audit log duy nhất cho tất cả thành viên bị xóa
+            historyService.logMemberDeleted(treeId, userId, p.getId(), p, description);
+        }
+        
+        log.info("🔥 DELETE MEMBER SAFE: Hoàn thành xóa thành viên");
     }
 
     private java.util.Set<UUID> computeAncestorRoots(UUID treeId, java.util.Set<UUID> startParents) {
@@ -408,11 +490,11 @@ public class FamilyTreeService {
         return roots;
     }
 
-    private void pruneComponentFromSeeds(UUID treeId, java.util.Set<UUID> seedIds, java.util.Set<UUID> keepRoots) {
-        pruneComponentFromSeedsOpt(treeId, seedIds, keepRoots, true);
+    private void pruneComponentFromSeeds(UUID treeId, UUID userId, java.util.Set<UUID> seedIds, java.util.Set<UUID> keepRoots) {
+        pruneComponentFromSeedsOpt(treeId, userId, seedIds, keepRoots, true);
     }
 
-    private void pruneComponentFromSeedsOpt(UUID treeId, java.util.Set<UUID> seedIds, java.util.Set<UUID> keepRoots, boolean useGlobalRootsIfKeepEmpty) {
+    private void pruneComponentFromSeedsOpt(UUID treeId, UUID userId, java.util.Set<UUID> seedIds, java.util.Set<UUID> keepRoots, boolean useGlobalRootsIfKeepEmpty) {
         if (seedIds == null || seedIds.isEmpty()) return;
 
         // Build graph from current persons and relationships (bloodline-only)
@@ -514,15 +596,25 @@ public class FamilyTreeService {
         }
 
         if (!toDelete.isEmpty()) {
+            log.error("🔥 CASCADE DELETE: Sẽ xóa {} thành viên liên quan", toDelete.size());
             for (UUID id : toDelete) {
+                // Lấy thông tin person trước khi xóa để ghi audit log
+                personRepository.findById(id).ifPresent(person -> {
+                    log.info("🔥 CASCADE DELETE: Xóa thành viên liên quan - {}", person.getFullName());
+                    // ❌ REMOVED: Individual audit log - will be handled by combined log in deleteMemberSafe
+                    // historyService.logMemberDeleted(treeId, userId, person.getId(), person);
+                });
+                
                 java.util.List<Relationship> rm = relationshipRepository.findByPerson1IdOrPerson2Id(id, id);
                 if (!rm.isEmpty()) relationshipRepository.deleteAll(rm);
                 personRepository.findById(id).ifPresent(personRepository::delete);
             }
+        } else {
+            log.info("🔥 CASCADE DELETE: Không có thành viên liên quan nào cần xóa");
         }
     }
 
-    private void pruneFromRoots(UUID treeId, java.util.Set<UUID> anchorRoots) {
+    private void pruneFromRoots(UUID treeId, UUID userId, java.util.Set<UUID> anchorRoots) {
         if (anchorRoots == null || anchorRoots.isEmpty()) return;
         java.util.List<Person> persons = personRepository.findAllByFamilyTree_Id(treeId);
         if (persons.isEmpty()) return;
@@ -573,6 +665,11 @@ public class FamilyTreeService {
                 .toList();
         if (!toDelete.isEmpty()) {
             for (UUID id : toDelete) {
+                // ❌ REMOVED: Individual audit log - will be handled by combined log in deleteMemberSafe
+                // personRepository.findById(id).ifPresent(person -> {
+                //     historyService.logMemberDeleted(treeId, userId, person.getId(), person);
+                // });
+                
                 java.util.List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(id, id);
                 if (!links.isEmpty()) relationshipRepository.deleteAll(links);
                 personRepository.findById(id).ifPresent(personRepository::delete);
@@ -580,7 +677,7 @@ public class FamilyTreeService {
         }
     }
 
-    private void pruneDisconnectedFromAncestors(UUID treeId, UUID personId) {
+    private void pruneDisconnectedFromAncestors(UUID treeId, UUID userId, UUID personId) {
         List<Person> persons = personRepository.findAllByFamilyTree_Id(treeId);
         if (persons.isEmpty()) return;
 
@@ -641,6 +738,11 @@ public class FamilyTreeService {
 
         if (!toDelete.isEmpty()) {
             for (UUID id : toDelete) {
+                // ❌ REMOVED: Individual audit log - will be handled by combined log in deleteMemberSafe
+                // personRepository.findById(id).ifPresent(person -> {
+                //     historyService.logMemberDeleted(treeId, userId, person.getId(), person);
+                // });
+                
                 // Remove their relationships first to avoid FK issues
                 java.util.List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(id, id);
                 if (!links.isEmpty()) relationshipRepository.deleteAll(links);
@@ -679,7 +781,8 @@ public class FamilyTreeService {
             throw new AppException(ErrorCode.VALIDATION_FAILED);
         }
 
-        tree.setIsPublic(true);
+        // ❌ REMOVED: Không tự động set isPublic = true
+        // tree.setIsPublic(true);
         tree.setSharePermission(permission);
         familyTreeRepository.save(tree);
 
@@ -859,19 +962,31 @@ public class FamilyTreeService {
             tree.getCreatedBy().getId();
         }
 
+        // 🔍 DEBUG: Log giá trị isPublic khi truy xuất
+        log.info("🔍 GET SHARED TREE DEBUG:");
+        log.info("🔍 ShareToken: {}", shareToken);
+        log.info("🔍 Tree name: {}", tree.getName());
+        log.info("🔍 Tree isPublic: {}", tree.getIsPublic());
+        log.info("🔍 Boolean.TRUE.equals(tree.getIsPublic()): {}", Boolean.TRUE.equals(tree.getIsPublic()));
+        
+        System.out.println("🔍 GET SHARED TREE DEBUG:");
+        System.out.println("🔍 ShareToken: " + shareToken);
+        System.out.println("🔍 Tree name: " + tree.getName());
+        System.out.println("🔍 Tree isPublic: " + tree.getIsPublic());
+        System.out.println("🔍 Boolean.TRUE.equals(tree.getIsPublic()): " + Boolean.TRUE.equals(tree.getIsPublic()));
+
+        // ✅ THAY ĐỔI: Cho phép truy cập cây riêng tư qua share link (chỉ xem)
+        // Cây công khai: ai cũng có thể xem
         if (Boolean.TRUE.equals(tree.getIsPublic())) {
             return tree;
         }
 
-        if (userId == null) {
-            throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
-        }
-
-        if (tree.getCreatedBy().getId().equals(userId) || canView(tree.getId(), userId)) {
-            return tree;
-        }
-
-        throw new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND);
+        // Cây riêng tư: vẫn cho phép xem qua share link nhưng chỉ read-only
+        // Không cần kiểm tra userId == null nữa
+        log.info("🔍 Private tree accessed via share link - read-only mode");
+        System.out.println("🔍 Private tree accessed via share link - read-only mode");
+        
+        return tree;
     }
 
     // ==================== MỚI: THÔNG TIN ACCESS QUA SHARE TOKEN ====================
@@ -888,7 +1003,7 @@ public class FamilyTreeService {
         FamilyTree tree = getTreeByShareToken(shareToken);
 
         boolean canEdit = false;
-        boolean canView = false;
+        boolean canView = true; // ✅ THAY ĐỔI: Luôn cho phép xem qua share link
         String role = "VIEWER";
 
         if (userId != null) {
@@ -910,22 +1025,28 @@ public class FamilyTreeService {
                         canEdit = true;
                         role = "EDITOR";
                     }
-                } else if (Boolean.TRUE.equals(tree.getIsPublic())) {
-                    // Public link
-                    canView = true;
-                    if ("edit".equals(tree.getSharePermission())) {
-                        canEdit = true;
-                        role = "EDITOR";
+                } else {
+                    // ✅ THAY ĐỔI: Kiểm tra quyền edit dựa trên cả public và private trees
+                    if (Boolean.TRUE.equals(tree.getIsPublic())) {
+                        // Cây công khai: có thể edit nếu sharePermission = "edit"
+                        if ("edit".equals(tree.getSharePermission())) {
+                            canEdit = true;
+                            role = "EDITOR";
+                        }
+                    } else {
+                        // Cây riêng tư: chỉ xem, không edit (trừ khi có explicit access)
+                        canEdit = false;
+                        role = "VIEWER";
                     }
                 }
             }
         } else {
-            // Chưa đăng nhập → chỉ có thể xem nếu public
-            if (Boolean.TRUE.equals(tree.getIsPublic())) {
-                canView = true;
-                if ("edit".equals(tree.getSharePermission())) {
-                    canEdit = true;
-                }
+            // ✅ THAY ĐỔI: Chưa đăng nhập → vẫn có thể xem cả public và private
+            canView = true;
+            
+            // Chỉ cho edit nếu là cây công khai và có quyền edit
+            if (Boolean.TRUE.equals(tree.getIsPublic()) && "edit".equals(tree.getSharePermission())) {
+                canEdit = true;
             }
         }
 
@@ -935,6 +1056,7 @@ public class FamilyTreeService {
                 .canEdit(canEdit)
                 .canView(canView)
                 .role(role)
+                .isPublic(tree.getIsPublic())
                 .build();
     }
 
@@ -1157,6 +1279,12 @@ public class FamilyTreeService {
         if (toDelete.isEmpty()) return;
 
         for (UUID pid : toDelete) {
+            // Lấy thông tin person trước khi xóa để ghi audit log
+            // ❌ REMOVED: Individual audit log - will be handled by combined log in deleteMemberSafe
+            // personRepository.findById(pid).ifPresent(person -> {
+            //     historyService.logMemberDeleted(treeId, userId, person.getId(), person);
+            // });
+            
             List<Relationship> links = relationshipRepository.findByPerson1IdOrPerson2Id(pid, pid);
             if (!links.isEmpty()) {
                 relationshipRepository.deleteAll(links);

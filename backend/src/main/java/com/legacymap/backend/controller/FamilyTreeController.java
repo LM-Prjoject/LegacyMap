@@ -40,6 +40,8 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -130,6 +132,22 @@ public class FamilyTreeController {
             @PathVariable("treeId") UUID treeId,
             @RequestParam("userId") String userId,
             @RequestBody FamilyTreeUpdateRequest req) {
+        
+        // 🔍 DEBUG: Log update request từ frontend
+        log.info("🔍 CONTROLLER UPDATE DEBUG:");
+        log.info("🔍 Tree ID: {}", treeId);
+        log.info("🔍 Request name: {}", req.getName());
+        log.info("🔍 Request description: {}", req.getDescription());
+        log.info("🔍 Request isPublic: {}", req.getIsPublic());
+        log.info("🔍 Request coverImageUrl: {}", req.getCoverImageUrl());
+        
+        System.out.println("🔍 CONTROLLER UPDATE DEBUG:");
+        System.out.println("🔍 Tree ID: " + treeId);
+        System.out.println("🔍 Request name: " + req.getName());
+        System.out.println("🔍 Request description: " + req.getDescription());
+        System.out.println("🔍 Request isPublic: " + req.getIsPublic());
+        System.out.println("🔍 Request coverImageUrl: " + req.getCoverImageUrl());
+        
         FamilyTree tree = familyTreeService.update(treeId, parseUserId(userId), req);
         FamilyTreeResponse response = FamilyTreeResponse.fromEntity(tree);
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -225,7 +243,11 @@ public class FamilyTreeController {
             @PathVariable("treeId") UUID treeId,
             @PathVariable("personId") UUID personId,
             @RequestParam("userId") String userId) {
+        System.out.println("🔥 CONTROLLER: deleteMember called for personId: " + personId);
+        log.error("🔥 CONTROLLER: deleteMember called for personId: {}", personId);
         familyTreeService.deleteMember(treeId, parseUserId(userId), personId);
+        System.out.println("🔥 CONTROLLER: deleteMember completed for personId: " + personId);
+        log.error("🔥 CONTROLLER: deleteMember completed for personId: {}", personId);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
@@ -234,7 +256,13 @@ public class FamilyTreeController {
             @PathVariable("treeId") UUID treeId,
             @PathVariable("personId") UUID personId,
             @RequestParam("userId") String userId) {
+        System.out.println("🔥 CONTROLLER: deleteMemberSafe called for personId: " + personId);
+        System.err.println("🔥 CONTROLLER: deleteMemberSafe called for personId: " + personId);
+        log.error("🔥 CONTROLLER: deleteMemberSafe called for personId: {}", personId);
         familyTreeService.deleteMemberSafe(treeId, parseUserId(userId), personId);
+        System.out.println("🔥 CONTROLLER: deleteMemberSafe completed for personId: " + personId);
+        System.err.println("🔥 CONTROLLER: deleteMemberSafe completed for personId: " + personId);
+        log.error("🔥 CONTROLLER: deleteMemberSafe completed for personId: {}", personId);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
@@ -659,6 +687,122 @@ public class FamilyTreeController {
                 tree.getId(), rels.size());
 
         return ResponseEntity.ok(ApiResponse.success(rels));
+    }
+
+    @GetMapping("/{treeId}/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTreeStatistics(
+            @PathVariable("treeId") UUID treeId,
+            @RequestParam("userId") String userId) {
+        
+        UUID parsedUserId = parseUserId(userId);
+        
+        // Kiểm tra quyền truy cập
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        boolean isOwner = tree.getCreatedBy().getId().equals(parsedUserId);
+        boolean hasAccess = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(parsedUserId, treeId)
+                .isPresent();
+
+        if (!isOwner && !hasAccess) {
+            throw new AppException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        // Lấy danh sách thành viên và mối quan hệ
+        List<Person> members = familyTreeService.listMembers(treeId, parsedUserId);
+        List<RelationshipDTO> relationships = relationshipService.listByTree(treeId, parsedUserId);
+        
+        // 🔍 DEBUG: Log tất cả spouse relationships
+        List<RelationshipDTO> spouseRelationships = relationships.stream()
+                .filter(rel -> "spouse".equalsIgnoreCase(rel.getRelationshipType()))
+                .collect(Collectors.toList());
+        
+        log.info("🔍 STATISTICS DEBUG - Tree ID: {}", treeId);
+        log.info("🔍 STATISTICS DEBUG - Total relationships: {}", relationships.size());
+        log.info("🔍 STATISTICS DEBUG - Spouse relationships found: {}", spouseRelationships.size());
+        
+        for (RelationshipDTO rel : spouseRelationships) {
+            log.info("🔍 SPOUSE: {} -> {} (type: {})", 
+                rel.getPerson1Id(), rel.getPerson2Id(), rel.getRelationshipType());
+        }
+        
+        // Tính số cặp đôi (chỉ đếm mối quan hệ spouse, tránh đếm trùng)
+        // Mỗi cặp vợ chồng có 2 records: A-spouse-B và B-spouse-A
+        // Chỉ đếm 1 lần cho mỗi cặp bằng cách sử dụng Set để loại bỏ trùng lặp
+        Set<String> uniqueCouples = new HashSet<>();
+        for (RelationshipDTO rel : relationships) {
+            if ("spouse".equalsIgnoreCase(rel.getRelationshipType())) {
+                // Tạo key duy nhất cho cặp đôi (sắp xếp ID để tránh trùng lặp)
+                UUID id1 = rel.getPerson1Id();
+                UUID id2 = rel.getPerson2Id();
+                String coupleKey = id1.compareTo(id2) < 0 ? 
+                    id1.toString() + "-" + id2.toString() : 
+                    id2.toString() + "-" + id1.toString();
+                uniqueCouples.add(coupleKey);
+                log.info("🔍 COUPLE KEY: {}", coupleKey);
+            }
+        }
+        long coupleCount = uniqueCouples.size();
+        
+        log.info("🔍 STATISTICS DEBUG - Final couple count: {}", coupleCount);
+        
+        // Tính số thành viên còn sống
+        long aliveCount = members.stream()
+                .filter(person -> person.getDeathDate() == null)
+                .count();
+        
+        Map<String, Object> statistics = new HashMap<>();
+        statistics.put("memberCount", members.size());
+        statistics.put("aliveCount", aliveCount);
+        statistics.put("coupleCount", coupleCount);
+        
+        return ResponseEntity.ok(ApiResponse.success(statistics));
+    }
+
+    @GetMapping("/shared/{shareToken}/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSharedTreeStatistics(
+            @PathVariable("shareToken") UUID shareToken,
+            @RequestParam(value = "userId", required = false) String userId) {
+
+        UUID parsedUserId = userId != null ? parseUserId(userId) : null;
+        FamilyTree tree = familyTreeService.getSharedTree(shareToken, parsedUserId);
+
+        // Lấy danh sách thành viên và mối quan hệ
+        List<Person> members = familyTreeService.listMembers(tree.getId(), tree.getCreatedBy().getId());
+        List<RelationshipDTO> relationships = relationshipService.listByTree(
+                tree.getId(),
+                tree.getCreatedBy().getId()
+        );
+        
+        // Tính số cặp đôi (chỉ đếm mối quan hệ spouse, tránh đếm trùng)
+        // Mỗi cặp vợ chồng có 2 records: A-spouse-B và B-spouse-A
+        // Chỉ đếm 1 lần cho mỗi cặp bằng cách sử dụng Set để loại bỏ trùng lặp
+        Set<String> uniqueCouples = new HashSet<>();
+        for (RelationshipDTO rel : relationships) {
+            if ("spouse".equalsIgnoreCase(rel.getRelationshipType())) {
+                // Tạo key duy nhất cho cặp đôi (sắp xếp ID để tránh trùng lặp)
+                UUID id1 = rel.getPerson1Id();
+                UUID id2 = rel.getPerson2Id();
+                String coupleKey = id1.compareTo(id2) < 0 ? 
+                    id1.toString() + "-" + id2.toString() : 
+                    id2.toString() + "-" + id1.toString();
+                uniqueCouples.add(coupleKey);
+            }
+        }
+        long coupleCount = uniqueCouples.size();
+        
+        // Tính số thành viên còn sống
+        long aliveCount = members.stream()
+                .filter(person -> person.getDeathDate() == null)
+                .count();
+        
+        Map<String, Object> statistics = new HashMap<>();
+        statistics.put("memberCount", members.size());
+        statistics.put("aliveCount", aliveCount);
+        statistics.put("coupleCount", coupleCount);
+        
+        return ResponseEntity.ok(ApiResponse.success(statistics));
     }
 
     private PersonResponse toPersonResponse(Person person) {

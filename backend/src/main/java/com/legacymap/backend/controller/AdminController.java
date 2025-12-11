@@ -57,7 +57,10 @@ public class AdminController {
 
     @GetMapping("/users/{userId}")
     public ResponseEntity<UserDetailResponse> getUserDetail(@PathVariable UUID userId) {
+        log.info("🎯 AdminController.getUserDetail called for userId: {}", userId);
         UserDetailResponse userDetail = adminService.getUserDetail(userId);
+        log.info("🎯 AdminController.getUserDetail returning statistics: familyTreeCount={}", 
+                userDetail.getStatistics() != null ? userDetail.getStatistics().getFamilyTreeCount() : "null");
         return ResponseEntity.ok(userDetail);
     }
 

@@ -119,6 +119,12 @@ export interface FamilyTree {
   userId?: string;             // Alias cho createdBy
 }
 
+export interface TreeStatistics {
+  memberCount: number;
+  aliveCount: number;
+  coupleCount: number;
+}
+
 export interface FamilyTreeCreateRequest {
   name: string;
   description?: string;
@@ -1066,6 +1072,39 @@ async function pruneDisconnected(userId: string, treeId: string): Promise<void> 
   }
 }
 
+async function getTreeStatistics(userId: string, treeId: string): Promise<TreeStatistics> {
+  const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/statistics?userId=${encodeURIComponent(userId)}`;
+  const res = await fetch(url, {
+    headers: authHeaders(),
+  });
+
+  const json = await safeJson<ApiResponse<TreeStatistics>>(res);
+
+  if (!res.ok) {
+    throw new Error(json?.message || "Không thể lấy thống kê cây gia phả");
+  }
+
+  return pickData(json);
+}
+
+async function getSharedTreeStatistics(shareToken: string, userId?: string | null): Promise<TreeStatistics> {
+  const url = userId
+      ? `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/statistics?userId=${encodeURIComponent(userId)}`
+      : `${API_BASE}/trees/shared/${encodeURIComponent(shareToken)}/statistics`;
+
+  const res = await fetch(url, {
+    headers: userId ? authHeaders() : { Accept: "application/json" },
+  });
+
+  const json = await safeJson<ApiResponse<TreeStatistics>>(res);
+
+  if (!res.ok) {
+    throw new Error(json?.message || "Không thể lấy thống kê cây gia phả");
+  }
+
+  return pickData(json);
+}
+
 const api = {
   listTrees,
   listViewableTrees,
@@ -1102,6 +1141,8 @@ const api = {
   getSharedTreeRelationshipsExport,
   pruneDisconnected,
   getSharedTreeAccessInfo,
+  getTreeStatistics,
+  getSharedTreeStatistics,
   exportTreePdfWithImage,
   requestEditAccess,
   approveEditRequest,

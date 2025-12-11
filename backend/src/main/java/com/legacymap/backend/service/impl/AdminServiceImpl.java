@@ -48,10 +48,16 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public UserDetailResponse getUserDetail(UUID userId) {
+        log.info("🔍 getUserDetail called for userId: {}", userId);
         checkAdminPermission();
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        log.info("🔍 Found user: {} ({})", user.getUsername(), user.getEmail());
+        
+        // Tính toán thống kê người dùng
+        UserDetailResponse.UserStatistics statistics = calculateUserStatistics(user);
 
         return UserDetailResponse.builder()
                 .id(user.getId())
@@ -66,7 +72,67 @@ public class AdminServiceImpl implements AdminService {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .provider(user.getProvider())
+                .statistics(statistics)
                 .build();
+    }
+
+    private UserDetailResponse.UserStatistics calculateUserStatistics(User user) {
+        // Đếm số cây gia phả của user
+        Long familyTreeCount = familyTreeRepository.countByCreatedById(user.getId());
+        log.info("🔍 User {} statistics: familyTreeCount={}", user.getId(), familyTreeCount);
+        
+        // Tính thời gian đăng nhập lần cuối
+        String lastLoginText = calculateLastLoginText(user.getLastLogin());
+        log.info("🔍 User {} statistics: lastLoginText={}, lastLogin={}", user.getId(), lastLoginText, user.getLastLogin());
+        
+        // Tính số ngày sử dụng (từ ngày tạo tài khoản đến hiện tại)
+        Long usageDays = calculateUsageDays(user.getCreatedAt());
+        log.info("🔍 User {} statistics: usageDays={}, createdAt={}", user.getId(), usageDays, user.getCreatedAt());
+        
+        return UserDetailResponse.UserStatistics.builder()
+                .familyTreeCount(familyTreeCount)
+                .lastLoginText(lastLoginText)
+                .usageDays(usageDays)
+                .build();
+    }
+    
+    private String calculateLastLoginText(OffsetDateTime lastLogin) {
+        if (lastLogin == null) {
+            return "Chưa bao giờ";
+        }
+        
+        OffsetDateTime now = OffsetDateTime.now();
+        long daysBetween = java.time.Duration.between(lastLogin, now).toDays();
+        
+        // Format giờ và ngày
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
+        String formattedDateTime = lastLogin.format(formatter);
+        
+        if (daysBetween == 0) {
+            return "Hôm nay lúc " + lastLogin.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+        } else if (daysBetween == 1) {
+            return "Hôm qua lúc " + lastLogin.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+        } else if (daysBetween < 7) {
+            return daysBetween + " ngày trước (" + formattedDateTime + ")";
+        } else if (daysBetween < 30) {
+            long weeks = daysBetween / 7;
+            return weeks + " tuần trước (" + formattedDateTime + ")";
+        } else if (daysBetween < 365) {
+            long months = daysBetween / 30;
+            return months + " tháng trước (" + formattedDateTime + ")";
+        } else {
+            long years = daysBetween / 365;
+            return years + " năm trước (" + formattedDateTime + ")";
+        }
+    }
+    
+    private Long calculateUsageDays(OffsetDateTime createdAt) {
+        if (createdAt == null) {
+            return 0L;
+        }
+        
+        OffsetDateTime now = OffsetDateTime.now();
+        return java.time.Duration.between(createdAt, now).toDays();
     }
 
     @Override
