@@ -17,4 +17,5 @@ public class SharedTreeAccessInfoResponse {
     private Boolean canEdit;
     private Boolean canView;
     private String role; // "OWNER", "EDITOR", "VIEWER"
+    private Boolean isPublic; // Thêm field để frontend biết cây là public hay private
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api, { type FamilyTree, type Person, type Relationship } from '@/api/trees';
+import api, { type FamilyTree, type Person, type Relationship, type TreeStatistics } from '@/api/trees';
 import { showToast } from '@/lib/toast';
 import TreeGraph from '@/components/familyTree/TreeGraph';
 import { Loader, Lock, Globe, ArrowLeft, Users, Heart, Eye, Edit3 } from 'lucide-react';
@@ -16,6 +16,7 @@ export default function SharedTreeView() {
     const [tree, setTree] = useState<FamilyTree | null>(null);
     const [members, setMembers] = useState<Person[]>([]);
     const [relationships, setRelationships] = useState<Relationship[]>([]);
+    const [statistics, setStatistics] = useState<TreeStatistics | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [accessLevel, setAccessLevel] = useState<'view' | 'edit' | 'admin' | null>(null);
 
@@ -85,9 +86,10 @@ export default function SharedTreeView() {
             setAccessLevel(level);
             console.log('🔍 Access Level:', level);
 
-            const [membersData, relationshipsData] = await Promise.all([
+            const [membersData, relationshipsData, statisticsData] = await Promise.all([
                 api.getSharedTreeMembers(shareToken, userId),
                 api.getSharedTreeRelationships(shareToken, userId),
+                api.getSharedTreeStatistics(shareToken, userId),
             ]);
             const normalizedRelationships = relationshipsData.map(rel => {
                 if (String(rel.type).toUpperCase() === 'CHILD') {
@@ -103,6 +105,7 @@ export default function SharedTreeView() {
 
             setMembers(membersData);
             setRelationships(normalizedRelationships);
+            setStatistics(statisticsData);
             
             // ✅ Chỉ hiển thị toast 1 lần khi lưu thành công
             console.log('🔍 Toast check:', { userId, hasShownSaveToast: hasShownSaveToastRef.current });
@@ -176,8 +179,8 @@ export default function SharedTreeView() {
         );
     }
 
-    const livingMembers = members.filter(member => !member.deathDate).length;
-    const coupleRelationships = relationships.filter(rel => String(rel.type).toUpperCase() === 'SPOUSE').length;
+    const livingMembers = statistics?.aliveCount ?? members.filter(member => !member.deathDate).length;
+    const coupleRelationships = statistics?.coupleCount ?? relationships.filter(rel => String(rel.type).toUpperCase() === 'SPOUSE').length;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 relative">
@@ -238,7 +241,7 @@ export default function SharedTreeView() {
                     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 text-center">
                         <div className="flex items-center justify-center gap-2 text-white">
                             <Users className="w-5 h-5" />
-                            <span className="text-2xl font-bold">{members.length}</span>
+                            <span className="text-2xl font-bold">{statistics?.memberCount ?? members.length}</span>
                         </div>
                         <p className="text-slate-300 text-sm mt-1">Thành viên</p>
                     </div>

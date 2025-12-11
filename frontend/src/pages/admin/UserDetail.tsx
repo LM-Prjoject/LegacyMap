@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User } from '@/types/ts_user';
 import { useUsers } from '@/hooks/useUsers';
+import { adminApi, UserDetail as AdminUserDetail, UserStatistics } from '@/api/ts_admin';
 import PopupModal from "@/components/popupModal/PopupModal";
 
 const UserDetail: React.FC = () => {
@@ -9,6 +10,7 @@ const UserDetail: React.FC = () => {
     const navigate = useNavigate();
     const { users, banUser, unbanUser, loading } = useUsers();
     const [user, setUser] = useState<User | null>(null);
+    const [userDetail, setUserDetail] = useState<AdminUserDetail | null>(null);
     const [showBanModal, setShowBanModal] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
 
@@ -17,11 +19,21 @@ const UserDetail: React.FC = () => {
             const foundUser = users.find((u: User) => u.id === userId);
             if (foundUser) {
                 setUser(foundUser);
+                loadUserDetail(userId);
             } else {
                 navigate('/admin/users');
             }
         }
     }, [users, userId, navigate]);
+
+    const loadUserDetail = async (userId: string) => {
+        try {
+            const detail = await adminApi.getUserDetail(userId);
+            setUserDetail(detail);
+        } catch (error) {
+            console.error('Error loading user detail:', error);
+        }
+    };
 
     const handleBanToggle = async () => {
         if (!user) return;
@@ -151,18 +163,21 @@ const UserDetail: React.FC = () => {
 
                 {/* Sidebar */}
                 <div className="space-y-6">
-                    <SidebarSection title="Hành động nhanh">
-                        <ActionButton icon="📧" label="Gửi Email" onClick={() => (window.location.href = `mailto:${user.email}`)} />
-                        <ActionButton icon="🔄" label="Đặt lại mật khẩu" onClick={() => alert('Chức năng đặt lại mật khẩu')} />
-                        <ActionButton icon="📜" label="Xem logs" onClick={() => alert('Chức năng xem logs')} />
-                        <ActionButton icon={user.isBanned ? '✅' : '🚫'} label={user.isBanned ? 'Mở khóa' : 'Khóa tài khoản'} onClick={() => setShowBanModal(true)} danger={!user.isBanned} />
-                    </SidebarSection>
+                    {/* Phần "Hành động nhanh" đã được bỏ */}
 
                     <SidebarSection title="Thống kê người dùng">
-                        <StatItem label="Cây gia phả" value="3" />
-                        <StatItem label="Tổng thành viên" value="47" />
-                        <StatItem label="Đăng nhập lần cuối" value={user.lastLogin ? '2 giờ trước' : 'Chưa bao giờ'} />
-                        <StatItem label="Thời gian sử dụng" value={user.createdAt ? `${Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))} ngày` : 'Không rõ'} />
+                        <StatItem 
+                            label="Cây gia phả" 
+                            value={userDetail?.statistics?.familyTreeCount?.toString() || '0'} 
+                        />
+                        <StatItem 
+                            label="Đăng nhập lần cuối" 
+                            value={userDetail?.statistics?.lastLoginText || 'Chưa bao giờ'} 
+                        />
+                        <StatItem 
+                            label="Thời gian sử dụng" 
+                            value={userDetail?.statistics?.usageDays ? `${userDetail.statistics.usageDays} ngày` : 'Không rõ'} 
+                        />
                     </SidebarSection>
                 </div>
             </div>

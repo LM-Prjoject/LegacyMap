@@ -21,4 +21,15 @@ public class UserDetailResponse {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private String provider;
+    
+    // Thống kê người dùng
+    private UserStatistics statistics;
+    
+    @Data
+    @Builder
+    public static class UserStatistics {
+        private Long familyTreeCount;      // Số cây gia phả
+        private String lastLoginText;      // Đăng nhập lần cuối (text)
+        private Long usageDays;           // Thời gian sử dụng (ngày)
+    }
 }

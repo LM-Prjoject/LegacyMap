@@ -148,12 +148,7 @@ export const TreeHistoryModal: React.FC<Props> = ({ treeId, isOpen, onClose }) =
 
                                             <p className="text-gray-300 text-sm mb-3">{item.description}</p>
 
-                                            {item.entityType === 'MEMBER' && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 text-xs rounded-lg border border-blue-500/30">
-                                                   <User className="w-3 h-3" />
-                                                    Thành viên
-                                                </span>
-                                            )}
+                                            {/* Badge "Thành viên" đã được ẩn */}
                                             {item.entityType === 'RELATIONSHIP' && (
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 text-purple-400 text-xs rounded-lg border border-purple-500/30">
                                                     <Link2 className="w-3 h-3" />
