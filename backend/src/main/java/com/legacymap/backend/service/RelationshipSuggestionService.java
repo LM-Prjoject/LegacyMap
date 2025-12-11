@@ -12,6 +12,7 @@ import com.legacymap.backend.repository.PersonRepository;
 import com.legacymap.backend.repository.RelationshipRepository;
 import com.legacymap.backend.repository.UserRepository;
 import com.legacymap.backend.service.ai.GeminiSuggestClient;
+import com.legacymap.backend.service.ai.GroqSuggestClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +32,7 @@ public class RelationshipSuggestionService {
     private UserRepository userRepository;
 
     @Autowired
-    private GeminiSuggestClient geminiSuggestClient;
+    private GroqSuggestClient groqSuggestClient;
 
     // THÊM DÒNG NÀY:
     @Autowired
@@ -79,7 +80,7 @@ public class RelationshipSuggestionService {
         // Try AI first; fallback to heuristic if absent or empty
         try {
             java.util.Optional<java.util.List<RelationshipSuggestion>> ai =
-                    geminiSuggestClient.suggest(tree, p1, p2, rels);
+                    groqSuggestClient.suggest(tree, p1, p2, rels);
             if (ai.isPresent() && !ai.get().isEmpty()) {
                 return ai.get();
             }
@@ -109,7 +110,7 @@ public class RelationshipSuggestionService {
 
         List<Relationship> rels = relationshipRepository.findAllByFamilyTree_Id(treeId);
 
-        Map<UUID, RelationshipSuggestion> out = geminiSuggestClient.suggestForSourceBatch(tree, source, candidates, rels);
+        Map<UUID, RelationshipSuggestion> out = groqSuggestClient.suggestForSourceBatch(tree, source, candidates, rels);
         return out == null ? java.util.Collections.emptyMap() : out;
     }
 }
