@@ -110,15 +110,15 @@ export default function MemberListModal({ open, onClose, persons, relationships 
   return (
     <div className="fixed inset-0 z-50" style={{background: 'rgba(42, 53, 72, 0.25)', backdropFilter: 'blur(5px)'}}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] max-w-[95vw] max-h-[90vh] rounded-2xl bg-gradient-to-br from-[#1e2a3a]/95 via-[#0f1419]/90 to-[#1e2a3a]/95">
-        <div className="p-4 border-b flex items-center justify-between gap-3">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] max-w-[95vw] max-h-[90vh] rounded-2xl bg-gradient-to-br from-[#1e2a3a]/95 via-[#0f1419]/90 to-[#1e2a3a]/95 flex flex-col">
+        <div className="p-4 border-b border-gray-600 flex items-center justify-between gap-3 flex-shrink-0">
           <h3 className="text-lg font-semibold text-[#ffd89b]">{title}</h3>
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-400">Sắp xếp:</label>
             <select
               value={sortKey}
               onChange={(e)=> setSortKey(e.target.value as any)}
-              className="rounded-lg border px-1 py-1 text-sm text-gray-400 bg-white/5"
+              className="rounded-lg border border-gray-600 px-1 py-1 text-sm text-gray-400 bg-white/5"
             >
               <option value="name">Tên</option>
               <option value="age">Tuổi (năm sinh)</option>
@@ -126,7 +126,7 @@ export default function MemberListModal({ open, onClose, persons, relationships 
             </select>
             <button
               onClick={()=> setSortAsc(v=>!v)}
-              className="px-2.5 py-1 rounded-lg border text-sm text-gray-400 hover:bg-gray-100"
+              className="px-2.5 py-1 rounded-lg border border-gray-600 text-sm text-gray-400 hover:bg-white/10"
               title={sortAsc?"Tăng dần":"Giảm dần"}
             >
               {sortAsc ? (
@@ -138,7 +138,7 @@ export default function MemberListModal({ open, onClose, persons, relationships 
             <button
               type="button"
               onClick={onClose}
-              className="px-2 py-0.5 rounded-lg text-gray-400 border hover:bg-gray-100"
+              className="px-2 py-0.5 rounded-lg text-gray-400 border border-gray-600 hover:bg-white/10"
               title="Đóng"
               aria-label="Đóng"
             >
@@ -146,30 +146,30 @@ export default function MemberListModal({ open, onClose, persons, relationships 
             </button>
           </div>
         </div>
-        <div className="p-3 border-b">
+        <div className="p-3 border-b border-gray-600 flex-shrink-0">
           <input
             placeholder="Tìm theo tên..."
-            className="w-full rounded-lg border px-3 py-2 bg-white/5 text-black placeholder-gray-400 caret-black"
+            className="w-full rounded-lg border border-gray-600 px-3 py-2 bg-white/5 text-white placeholder-gray-400"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
           {sorted.length === 0 ? (
-            <div className="p-4 text-sm text-gray-500">Không có thành viên phù hợp.</div>
+            <div className="p-4 text-sm text-gray-400">Không có thành viên phù hợp.</div>
           ) : (
-            <ul className="divide-y">
+            <ul className="divide-y divide-gray-600">
               {sorted.map((p) => (
-                <li key={p.id} className="px-4 py-3 flex items-center gap-3">
+                <li key={p.id} className="px-4 py-3 flex items-center gap-3 hover:bg-white/5">
                   <img
                     src={p.avatarUrl || "https://placehold.co/48x48?text=\u{1F464}"}
                     alt={p.fullName}
-                    className="w-10 h-10 rounded-full object-cover bg-gray-100"
+                    className="w-10 h-10 rounded-full object-cover bg-gray-100 flex-shrink-0"
                     onError={(e:any)=>{ e.currentTarget.src = "https://placehold.co/48x48?text=\u{1F464}"; }}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-[#ffd89b] truncate">{p.fullName}</div>
-                    <div className="text-xs text-white truncate">
+                    <div className="text-xs text-gray-300 truncate">
                       {p.gender ? (String(p.gender).toLowerCase()==="male"?"Nam":String(p.gender).toLowerCase()==="female"?"Nữ":p.gender) : "—"}
                       {p.birthDate ? ` • Sinh: ${p.birthDate}` : ""}
                       {p.deathDate ? ` • Mất: ${p.deathDate}` : ""}
