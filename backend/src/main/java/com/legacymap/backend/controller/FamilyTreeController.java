@@ -239,31 +239,45 @@ public class FamilyTreeController {
     }
 
     @DeleteMapping("/{treeId}/members/{personId}")
-    public ResponseEntity<ApiResponse<Void>> deleteMember(
+    public ResponseEntity<ApiResponse<FamilyTreeResponse>> deleteMember(
             @PathVariable("treeId") UUID treeId,
             @PathVariable("personId") UUID personId,
             @RequestParam("userId") String userId) {
         System.out.println("🔥 CONTROLLER: deleteMember called for personId: " + personId);
         log.error("🔥 CONTROLLER: deleteMember called for personId: {}", personId);
+        
+        // Xóa thành viên
         familyTreeService.deleteMember(treeId, parseUserId(userId), personId);
+        
+        // Lấy thông tin cây gia phả đã cập nhật
+        FamilyTreeResponse updatedTree = familyTreeService.getFamilyTree(treeId, parseUserId(userId));
+        
         System.out.println("🔥 CONTROLLER: deleteMember completed for personId: " + personId);
         log.error("🔥 CONTROLLER: deleteMember completed for personId: {}", personId);
-        return ResponseEntity.ok(ApiResponse.success());
+        
+        return ResponseEntity.ok(ApiResponse.success(updatedTree, "Đã xóa thành viên thành công"));
     }
 
     @DeleteMapping("/{treeId}/members/{personId}/safe")
-    public ResponseEntity<ApiResponse<Void>> deleteMemberSafe(
+    public ResponseEntity<ApiResponse<FamilyTreeResponse>> deleteMemberSafe(
             @PathVariable("treeId") UUID treeId,
             @PathVariable("personId") UUID personId,
             @RequestParam("userId") String userId) {
         System.out.println("🔥 CONTROLLER: deleteMemberSafe called for personId: " + personId);
         System.err.println("🔥 CONTROLLER: deleteMemberSafe called for personId: " + personId);
         log.error("🔥 CONTROLLER: deleteMemberSafe called for personId: {}", personId);
+        
+        // Xóa thành viên an toàn
         familyTreeService.deleteMemberSafe(treeId, parseUserId(userId), personId);
+        
+        // Lấy thông tin cây gia phả đã cập nhật
+        FamilyTreeResponse updatedTree = familyTreeService.getFamilyTree(treeId, parseUserId(userId));
+        
         System.out.println("🔥 CONTROLLER: deleteMemberSafe completed for personId: " + personId);
         System.err.println("🔥 CONTROLLER: deleteMemberSafe completed for personId: " + personId);
         log.error("🔥 CONTROLLER: deleteMemberSafe completed for personId: {}", personId);
-        return ResponseEntity.ok(ApiResponse.success());
+        
+        return ResponseEntity.ok(ApiResponse.success(updatedTree, "Đã xóa thành viên an toàn thành công"));
     }
 
     @GetMapping("/{treeId}/relationships")
