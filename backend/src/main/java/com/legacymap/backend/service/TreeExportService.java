@@ -129,16 +129,23 @@ public class TreeExportService {
     ) {
         Map<UUID, List<UUID>> parentToChildren = new HashMap<>();
         Map<UUID, List<UUID>> childToParents = new HashMap<>();
+        List<UUID[]> spousePairs = new ArrayList<>();
 
         for (Relationship r : relationships) {
             Object rawType = r.getRelationshipType();
             String type = safeType(rawType != null ? rawType.toString() : null);
-            if (!"PARENT".equals(type) && !"CHILD".equals(type)) {
-                continue;
-            }
 
             UUID id1 = r.getPerson1().getId();
             UUID id2 = r.getPerson2().getId();
+
+            if ("SPOUSE".equals(type)) {
+                spousePairs.add(new UUID[]{id1, id2});
+                continue;
+            }
+
+            if (!"PARENT".equals(type) && !"CHILD".equals(type)) {
+                continue;
+            }
 
             UUID parentId;
             UUID childId;
@@ -161,14 +168,14 @@ public class TreeExportService {
         }
 
         Map<UUID, Integer> gen = new HashMap<>();
-
-        Set<UUID> rootIds = new HashSet<>();
         for (Person p : persons) {
-            UUID id = p.getId();
-            if (!childToParents.containsKey(id)) {
-                rootIds.add(id);
-            }
+            gen.put(p.getId(), 1);
         }
+
+        Set<UUID> rootIds = persons.stream()
+                .map(Person::getId)
+                .filter(id -> !childToParents.containsKey(id))
+                .collect(Collectors.toSet());
 
         if (rootIds.isEmpty() && !persons.isEmpty()) {
             Person oldest = persons.stream()
@@ -178,27 +185,33 @@ public class TreeExportService {
             rootIds.add(oldest.getId());
         }
 
-        Deque<UUID> queue = new ArrayDeque<>();
-        for (UUID root : rootIds) {
-            gen.put(root, 1);
-            queue.add(root);
-        }
+        for (UUID root : rootIds) gen.put(root, 1);
 
-        while (!queue.isEmpty()) {
-            UUID parent = queue.poll();
-            int parentGen = gen.get(parent);
-            for (UUID child : parentToChildren.getOrDefault(parent, List.of())) {
-                int candidate = parentGen + 1;
-                Integer current = gen.get(child);
-                if (current == null || candidate < current) {
-                    gen.put(child, candidate);
-                    queue.add(child);
+        int maxIters = Math.max(10, persons.size() * 4);
+        boolean changed = true;
+
+        for (int iter = 0; iter < maxIters && changed; iter++) {
+            changed = false;
+
+            for (UUID[] pair : spousePairs) {
+                UUID a = pair[0], b = pair[1];
+                int m = Math.max(gen.getOrDefault(a, 1), gen.getOrDefault(b, 1));
+                if (!Objects.equals(gen.get(a), m)) { gen.put(a, m); changed = true; }
+                if (!Objects.equals(gen.get(b), m)) { gen.put(b, m); changed = true; }
+            }
+
+            for (Map.Entry<UUID, List<UUID>> e : parentToChildren.entrySet()) {
+                UUID parent = e.getKey();
+                int parentGen = gen.getOrDefault(parent, 1);
+                for (UUID child : e.getValue()) {
+                    int candidate = parentGen + 1;
+                    int current = gen.getOrDefault(child, 1);
+                    if (candidate > current) {
+                        gen.put(child, candidate);
+                        changed = true;
+                    }
                 }
             }
-        }
-
-        for (Person p : persons) {
-            gen.putIfAbsent(p.getId(), 1);
         }
 
         return gen;
