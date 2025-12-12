@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Person, Relationship } from "@/api/trees";
-import { ArrowLeft, Link2, Sparkles, Check } from "lucide-react";
+import {ArrowLeft, Link2, Sparkles, Check, X} from "lucide-react";
 export type RelationUpper = "PARENT" | "CHILD" | "SPOUSE" | "SIBLING";
 
 export interface PairSuggestion {
@@ -163,9 +163,9 @@ export default function RelationshipModal({
                     <button
                         onClick={() => !confirming && cancel()}
                         disabled={confirming}
-                        className="p-2 hover:bg-[#ffd89b]/10 rounded-lg transition-all duration-300 text-gray-400 hover:text-[#ffd89b] border border-transparent hover:border-[#ffd89b]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2 transition-all duration-300 text-gray-400 hover:text-[#ffd89b] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Đóng
+                        <X className="w-5 h-5 text-[#ffd89b] transition-colors" />
                     </button>
                 </div>
 

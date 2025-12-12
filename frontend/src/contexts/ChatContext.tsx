@@ -112,8 +112,8 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   const messagesByRoomRef = useRef(messagesByRoom);
 
   const currentRoom = useMemo(
-    () => rooms.find((room) => room.id === selectedRoomId) ?? null,
-    [rooms, selectedRoomId],
+      () => rooms.find((room) => room.id === selectedRoomId) ?? null,
+      [rooms, selectedRoomId],
   );
 
   const totalUnread = Object.values(unreadByRoom).reduce((sum, val) => sum + (val || 0), 0);
@@ -149,143 +149,143 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   }, [currentRoom?.id, isWidgetOpen]);
 
   const bumpRoomToTop = useCallback(
-    (roomId: string, lastActivity?: string) => {
-      setRooms((prev) => {
-        const index = prev.findIndex((room) => room.id === roomId);
-        if (index === -1) {
-          return prev;
-        }
-        const room = prev[index];
-        const updatedRoom =
-          lastActivity && room.updatedAt !== lastActivity ? { ...room, updatedAt: lastActivity } : room;
-        const remaining = [...prev.slice(0, index), ...prev.slice(index + 1)];
-        return [updatedRoom, ...remaining];
-      });
-    },
-    [],
+      (roomId: string, lastActivity?: string) => {
+        setRooms((prev) => {
+          const index = prev.findIndex((room) => room.id === roomId);
+          if (index === -1) {
+            return prev;
+          }
+          const room = prev[index];
+          const updatedRoom =
+              lastActivity && room.updatedAt !== lastActivity ? { ...room, updatedAt: lastActivity } : room;
+          const remaining = [...prev.slice(0, index), ...prev.slice(index + 1)];
+          return [updatedRoom, ...remaining];
+        });
+      },
+      [],
   );
 
   const subscribeRoom = useCallback(
-    (roomId: string) => {
-      if (!clientRef.current || !isConnected || subscriptionsRef.current[roomId]) {
-        return;
-      }
+      (roomId: string) => {
+        if (!clientRef.current || !isConnected || subscriptionsRef.current[roomId]) {
+          return;
+        }
 
-      const subscription = clientRef.current.subscribe(`/topic/chat/${roomId}`, (frame: IMessage) => {
-        try {
-          const payload = JSON.parse(frame.body) as ChatMessage;
+        const subscription = clientRef.current.subscribe(`/topic/chat/${roomId}`, (frame: IMessage) => {
+          try {
+            const payload = JSON.parse(frame.body) as ChatMessage;
 
-          const wasPending = pendingMessagesRef.current.has(payload.id);
-          if (wasPending) {
-            pendingMessagesRef.current.delete(payload.id);
-          }
-
-          if (payload.messageType === 'system' && payload.messageText?.includes('deleted')) {
-            setRooms(prev => prev.filter(r => r.id !== roomId));
-            setMessagesByRoom(prev => {
-              const { [roomId]: _, ...rest } = prev;
-              return rest;
-            });
-            if (selectedRoomId === roomId) {
-              setSelectedRoomId(null);
+            const wasPending = pendingMessagesRef.current.has(payload.id);
+            if (wasPending) {
+              pendingMessagesRef.current.delete(payload.id);
             }
-            showToast.info('Phòng chat đã bị xóa');
-            return;
-          }
 
-          bumpRoomToTop(roomId, payload.createdAt);
+            if (payload.messageType === 'system' && payload.messageText?.includes('deleted')) {
+              setRooms(prev => prev.filter(r => r.id !== roomId));
+              setMessagesByRoom(prev => {
+                const { [roomId]: _, ...rest } = prev;
+                return rest;
+              });
+              if (selectedRoomId === roomId) {
+                setSelectedRoomId(null);
+              }
+              showToast.info('Phòng chat đã bị xóa');
+              return;
+            }
 
-          setMessagesByRoom((prev) => {
-            const existing = prev[roomId] ?? [];
-            const existingMessage = existing.find((msg) => msg.id === payload.id);
+            bumpRoomToTop(roomId, payload.createdAt);
 
-            if (!existingMessage) {
+            setMessagesByRoom((prev) => {
+              const existing = prev[roomId] ?? [];
+              const existingMessage = existing.find((msg) => msg.id === payload.id);
+
+              if (!existingMessage) {
+                return {
+                  ...prev,
+                  [roomId]: [...existing, payload].sort(
+                      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                  ),
+                };
+              }
+
               return {
                 ...prev,
-                [roomId]: [...existing, payload].sort(
-                  (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                ),
-              };
-            }
+                [roomId]: existing.map((msg) => {
+                  if (msg.id !== payload.id) return msg;
 
-            return {
-              ...prev,
-              [roomId]: existing.map((msg) => {
-                if (msg.id !== payload.id) return msg;
+                  if (payload.deleted) {
+                    return {
+                      ...msg,
+                      ...payload,
+                      messageText: 'Tin nhắn đã bị xóa',
+                      pending: false,
+                    };
+                  }
 
-                if (payload.deleted) {
+
+                  if (msg.pending) {
+                    const edited = msg.edited || payload.edited || false;
+
+                    const messageText = payload.messageText !== msg.messageText
+                        ? payload.messageText
+                        : msg.messageText;
+
+                    return {
+                      ...payload,
+                      messageText,
+                      edited,
+                      pending: false,
+                    };
+                  }
+
+                  if (msg.edited && !payload.edited) {
+                    return msg;
+                  }
+
+                  if (payload.updatedAt && msg.updatedAt) {
+                    if (new Date(payload.updatedAt) > new Date(msg.updatedAt)) {
+                      return { ...payload, pending: false };
+                    }
+                  }
+
                   return {
                     ...msg,
                     ...payload,
-                    messageText: 'Tin nhắn đã bị xóa',
                     pending: false,
                   };
+                }),
+              };
+            });
+
+            if (payload.messageType !== 'system' && payload.senderId !== currentUserId) {
+              const isCurrentRoom = roomId === selectedRoomRef.current && isWidgetOpen;
+
+              if (!isCurrentRoom) {
+                const room = rooms.find(r => r.id === roomId);
+                const myMember = room?.members.find(m => m.userId === currentUserId);
+                if (room && !myMember?.muted) {
+                  audioNotification.play().catch(() => { });
                 }
 
+                setUnreadByRoom(prev => {
+                  const newCount = (prev[roomId] || 0) + 1;
+                  const newState = { ...prev, [roomId]: newCount };
 
-                if (msg.pending) {
-                  const edited = msg.edited || payload.edited || false;
+                  const total = Object.values(newState).reduce((sum, val) => sum + (val || 0), 0);
+                  window.dispatchEvent(new CustomEvent('chatUnreadChanged', { detail: total }));
 
-                  const messageText = payload.messageText !== msg.messageText
-                    ? payload.messageText
-                    : msg.messageText;
-
-                  return {
-                    ...payload,
-                    messageText,
-                    edited,
-                    pending: false,
-                  };
-                }
-
-                if (msg.edited && !payload.edited) {
-                  return msg;
-                }
-
-                if (payload.updatedAt && msg.updatedAt) {
-                  if (new Date(payload.updatedAt) > new Date(msg.updatedAt)) {
-                    return { ...payload, pending: false };
-                  }
-                }
-
-                return {
-                  ...msg,
-                  ...payload,
-                  pending: false,
-                };
-              }),
-            };
-          });
-
-          if (payload.messageType !== 'system' && payload.senderId !== currentUserId) {
-            const isCurrentRoom = roomId === selectedRoomRef.current && isWidgetOpen;
-
-            if (!isCurrentRoom) {
-              const room = rooms.find(r => r.id === roomId);
-              const myMember = room?.members.find(m => m.userId === currentUserId);
-              if (room && !myMember?.muted) {
-                audioNotification.play().catch(() => { });
+                  return newState;
+                });
               }
-
-              setUnreadByRoom(prev => {
-                const newCount = (prev[roomId] || 0) + 1;
-                const newState = { ...prev, [roomId]: newCount };
-
-                const total = Object.values(newState).reduce((sum, val) => sum + (val || 0), 0);
-                window.dispatchEvent(new CustomEvent('chatUnreadChanged', { detail: total }));
-
-                return newState;
-              });
             }
+          } catch (err) {
+            console.error('Error processing WebSocket message:', err);
           }
-        } catch (err) {
-          console.error('Error processing WebSocket message:', err);
-        }
-      });
+        });
 
-      subscriptionsRef.current[roomId] = subscription;
-    },
-    [bumpRoomToTop, isConnected, currentUserId, isWidgetOpen, rooms, selectedRoomId],
+        subscriptionsRef.current[roomId] = subscription;
+      },
+      [bumpRoomToTop, isConnected, currentUserId, isWidgetOpen, rooms, selectedRoomId],
   );
 
   const updateMessage = useCallback(async (roomId: string, messageId: string, payload: { messageText: string }) => {
@@ -315,7 +315,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     setMessagesByRoom(prev => ({
       ...prev,
       [roomId]: (prev[roomId] || []).map(m =>
-        m.id === messageId ? optimisticUpdate : m
+          m.id === messageId ? optimisticUpdate : m
       )
     }));
 
@@ -329,7 +329,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       setMessagesByRoom(prev => ({
         ...prev,
         [roomId]: (prev[roomId] || []).map(m =>
-          m.id === messageId ? { ...messageToUpdate, pending: false } : m
+            m.id === messageId ? { ...messageToUpdate, pending: false } : m
         )
       }));
       showToast.error('Sửa tin nhắn thất bại');
@@ -342,7 +342,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
           setMessagesByRoom(prev => ({
             ...prev,
             [roomId]: (prev[roomId] || []).map(m =>
-              m.id === messageId ? { ...m, pending: false } : m
+                m.id === messageId ? { ...m, pending: false } : m
             )
           }));
         }
@@ -358,7 +358,7 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
     setMessagesByRoom(prev => ({
       ...prev,
       [roomId]: (prev[roomId] || []).map(m =>
-        m.id === messageId ? { ...m, deleted: true, messageText: 'Tin nhắn đã bị xóa', pending: true } : m
+          m.id === messageId ? { ...m, deleted: true, messageText: 'Tin nhắn đã bị xóa', pending: true } : m
       )
     }));
     showToast.success('Đã xóa tin nhắn');
@@ -468,33 +468,33 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   }, []);
 
   const markAsRead = useCallback(
-    async (roomId: string, lastMessageId: string) => {
-      if (!authToken) return;
+      async (roomId: string, lastMessageId: string) => {
+        if (!authToken) return;
 
-      setUnreadByRoom(prev => {
-        const newUnread = { ...prev };
-        if (newUnread[roomId] > 0) {
-          newUnread[roomId] = 0;
+        setUnreadByRoom(prev => {
+          const newUnread = { ...prev };
+          if (newUnread[roomId] > 0) {
+            newUnread[roomId] = 0;
 
-          const total = Object.values(newUnread).reduce((sum, val) => sum + (val || 0), 0);
-          window.dispatchEvent(new CustomEvent('chatUnreadChanged', { detail: total }));
+            const total = Object.values(newUnread).reduce((sum, val) => sum + (val || 0), 0);
+            window.dispatchEvent(new CustomEvent('chatUnreadChanged', { detail: total }));
+          }
+          return newUnread;
+        });
+
+        if (lastMessageId) {
+          lastReadRef.current[roomId] = lastMessageId;
         }
-        return newUnread;
-      });
 
-      if (lastMessageId) {
-        lastReadRef.current[roomId] = lastMessageId;
-      }
-
-      if (lastMessageId) {
-        try {
-          await chatApi.markMessagesRead(roomId, { lastMessageId });
-        } catch (err) {
-          console.error('Failed to mark messages as read', err);
+        if (lastMessageId) {
+          try {
+            await chatApi.markMessagesRead(roomId, { lastMessageId });
+          } catch (err) {
+            console.error('Failed to mark messages as read', err);
+          }
         }
-      }
-    },
-    [authToken],
+      },
+      [authToken],
   );
 
   const markRoomAsRead = useCallback(async (roomId: string) => {
@@ -524,71 +524,71 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   }, [authToken, messagesByRoom]);
 
   const loadOlderMessages = useCallback(
-    async (roomId: string, reset = false) => {
-      if (!authToken) return;
-      setRoomMessageState((prev) => ({
-        ...prev,
-        [roomId]: {
-          ...(prev[roomId] ?? { page: 0, hasMore: true, initialized: false }),
-          isLoading: true,
-        },
-      }));
-      try {
-        const targetPage = reset ? 0 : (roomMessageState[roomId]?.page ?? 0);
-        const response = await chatApi.getMessages(roomId, targetPage, PAGE_SIZE);
-        if (!response || !response.messages) {
-          throw new Error('Invalid message response');
-        }
-        const nextMessages = [...response.messages].reverse();
-        setMessagesByRoom((prev) => {
-          const existing = prev[roomId] ?? [];
-          const merged = reset ? nextMessages : [...nextMessages, ...existing];
-          return {
-            ...prev,
-            [roomId]: merged.sort(
-              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-            ),
-          };
-        });
-        setRoomMessageState((prev) => ({
-          ...prev,
-          [roomId]: {
-            isLoading: false,
-            hasMore: response.hasMore ?? true,
-            page: reset ? 1 : (prev[roomId]?.page ?? 0) + 1,
-            initialized: true,
-          },
-        }));
-        if (reset && response.messages.length) {
-          const latest = response.messages[0];
-          if (latest) {
-            markAsRead(roomId, latest.id);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load messages', err);
+      async (roomId: string, reset = false) => {
+        if (!authToken) return;
         setRoomMessageState((prev) => ({
           ...prev,
           [roomId]: {
             ...(prev[roomId] ?? { page: 0, hasMore: true, initialized: false }),
-            isLoading: false,
+            isLoading: true,
           },
         }));
-        showToast.error('Không thể tải tin nhắn');
-      }
-    },
-    [authToken, markAsRead],
+        try {
+          const targetPage = reset ? 0 : (roomMessageState[roomId]?.page ?? 0);
+          const response = await chatApi.getMessages(roomId, targetPage, PAGE_SIZE);
+          if (!response || !response.messages) {
+            throw new Error('Invalid message response');
+          }
+          const nextMessages = [...response.messages].reverse();
+          setMessagesByRoom((prev) => {
+            const existing = prev[roomId] ?? [];
+            const merged = reset ? nextMessages : [...nextMessages, ...existing];
+            return {
+              ...prev,
+              [roomId]: merged.sort(
+                  (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+              ),
+            };
+          });
+          setRoomMessageState((prev) => ({
+            ...prev,
+            [roomId]: {
+              isLoading: false,
+              hasMore: response.hasMore ?? true,
+              page: reset ? 1 : (prev[roomId]?.page ?? 0) + 1,
+              initialized: true,
+            },
+          }));
+          if (reset && response.messages.length) {
+            const latest = response.messages[0];
+            if (latest) {
+              markAsRead(roomId, latest.id);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load messages', err);
+          setRoomMessageState((prev) => ({
+            ...prev,
+            [roomId]: {
+              ...(prev[roomId] ?? { page: 0, hasMore: true, initialized: false }),
+              isLoading: false,
+            },
+          }));
+          showToast.error('Không thể tải tin nhắn');
+        }
+      },
+      [authToken, markAsRead],
   );
 
   const ensureMessagesLoaded = useCallback(
-    async (roomId: string) => {
-      const state = roomMessageState[roomId];
-      if (state?.initialized) {
-        return;
-      }
-      await loadOlderMessages(roomId, true);
-    },
-    [loadOlderMessages],
+      async (roomId: string) => {
+        const state = roomMessageState[roomId];
+        if (state?.initialized) {
+          return;
+        }
+        await loadOlderMessages(roomId, true);
+      },
+      [loadOlderMessages],
   );
 
 
@@ -635,10 +635,10 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
       try {
         if (useSockJS) {
           const sockJsUrl = wsUrl.startsWith('ws:')
-            ? wsUrl.replace(/^ws:/, 'http:')
-            : wsUrl.startsWith('wss:')
-              ? wsUrl.replace(/^wss:/, 'https:')
-              : wsUrl;
+              ? wsUrl.replace(/^ws:/, 'http:')
+              : wsUrl.startsWith('wss:')
+                  ? wsUrl.replace(/^wss:/, 'https:')
+                  : wsUrl;
 
           console.log('[chat-ws] Using SockJS with URL:', sockJsUrl);
           webSocketFactory = () => new SockJS(sockJsUrl);
@@ -803,131 +803,131 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   }, [authToken, currentUserId]);
 
   const selectRoom = useCallback(
-    async (roomId: string) => {
-      setSelectedRoomId(roomId);
+      async (roomId: string) => {
+        setSelectedRoomId(roomId);
 
-      if (unreadByRoom[roomId] > 0) {
-        await markRoomAsRead(roomId);
-      }
+        if (unreadByRoom[roomId] > 0) {
+          await markRoomAsRead(roomId);
+        }
 
-      await ensureMessagesLoaded(roomId);
-      subscribeRoom(roomId);
-    },
-    [ensureMessagesLoaded, markRoomAsRead, subscribeRoom, unreadByRoom],
+        await ensureMessagesLoaded(roomId);
+        subscribeRoom(roomId);
+      },
+      [ensureMessagesLoaded, markRoomAsRead, subscribeRoom, unreadByRoom],
   );
 
   const sendMessage = useCallback(
-    (payload: ChatMessageSendPayload) => {
-      if (!clientRef.current || !isConnected) {
-        showToast.error('Chat chưa sẵn sàng, vui lòng thử lại');
-        return;
-      }
-      try {
-        clientRef.current.publish({
-          destination: '/app/chat/send',
-          body: JSON.stringify(payload),
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        });
-        bumpRoomToTop(payload.roomId);
-      } catch (err) {
-        console.error('Failed to send chat message', err);
-        showToast.error('Gửi tin nhắn thất bại');
-      }
-    },
-    [authToken, bumpRoomToTop, isConnected],
+      (payload: ChatMessageSendPayload) => {
+        if (!clientRef.current || !isConnected) {
+          showToast.error('Chat chưa sẵn sàng, vui lòng thử lại');
+          return;
+        }
+        try {
+          clientRef.current.publish({
+            destination: '/app/chat/send',
+            body: JSON.stringify(payload),
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          });
+          bumpRoomToTop(payload.roomId);
+        } catch (err) {
+          console.error('Failed to send chat message', err);
+          showToast.error('Gửi tin nhắn thất bại');
+        }
+      },
+      [authToken, bumpRoomToTop, isConnected],
   );
 
   const sendAttachment = useCallback(
-    async (roomId: string, file: File, caption?: string) => {
-      try {
-        const response = await chatApi.uploadAttachment(roomId, file, caption);
-        console.log('[sendAttachment] Response:', response);
-        if (response?.message) {
-          console.log('[sendAttachment] Adding message to state:', response.message);
-          setMessagesByRoom((prev) => {
-            const roomMessages = prev[roomId] ?? [];
-            const alreadyExists = roomMessages.some((msg) => msg.id === response.message.id);
-            if (alreadyExists) {
-              return prev;
-            }
-            return {
-              ...prev,
-              [roomId]: [...roomMessages, response.message].sort(
-                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-              ),
-            };
-          });
-          bumpRoomToTop(roomId, response.message.createdAt);
-        } else {
-          console.warn('[sendAttachment] No message in response:', response);
+      async (roomId: string, file: File, caption?: string) => {
+        try {
+          const response = await chatApi.uploadAttachment(roomId, file, caption);
+          console.log('[sendAttachment] Response:', response);
+          if (response?.message) {
+            console.log('[sendAttachment] Adding message to state:', response.message);
+            setMessagesByRoom((prev) => {
+              const roomMessages = prev[roomId] ?? [];
+              const alreadyExists = roomMessages.some((msg) => msg.id === response.message.id);
+              if (alreadyExists) {
+                return prev;
+              }
+              return {
+                ...prev,
+                [roomId]: [...roomMessages, response.message].sort(
+                    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+                ),
+              };
+            });
+            bumpRoomToTop(roomId, response.message.createdAt);
+          } else {
+            console.warn('[sendAttachment] No message in response:', response);
+          }
+          return response;
+        } catch (err) {
+          console.error('Failed to upload attachment', err);
+          showToast.error('Tải tệp thất bại');
+          return null;
         }
-        return response;
-      } catch (err) {
-        console.error('Failed to upload attachment', err);
-        showToast.error('Tải tệp thất bại');
-        return null;
-      }
-    },
-    [bumpRoomToTop],
+      },
+      [bumpRoomToTop],
   );
 
   const createRoom = useCallback(
-    async (payload: ChatRoomCreatePayload) => {
-      try {
-        const room = await chatApi.createRoom(payload);
-        setRooms((prev) => [room, ...prev.filter((existing) => existing.id !== room.id)]);
-        subscribeRoom(room.id);
-        showToast.success('Đã tạo phòng chat');
-        return room;
-      } catch (err) {
-        console.error('Create room failed', err);
-        showToast.error('Không tạo được phòng chat');
-        return null;
-      }
-    },
-    [subscribeRoom],
+      async (payload: ChatRoomCreatePayload) => {
+        try {
+          const room = await chatApi.createRoom(payload);
+          setRooms((prev) => [room, ...prev.filter((existing) => existing.id !== room.id)]);
+          subscribeRoom(room.id);
+          showToast.success('Đã tạo phòng chat');
+          return room;
+        } catch (err) {
+          console.error('Create room failed', err);
+          showToast.error('Không tạo được phòng chat');
+          return null;
+        }
+      },
+      [subscribeRoom],
   );
 
   const createBranchRoom = useCallback(
-    async (payload: BranchRoomCreatePayload) => {
-      try {
-        const room = await chatApi.createBranchRoom(payload);
-        setRooms((prev) => {
-          const filtered = prev.filter((r) => r.id !== room.id);
-          return [room, ...filtered];
-        });
-        subscribeRoom(room.id);
-        showToast.success('Đã tạo phòng nhánh');
-        return room;
-      } catch (err) {
-        console.error('Create branch room failed', err);
-        showToast.error('Không tạo được phòng nhánh');
-        return null;
-      }
-    },
-    [subscribeRoom],
+      async (payload: BranchRoomCreatePayload) => {
+        try {
+          const room = await chatApi.createBranchRoom(payload);
+          setRooms((prev) => {
+            const filtered = prev.filter((r) => r.id !== room.id);
+            return [room, ...filtered];
+          });
+          subscribeRoom(room.id);
+          showToast.success('Đã tạo phòng nhánh');
+          return room;
+        } catch (err) {
+          console.error('Create branch room failed', err);
+          showToast.error('Không tạo được phòng nhánh');
+          return null;
+        }
+      },
+      [subscribeRoom],
   );
 
   const createDirectRoom = useCallback(
-    async (payload: DirectRoomCreatePayload) => {
-      try {
-        const room = await chatApi.createDirectRoom(payload);
-        setRooms((prev) => {
-          const filtered = prev.filter((r) => r.id !== room.id);
-          return [room, ...filtered];
-        });
-        subscribeRoom(room.id);
-        showToast.success('Đã mở chat riêng');
-        return room;
-      } catch (err) {
-        console.error('Create direct room failed', err);
-        showToast.error('Không tạo được chat riêng');
-        return null;
-      }
-    },
-    [subscribeRoom],
+      async (payload: DirectRoomCreatePayload) => {
+        try {
+          const room = await chatApi.createDirectRoom(payload);
+          setRooms((prev) => {
+            const filtered = prev.filter((r) => r.id !== room.id);
+            return [room, ...filtered];
+          });
+          subscribeRoom(room.id);
+          showToast.success('Đã mở chat riêng');
+          return room;
+        } catch (err) {
+          console.error('Create direct room failed', err);
+          showToast.error('Không tạo được chat riêng');
+          return null;
+        }
+      },
+      [subscribeRoom],
   );
 
   const openWidget = useCallback(() => {
@@ -1106,82 +1106,82 @@ export const ChatProvider = ({ children }: ChatProviderProps) => {
   }, [selectedRoomId]);
 
   const contextValue = useMemo(
-    () => ({
-      rooms,
-      isLoadingRooms,
-      refreshRooms,
-      selectedRoomId,
-      selectRoom,
-      currentRoom,
-      messagesByRoom,
-      roomMessageState,
-      loadOlderMessages,
-      sendMessage,
-      sendAttachment,
-      updateMessage,
-      deleteMessage,
-      updateRoom,
-      deleteRoom,
-      leaveRoom,
-      createRoom,
-      createBranchRoom,
-      createDirectRoom,
-      isWidgetOpen,
-      openWidget,
-      closeWidget,
-      toggleWidget,
-      widgetSignal,
-      totalUnread,
-      unreadByRoom,
-      isConnected,
-      isConnecting,
-      canEditRoom,
-      canLeaveRoom,
-      canDeleteRoom,
-      canEditMessage,
-      canDeleteMessage,
-      deleteConversationLocally,
-      setRooms,
-      markRoomAsRead,
-    }),
-    [
-      rooms,
-      isLoadingRooms,
-      refreshRooms,
-      selectedRoomId,
-      selectRoom,
-      currentRoom,
-      messagesByRoom,
-      roomMessageState,
-      loadOlderMessages,
-      sendMessage,
-      sendAttachment,
-      updateMessage,
-      deleteMessage,
-      updateRoom,
-      deleteRoom,
-      leaveRoom,
-      createRoom,
-      createBranchRoom,
-      createDirectRoom,
-      isWidgetOpen,
-      openWidget,
-      closeWidget,
-      toggleWidget,
-      widgetSignal,
-      totalUnread,
-      unreadByRoom,
-      isConnected,
-      isConnecting,
-      canEditRoom,
-      canLeaveRoom,
-      canDeleteRoom,
-      canEditMessage,
-      canDeleteMessage,
-      deleteConversationLocally,
-      setRooms,
-      markRoomAsRead,
-    ],
+      () => ({
+        rooms,
+        isLoadingRooms,
+        refreshRooms,
+        selectedRoomId,
+        selectRoom,
+        currentRoom,
+        messagesByRoom,
+        roomMessageState,
+        loadOlderMessages,
+        sendMessage,
+        sendAttachment,
+        updateMessage,
+        deleteMessage,
+        updateRoom,
+        deleteRoom,
+        leaveRoom,
+        createRoom,
+        createBranchRoom,
+        createDirectRoom,
+        isWidgetOpen,
+        openWidget,
+        closeWidget,
+        toggleWidget,
+        widgetSignal,
+        totalUnread,
+        unreadByRoom,
+        isConnected,
+        isConnecting,
+        canEditRoom,
+        canLeaveRoom,
+        canDeleteRoom,
+        canEditMessage,
+        canDeleteMessage,
+        deleteConversationLocally,
+        setRooms,
+        markRoomAsRead,
+      }),
+      [
+        rooms,
+        isLoadingRooms,
+        refreshRooms,
+        selectedRoomId,
+        selectRoom,
+        currentRoom,
+        messagesByRoom,
+        roomMessageState,
+        loadOlderMessages,
+        sendMessage,
+        sendAttachment,
+        updateMessage,
+        deleteMessage,
+        updateRoom,
+        deleteRoom,
+        leaveRoom,
+        createRoom,
+        createBranchRoom,
+        createDirectRoom,
+        isWidgetOpen,
+        openWidget,
+        closeWidget,
+        toggleWidget,
+        widgetSignal,
+        totalUnread,
+        unreadByRoom,
+        isConnected,
+        isConnecting,
+        canEditRoom,
+        canLeaveRoom,
+        canDeleteRoom,
+        canEditMessage,
+        canDeleteMessage,
+        deleteConversationLocally,
+        setRooms,
+        markRoomAsRead,
+      ],
   );
 
   return <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>;
