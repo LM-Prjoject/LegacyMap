@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User } from '@/types/ts_user';
 import { useUsers } from '@/hooks/useUsers';
-import { adminApi, UserDetail as AdminUserDetail, UserStatistics } from '@/api/ts_admin';
+import { adminApi, UserDetail as AdminUserDetail } from '@/api/ts_admin';
 import PopupModal from "@/components/popupModal/PopupModal";
 
 const UserDetail: React.FC = () => {
@@ -98,22 +98,20 @@ const UserDetail: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center space-x-3">
-            <span
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    user.isBanned
-                        ? 'bg-red-700/30 text-red-300 border border-red-600/40'
-                        : 'bg-green-700/30 text-green-300 border border-green-500/40'
-                }`}
-            >
-              {user.isBanned ? '🚫 Đã khóa' : '✅ Hoạt động'}
-            </span>
+                        <span
+                            className={`px-4 py-2 rounded-lg text-sm font-medium ${user.isBanned
+                                    ? 'bg-red-700/30 text-red-300 border border-red-600/40'
+                                    : 'bg-green-700/30 text-green-300 border border-green-500/40'
+                                }`}
+                        >
+                            {user.isBanned ? '🚫 Đã khóa' : '✅ Hoạt động'}
+                        </span>
                         <button
                             onClick={() => setShowBanModal(true)}
-                            className={`px-5 py-2 rounded-lg font-semibold transition-all shadow-md shadow-black/20 ${
-                                user.isBanned
+                            className={`px-5 py-2 rounded-lg font-semibold transition-all shadow-md shadow-black/20 ${user.isBanned
                                     ? 'bg-gradient-to-br from-[#d1b98a] to-[#f4e9c8] text-[#20283d] hover:scale-105'
                                     : 'bg-gradient-to-br from-[#7f1d1d] to-[#b91c1c] text-[#f4e9c8] hover:scale-105'
-                            }`}
+                                }`}
                         >
                             {user.isBanned ? 'Mở khóa' : 'Khóa tài khoản'}
                         </button>
@@ -166,17 +164,17 @@ const UserDetail: React.FC = () => {
                     {/* Phần "Hành động nhanh" đã được bỏ */}
 
                     <SidebarSection title="Thống kê người dùng">
-                        <StatItem 
-                            label="Cây gia phả" 
-                            value={userDetail?.statistics?.familyTreeCount?.toString() || '0'} 
+                        <StatItem
+                            label="Cây gia phả"
+                            value={userDetail?.statistics?.familyTreeCount?.toString() || '0'}
                         />
-                        <StatItem 
-                            label="Đăng nhập lần cuối" 
-                            value={userDetail?.statistics?.lastLoginText || 'Chưa bao giờ'} 
+                        <StatItem
+                            label="Đăng nhập lần cuối"
+                            value={userDetail?.statistics?.lastLoginText || 'Chưa bao giờ'}
                         />
-                        <StatItem 
-                            label="Thời gian sử dụng" 
-                            value={userDetail?.statistics?.usageDays ? `${userDetail.statistics.usageDays} ngày` : 'Không rõ'} 
+                        <StatItem
+                            label="Thời gian sử dụng"
+                            value={userDetail?.statistics?.usageDays ? `${userDetail.statistics.usageDays} ngày` : 'Không rõ'}
                         />
                     </SidebarSection>
                 </div>
@@ -218,10 +216,10 @@ const InfoField: React.FC<{ label: string; value: string }> = ({ label, value })
 );
 
 const StatusItem: React.FC<{ label: string; value: string; status: 'success' | 'danger' | 'warning' | 'info' }> = ({
-                                                                                                                       label,
-                                                                                                                       value,
-                                                                                                                       status,
-                                                                                                                   }) => {
+    label,
+    value,
+    status,
+}) => {
     const colorMap = {
         success: 'bg-green-700/30 text-green-300 border border-green-600/30',
         danger: 'bg-red-700/30 text-red-300 border border-red-600/30',
@@ -232,8 +230,8 @@ const StatusItem: React.FC<{ label: string; value: string; status: 'success' | '
         <div className="flex justify-between items-center p-3 bg-[#2e3a57]/60 rounded-lg">
             <span className="font-medium">{label}</span>
             <span className={`px-3 py-1 rounded-lg text-sm font-semibold ${colorMap[status]}`}>
-        {value}
-      </span>
+                {value}
+            </span>
         </div>
     );
 };
@@ -258,24 +256,6 @@ const ActivityItem: React.FC<{ action: string; date?: string; icon: string }> = 
     </div>
 );
 
-const ActionButton: React.FC<{ icon: string; label: string; onClick: () => void; danger?: boolean }> = ({
-                                                                                                            icon,
-                                                                                                            label,
-                                                                                                            onClick,
-                                                                                                            danger,
-                                                                                                        }) => (
-    <button
-        onClick={onClick}
-        className={`w-full flex items-center p-3 rounded-lg transition-all ${
-            danger
-                ? 'bg-red-700/20 text-red-300 hover:bg-red-700/40'
-                : 'bg-[#2e3a57]/40 text-[#f4e9c8] hover:bg-[#2e3a57]/60'
-        }`}
-    >
-        <span className="text-xl mr-3">{icon}</span>
-        <span className="font-medium">{label}</span>
-    </button>
-);
 
 const SidebarSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="bg-gradient-to-br from-[#1b2233] to-[#2e3a57] border border-[#2e3a57]/80 rounded-xl p-6 shadow-lg">
