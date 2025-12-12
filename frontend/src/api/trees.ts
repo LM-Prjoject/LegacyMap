@@ -368,7 +368,7 @@ async function updateMember(
   return pickData<Person>(json);
 }
 
-async function deleteMember(userId: string, treeId: string, personId: string): Promise<void> {
+async function deleteMember(userId: string, treeId: string, personId: string): Promise<{ message?: string; persons?: Person[]; relationships?: Relationship[]; statistics?: TreeStatistics }> {
   const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/members/${encodeURIComponent(personId)}?userId=${encodeURIComponent(userId)}`;
   const res = await fetch(url, {
     method: "DELETE",
@@ -378,9 +378,13 @@ async function deleteMember(userId: string, treeId: string, personId: string): P
     const j = await safeJson<ApiResponse<any>>(res);
     throw new Error(j?.message || "Xóa thành viên thất bại");
   }
+  
+  // Trả về dữ liệu đã cập nhật nếu backend hỗ trợ, nếu không thì trả về object rỗng
+  const json = await safeJson<ApiResponse<any>>(res);
+  return json || {};
 }
 
-async function deleteMemberSafe(userId: string, treeId: string, personId: string): Promise<void> {
+async function deleteMemberSafe(userId: string, treeId: string, personId: string): Promise<{ message?: string; persons?: Person[]; relationships?: Relationship[]; statistics?: TreeStatistics }> {
   const url = `${API_BASE}/trees/${encodeURIComponent(treeId)}/members/${encodeURIComponent(personId)}/safe?userId=${encodeURIComponent(userId)}`;
   const res = await fetch(url, {
     method: "DELETE",
@@ -390,6 +394,10 @@ async function deleteMemberSafe(userId: string, treeId: string, personId: string
     const j = await safeJson<ApiResponse<any>>(res);
     throw new Error(j?.message || "Xóa thành viên (an toàn) thất bại");
   }
+  
+  // Trả về dữ liệu đã cập nhật nếu backend hỗ trợ, nếu không thì trả về object rỗng
+  const json = await safeJson<ApiResponse<any>>(res);
+  return json || {};
 }
 
 async function listRelationships(

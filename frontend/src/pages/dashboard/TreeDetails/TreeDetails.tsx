@@ -76,6 +76,24 @@ export default function TreeDetails() {
     const treeWrapperRef = useRef<HTMLDivElement | null>(null);
     const [memberListOpen, setMemberListOpen] = useState(false);
 
+    // Helper function để refresh dữ liệu mà không reload trang
+    const refreshTreeData = async () => {
+        if (!treeId || !userId) return;
+        try {
+            const [ps, rs, stats] = await Promise.all([
+                readOnly ? api.listMembersForViewer(userId, treeId) : api.listMembers(userId, treeId),
+                readOnly ? api.listRelationshipsForViewer(userId, treeId) : api.listRelationships(userId, treeId),
+                api.getTreeStatistics(userId, treeId),
+            ]);
+            setPersons(ps);
+            setRels(rs);
+            setStatistics(stats);
+            setGraphVersion((v) => v + 1);
+        } catch (e: any) {
+            console.warn("Không thể refresh dữ liệu:", e);
+        }
+    };
+
     useEffect(() => {
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -244,6 +262,8 @@ export default function TreeDetails() {
                 showToast.success("Thêm thành viên thành công.");
                 // No relationship flow; clear invite choice
                 setPendingInvite(null);
+                // Cập nhật statistics sau khi thêm thành viên
+                await refreshTreeData();
             }
 
         } catch (e: any) {
@@ -289,6 +309,8 @@ export default function TreeDetails() {
             showToast.success("Cập nhật thông tin thành công");
             closeEditModals();
             setGraphVersion((v) => v + 1);
+            // Cập nhật statistics sau khi cập nhật thành viên
+            await refreshTreeData();
             if (
                 isInAddFlow &&
                 pendingNew &&
@@ -348,6 +370,8 @@ export default function TreeDetails() {
             setModalOpen(false);
             setGraphVersion((v) => v + 1);
             showToast.success("Đã hủy thêm thành viên.");
+            // Cập nhật toàn bộ dữ liệu sau khi hủy thêm thành viên
+            await refreshTreeData();
         }
     };
 
@@ -595,6 +619,8 @@ export default function TreeDetails() {
         setGraphVersion((v) => v + 1);
         showToast.success("Đã cập nhật mối quan hệ");
         setModalOpen(false);
+        // Cập nhật toàn bộ dữ liệu sau khi tạo mối quan hệ
+        await refreshTreeData();
     };
 
     const fetchSuggestions = useMemo(() => {
@@ -842,19 +868,24 @@ export default function TreeDetails() {
         if (!treeId || !userId) return;
         const toastId = showToast.loading("Đang xoá an toàn và dọn nhánh…");
         try {
-            await api.deleteMemberSafe(userId, treeId, personId);
-            const [ps, rs] = await Promise.all([
-                api.listMembers(userId, treeId),
-                api.listRelationships(userId, treeId),
-            ]);
-            setPersons(ps);
-            setRels(rs);
+            const result = await api.deleteMemberSafe(userId, treeId, personId);
+            
+            // Nếu backend trả về dữ liệu đã cập nhật, sử dụng luôn
+            if (result.persons && result.relationships && result.statistics) {
+                setPersons(result.persons);
+                setRels(result.relationships);
+                setStatistics(result.statistics);
+            } else {
+                // Fallback: refresh toàn bộ dữ liệu
+                await refreshTreeData();
+            }
+            
             setGraphVersion((v) => v + 1);
             if (selectedPerson && selectedPerson.id === personId) {
                 setIsViewingDetails(false);
                 setSelectedPerson(null);
             }
-            showToast.success("Đã xoá và dọn nhánh không còn nối với gốc");
+            showToast.success(result.message || "Đã xoá và dọn nhánh không còn nối với gốc");
         } catch (e: any) {
             showToast.error(e?.message || "Xoá an toàn thất bại");
         } finally {

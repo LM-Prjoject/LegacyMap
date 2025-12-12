@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Scroll, X, Loader2, User, Link2, ChevronDown } from 'lucide-react';
+import { Scroll, X, Loader2, Link2, ChevronDown } from 'lucide-react';
 import { treeHistoryApi, TreeHistoryItem } from '../../../api/treeHistory';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';

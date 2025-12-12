@@ -16,6 +16,7 @@ import com.legacymap.backend.dto.request.NotificationCreateRequest;
 import com.legacymap.backend.dto.response.TreeShareResponse;
 import com.legacymap.backend.dto.response.SharedTreeAccessInfoResponse;
 import com.legacymap.backend.dto.response.NotificationResponse;
+import com.legacymap.backend.dto.response.FamilyTreeResponse;
 import com.legacymap.backend.exception.AppException;
 import com.legacymap.backend.exception.ErrorCode;
 
@@ -1291,5 +1292,35 @@ public class FamilyTreeService {
             }
             personRepository.findById(pid).ifPresent(personRepository::delete);
         }
+    }
+
+    /**
+     * Lấy thông tin cây gia phả đầy đủ với số lượng thành viên
+     * Sử dụng sau khi xóa thành viên để trả về dữ liệu cập nhật
+     */
+    @Transactional(readOnly = true)
+    public com.legacymap.backend.dto.response.FamilyTreeResponse getFamilyTree(UUID treeId, UUID userId) {
+        // Kiểm tra quyền truy cập
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new AppException(ErrorCode.FAMILY_TREE_NOT_FOUND));
+
+        boolean isOwner = tree.getCreatedBy().getId().equals(userId);
+        boolean hasAccess = treeAccessRepository
+                .findByUserIdAndFamilyTreeId(userId, treeId)
+                .isPresent();
+
+        if (!isOwner && !hasAccess) {
+            throw new AppException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        // Lấy số lượng thành viên hiện tại
+        long memberCount = personRepository.countByFamilyTree_Id(treeId);
+
+        // Tạo response với thông tin cập nhật
+        com.legacymap.backend.dto.response.FamilyTreeResponse response = 
+            com.legacymap.backend.dto.response.FamilyTreeResponse.fromEntity(tree);
+        response.setMemberCount(memberCount);
+
+        return response;
     }
 }
