@@ -123,7 +123,6 @@ function generateStrongPassword(length =18): string {
 
 export default function AccountSecuritySection({
                                                    me,
-                                                   onChanged,
                                                }: { me: any; onChanged?: (u: any) => void }) {
     const [current, setCurrent] = useState("");
     const [nextPwd, setNextPwd] = useState("");
@@ -159,17 +158,19 @@ export default function AccountSecuritySection({
         try {
             await authApi.changePassword({ currentPassword: current, newPassword: nextPwd });
 
-            const iso = new Date().toISOString();
-            const updated = { ...me, passwordChangedAt: iso };
-            localStorage.setItem("user", JSON.stringify(updated));
-            window.dispatchEvent(new Event("storage"));
-
-            onChanged?.(updated);
+            showToast.success("Đổi mật khẩu thành công. Vui lòng đăng nhập lại.");
 
             setCurrent("");
             setNextPwd("");
             setConfirm("");
-            showToast.success("Đổi mật khẩu thành công");
+
+            authApi.logout();
+
+            setTimeout(() => {
+                window.location.href = "/signin";
+            }, 800);
+
+            return;
         } catch (err: any) {
             setError(err?.message || "Đổi mật khẩu thất bại");
             showToast.error(err?.message || "Đổi mật khẩu thất bại");

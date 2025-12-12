@@ -21,44 +21,51 @@ http.interceptors.request.use((config) => {
 // Response interceptor để xử lý lỗi
 http.interceptors.response.use(
     (response) => {
-        console.log('HTTP Response:', {
+        const data = response.data;
+
+        // Nếu backend dùng chuẩn ApiResponse { success, code, message, result }
+        if (data && typeof data === "object" && "success" in data && data.success === false) {
+            const err: any = new Error(data.message || "Request failed");
+            err.code = data.code;
+            err.apiResponse = data;
+            err.response = response; // giữ để debug giống axios error
+            return Promise.reject(err);
+        }
+
+        console.log("HTTP Response:", {
             status: response.status,
             url: response.config.url,
-            data: response.data
+            data: response.data,
         });
+
         return response;
     },
     (error) => {
-        console.error('HTTP Error:', {
+        console.error("HTTP Error:", {
             url: error?.config?.url,
             fullUrl: `${error?.config?.baseURL}${error?.config?.url}`,
             method: error?.config?.method?.toUpperCase(),
             status: error?.response?.status,
             statusText: error?.response?.statusText,
             data: error?.response?.data,
-            headers: error?.config?.headers
+            headers: error?.config?.headers,
         });
 
-        // Xử lý 401 Unauthorized
         if (error?.response?.status === 401) {
-            console.error('Unauthorized - Clearing auth data and redirecting to login');
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-
-            // Redirect to login nếu không phải đang ở trang login
-            if (!window.location.pathname.includes('/signin')) {
-                window.location.href = '/signin';
+            localStorage.removeItem("authToken");
+            localStorage.removeItem("user");
+            if (!window.location.pathname.includes("/signin")) {
+                window.location.href = "/signin";
             }
         }
 
-        // Xử lý 403 Forbidden
         if (error?.response?.status === 403) {
-            console.error('Forbidden - User does not have required role (ADMIN)');
-            showToast.warning('Không đủ quyền truy cập.');
+            showToast.warning("Không đủ quyền truy cập.");
         }
 
         return Promise.reject(error);
     }
 );
+
 
 export default http;

@@ -18,7 +18,7 @@ public enum ErrorCode {
     TOKEN_EXPIRED("Verification token has expired", 1011),
     TOKEN_ALREADY_USED("Verification token has already been used", 1012),
     INVALID_PURPOSE("Invalid token purpose", 1013),
-    INVALID_PASSWORD("Incorrect password", 1024),
+    INVALID_PASSWORD("Mật khẩu hiện tại không đúng",1014),
     BAD_REQUEST("Bad request", 1025),
     NOT_FOUND("Resource not found", 1026),
 
