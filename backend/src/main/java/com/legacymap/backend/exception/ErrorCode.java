@@ -18,7 +18,7 @@ public enum ErrorCode {
     TOKEN_EXPIRED("Token xác minh đã hết hạn", 1011),
     TOKEN_ALREADY_USED("Token xác minh đã được sử dụng", 1012),
     INVALID_PURPOSE("Mục đích token không hợp lệ", 1013),
-    INVALID_PASSWORD("Mật khẩu không đúng", 1024),
+    INVALID_PASSWORD("Mật khẩu hiện tại không đúng", 1024),
     BAD_REQUEST("Yêu cầu không hợp lệ", 1025),
     NOT_FOUND("Không tìm thấy tài nguyên", 1026),
 

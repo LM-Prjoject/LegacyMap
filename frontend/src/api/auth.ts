@@ -146,8 +146,13 @@ export const authApi = {
         return data.result;
     },
 
-    async changePassword(data: { currentPassword: string; newPassword: string }) {
-        const { data: res } = await http.post("/auth/change-password", data);
+    async changePassword(payload: { currentPassword: string; newPassword: string }) {
+        const { data: res } = await http.post<ApiResponse<null>>("/auth/change-password", payload);
+
+        if (!res.success) {
+            throw new Error(res.message || "Đổi mật khẩu thất bại");
+        }
+
         return res;
     },
 
