@@ -162,8 +162,6 @@ const NotificationsPage = () => {
 
   // pending claims
   const [claims, setClaims] = useState<Array<{ personId: string; personFullName: string; familyTreeId: string; linkType: string; invitedAt?: string }>>([]);
-  const [claimsLoaded, setClaimsLoaded] = useState(false);
-
   const [detailModal, setDetailModal] = useState<{ isOpen: boolean; notification: NotificationResponse | null }>({
     isOpen: false,
     notification: null
@@ -222,26 +220,22 @@ const NotificationsPage = () => {
   }, []);
 
   const loadClaims = useCallback(async () => {
-    if (!userId) return;
-    try {
-      setClaimsLoaded(false);
-      const res = await personLinkApi.getMyClaims(userId);
-      const items = (res as any)?.result ?? (res as any)?.content ?? res ?? [];
-      setClaims(
-        items.map((c: any) => ({
-          personId: c.personId,
-          personFullName: c.personFullName,
-          familyTreeId: c.familyTreeId,
-          linkType: c.linkType,
-          invitedAt: c.invitedAt
-        }))
-      );
-    } catch (e: any) {
-      console.warn('Failed to load claims', e);
-    } finally {
-      setClaimsLoaded(true);
-    }
-  }, [userId]);
+  if (!userId) return;
+  try {
+    const res = await personLinkApi.getMyClaims(userId);
+    const items = (res as any)?.result ?? (res as any)?.content ?? res ?? [];
+    setClaims(items.map((c: any) => ({
+      personId: c.personId,
+      personFullName: c.personFullName,
+      familyTreeId: c.familyTreeId,
+      linkType: c.linkType,
+      invitedAt: c.invitedAt
+    })));
+  } catch (e: any) {
+    console.warn('Failed to load claims', e);
+  }
+}, [userId]);
+
 
   const loadNotifications = useCallback(
     async (pageNum = 0) => {
