@@ -225,7 +225,7 @@ export default function ShareTreeModal({ isOpen, onClose, treeId, userId, treeNa
                                     </div>
                                     <p className="text-xs text-gray-500 mt-2">
                                         {!isOwner 
-                                            ? "⚠️ Chỉ chủ sở hữu mới có thể chia sẻ với quyền chỉnh sửa"
+                                            ? "Chỉ chủ sở hữu mới có thể chia sẻ với quyền chỉnh sửa"
                                             : publicPermission === "view"
                                             ? "Người nhận chỉ có thể xem, không thể chỉnh sửa"
                                             : "Người nhận cần đăng nhập để chỉnh sửa cây gia phả"}
