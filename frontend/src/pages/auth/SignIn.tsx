@@ -387,7 +387,6 @@ export default function SignIn({ onClose, onShowPasswordReset, onShowSignUp }: S
                                     )}
 
                                     <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-                                        {/* ... input fields giữ nguyên ... */}
                                         <div>
                                             <label className="block text-sm font-semibold mb-2"
                                                    style={{color: '#2a3548'}}>TÀI KHOẢN</label>

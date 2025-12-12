@@ -16,7 +16,8 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) =
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 25%, #4a5970 50%, #3d4a5f 75%, #2a3548 100%)'}}>
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{background: 'linear-gradient(135deg, #2a3548 0%, #3d4a5f 25%, #4a5970 50%, #3d4a5f 75%, #2a3548 100%)', backdropFilter: 'blur(8px)',
+            zIndex: 999}}>
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
 
             <div className="relative rounded-3xl shadow-2xl max-w-md w-full p-8 animate-scale-in" style={{
@@ -47,7 +48,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, email }) =
                     </p>
                     <p className="font-black break-all">{email}</p>
 
-                    <div className="rounded-xl p-4 mt-4 text-left" style={{
+                    <div className="rounded-xl p-3 mt-4 text-left" style={{
                         background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.2) 0%, rgba(255, 230, 190, 0.1) 100%)',
                         border: '2px solid rgba(255, 216, 155, 0.5)'
                     }}>
@@ -205,7 +206,7 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                             </div>
 
                             {errorMessage && (
-                                <div className="mb-6 p-4 rounded-xl flex items-start gap-3" style={{
+                                <div className="mb-6 p-2.5 rounded-xl flex items-start gap-3" style={{
                                     background: 'linear-gradient(135deg, rgba(255, 216, 155, 0.2) 0%, rgba(255, 230, 190, 0.1) 100%)',
                                     border: '2px solid rgba(255, 216, 155, 0.5)'
                                 }}>
@@ -304,6 +305,7 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                             {...register('confirmPassword')}
                                             type={showConfirmPassword ? "text" : "password"}
                                             disabled={isSubmitting}
+                                            autoComplete="new-password"
                                             className="w-full rounded-xl border-2 px-4 py-3 pr-10 outline-none focus:ring-2 focus:ring-[#2a3548] font-medium disabled:opacity-50"
                                             style={{
                                                 background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.6) 100%)',
@@ -345,6 +347,7 @@ const SignUp: React.FC<SignUpProps> = ({ onClose, onShowSignIn }) => {
                                         <option value="FEMALE">Nữ</option>
                                         <option value="OTHER">Khác</option>
                                     </select>
+
                                 </div>
 
                                 <div>
