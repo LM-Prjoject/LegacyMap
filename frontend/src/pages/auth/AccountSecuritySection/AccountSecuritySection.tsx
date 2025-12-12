@@ -181,9 +181,9 @@ export default function AccountSecuritySection({
     const rawChangedAt = me?.passwordChangedAt ?? me?.password_changed_at ?? null;
 
     const lastChangedLabel = rawChangedAt
-        ? new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" })
+        ? new Intl.DateTimeFormat("vi-VN", {dateStyle: "medium", timeStyle: "short",})
             .format(new Date(rawChangedAt))
-        : "Chưa có dữ liệu";
+        : null;
 
     const hasChanged = Boolean(rawChangedAt);
 
@@ -227,6 +227,7 @@ export default function AccountSecuritySection({
                     </span>
                 </h3>
 
+                {hasChanged && lastChangedLabel && (
                 <div className="flex items-center gap-2 text-sm">
                     <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 ${
                         hasChanged
@@ -239,6 +240,7 @@ export default function AccountSecuritySection({
                         </span>
                     </span>
                 </div>
+                    )}
             </div>
 
             {/* Form */}
